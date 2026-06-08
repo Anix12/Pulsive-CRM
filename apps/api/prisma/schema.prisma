@@ -1,0 +1,534 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/db/generated"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Tenants ──────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id     String       @id @default(cuid())
+  name   String
+  slug   String       @unique
+  plan   TenantPlan   @default(FREE)
+  status TenantStatus @default(ACTIVE)
+
+  // Branding (white-label support)
+  logoUrl      String?
+  primaryColor String? @default("#6366F1")
+  companyName  String?
+  emailFrom    String?
+  emailFromName String?
+
+  // Twilio config (encrypted at app layer)
+  twilioAccountSid  String?
+  twilioAuthToken   String? // AES encrypted
+  twilioPhoneNumber String?
+
+  // WhatsApp config
+  whatsappAccessToken   String? // AES encrypted
+  whatsappPhoneNumberId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  contacts         Contact[]
+  deals            Deal[]
+  dealStages       DealStage[]
+  calls            Call[]
+  messages         Message[]
+  messageTemplates MessageTemplate[]
+  workflows        Workflow[]
+  apiKeys          ApiKey[]
+  auditLogs        AuditLog[]
+  onboarding       OnboardingProgress?
+  integrations     Integration[]
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole   @default(AGENT)
+  status       UserStatus @default(ACTIVE)
+  phone        String?
+  avatarUrl    String?
+
+  refreshTokenHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activities Activity[]
+  auditLogs  AuditLog[]
+  calls      Call[]     @relation("AssignedAgent")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+// ─── Super Admin ──────────────────────────────────────────────────────────────
+
+model SuperAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  impersonationLogs ImpersonationLog[]
+}
+
+model ImpersonationLog {
+  id           String  @id @default(cuid())
+  superAdminId String
+  tenantId     String
+  userId       String?
+  action       String
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+
+  createdAt DateTime @default(now())
+
+  superAdmin SuperAdmin @relation(fields: [superAdminId], references: [id])
+
+  @@index([superAdminId])
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+// ─── Contacts ─────────────────────────────────────────────────────────────────
+
+model Contact {
+  id           String        @id @default(cuid())
+  tenantId     String
+  firstName    String
+  lastName     String?
+  email        String?
+  phone        String
+  whatsapp     String?
+  company      String?
+  jobTitle     String?
+  status       ContactStatus      @default(LEAD)
+  temperature  ContactTemperature?
+  source       String?
+  tags         String[]
+  customFields Json?
+  assignedToId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deals      Deal[]
+  calls      Call[]
+  messages   Message[]
+  activities Activity[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, phone])
+  @@index([tenantId, email])
+}
+
+enum ContactStatus {
+  LEAD
+  PROSPECT
+  CUSTOMER
+  CHURNED
+  BLOCKED
+}
+
+enum ContactTemperature {
+  HOT
+  WARM
+  COLD
+}
+
+// ─── Deal Stages ──────────────────────────────────────────────────────────────
+
+model DealStage {
+  id          String  @id @default(cuid())
+  tenantId    String
+  name        String
+  order       Int
+  probability Int     @default(0)
+  color       String?
+  isWon       Boolean @default(false)
+  isLost      Boolean @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deals  Deal[]
+
+  @@unique([tenantId, order])
+  @@index([tenantId])
+}
+
+// ─── Deals ────────────────────────────────────────────────────────────────────
+
+model Deal {
+  id                String    @id @default(cuid())
+  tenantId          String
+  contactId         String
+  stageId           String
+  title             String
+  value             Decimal?  @db.Decimal(15, 2)
+  currency          String    @default("INR")
+  expectedCloseDate DateTime?
+  assignedToId      String?
+  closedAt          DateTime?
+  isWon             Boolean?
+  lostReason        String?
+  customFields      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact    Contact    @relation(fields: [contactId], references: [id])
+  stage      DealStage  @relation(fields: [stageId], references: [id])
+  activities Activity[]
+
+  @@index([tenantId])
+  @@index([tenantId, stageId])
+  @@index([tenantId, assignedToId])
+  @@index([tenantId, contactId])
+}
+
+// ─── Activities ───────────────────────────────────────────────────────────────
+
+model Activity {
+  id         String       @id @default(cuid())
+  tenantId   String
+  contactId  String?
+  dealId     String?
+  userId     String
+  type       ActivityType
+  subject    String
+  body       String?
+  metadata   Json?
+  occurredAt DateTime     @default(now())
+
+  contact Contact? @relation(fields: [contactId], references: [id])
+  deal    Deal?    @relation(fields: [dealId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, contactId])
+  @@index([tenantId, dealId])
+  @@index([tenantId, occurredAt])
+}
+
+enum ActivityType {
+  CALL
+  SMS
+  WHATSAPP
+  EMAIL
+  NOTE
+  MEETING
+  TASK
+  DEAL_STAGE_CHANGED
+  CONTACT_CREATED
+  DEAL_CREATED
+}
+
+// ─── Calls ────────────────────────────────────────────────────────────────────
+
+model Call {
+  id              String        @id @default(cuid())
+  tenantId        String
+  contactId       String?
+  agentId         String?
+  provider        String        @default("twilio")
+  providerCallSid String?       @unique
+  direction       CallDirection
+  status          CallStatus    @default(INITIATED)
+  fromNumber      String
+  toNumber        String
+  startedAt       DateTime?
+  endedAt         DateTime?
+  duration        Int?
+  recordingUrl    String?
+  recordingSid    String?
+  transcription   String?
+  isAiInitiated   Boolean       @default(false)
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id])
+  agent   User?    @relation("AssignedAgent", fields: [agentId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, agentId])
+  @@index([tenantId, contactId])
+  @@index([providerCallSid])
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  BUSY
+  NO_ANSWER
+  CANCELLED
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+
+model Message {
+  id                String           @id @default(cuid())
+  tenantId          String
+  contactId         String?
+  agentId           String?
+  templateId        String?
+  channel           MessageChannel
+  provider          String
+  providerMessageId String?
+  direction         MessageDirection
+  status            MessageStatus    @default(PENDING)
+  fromNumber        String
+  toNumber          String
+  body              String
+  mediaUrl          String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  failureReason     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact  Contact?         @relation(fields: [contactId], references: [id])
+  template MessageTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, channel])
+  @@index([tenantId, contactId])
+  @@index([tenantId, status])
+}
+
+enum MessageChannel {
+  SMS
+  WHATSAPP
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// ─── Message Templates ────────────────────────────────────────────────────────
+
+model MessageTemplate {
+  id        String         @id @default(cuid())
+  tenantId  String
+  name      String
+  channel   MessageChannel
+  body      String
+  variables String[]
+  isActive  Boolean        @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([tenantId])
+}
+
+// ─── Workflows ────────────────────────────────────────────────────────────────
+
+model Workflow {
+  id          String  @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isActive    Boolean @default(false)
+
+  // { type: "INCOMING_CALL" | "MESSAGE_RECEIVED" | "DEAL_STAGE_CHANGED" | "SCHEDULE", config: {} }
+  trigger Json
+
+  // [{ id, type: "SEND_SMS" | "SEND_WHATSAPP" | "SCHEDULE_CALL" | "CREATE_TASK" | "WEBHOOK", config: {}, nextStepId: string | null }]
+  steps Json
+
+  runCount  Int       @default(0)
+  lastRunAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  executions WorkflowExecution[]
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+}
+
+model WorkflowExecution {
+  id           String                  @id @default(cuid())
+  tenantId     String
+  workflowId   String
+  status       WorkflowExecutionStatus @default(RUNNING)
+  triggerData  Json?
+  currentStep  String?
+  result       Json?
+  errorMessage String?
+  startedAt    DateTime                @default(now())
+  completedAt  DateTime?
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([workflowId])
+  @@index([tenantId, status])
+}
+
+enum WorkflowExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ─── API Keys ─────────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  keyHash    String    @unique
+  keyPrefix  String
+  scopes     String[]
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([keyHash])
+}
+
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, resource])
+  @@index([tenantId, userId])
+  @@index([createdAt])
+}
+
+// ─── Integrations ─────────────────────────────────────────────────────────────
+
+model Integration {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  isActive  Boolean  @default(false)
+  config    Json     @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, type])
+  @@index([tenantId])
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+model OnboardingProgress {
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique
+  addedFirstContact    Boolean   @default(false)
+  connectedTwilio      Boolean   @default(false)
+  madeFirstCall        Boolean   @default(false)
+  createdFirstWorkflow Boolean   @default(false)
+  sentFirstMessage     Boolean   @default(false)
+  completedAt          DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}

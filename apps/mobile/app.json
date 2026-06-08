@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "CRM",
+    "slug": "crm-saas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "crm",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.yourcompany.crm"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
