@@ -48,3 +48,21 @@ export const deleteTemplate = async (req: Request, res: Response, next: NextFunc
     sendSuccess(res, { message: 'Template deleted' });
   } catch (err) { next(err); }
 };
+
+export const aiDraftEmail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.aiDraftEmail(req.body));
+  } catch (err) { next(err); }
+};
+
+export const getEmailConfig = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.getEmailConfig(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
+export const updateEmailConfig = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.upsertEmailConfig(req.tenantId!, req.body));
+  } catch (err) { next(err); }
+};
