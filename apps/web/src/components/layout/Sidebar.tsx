@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Briefcase, Phone, MessageSquare,
-  Zap, TrendingUp, Plug, Settings,
+  Zap, TrendingUp, Plug, Settings, GraduationCap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
@@ -34,6 +34,12 @@ const navGroups = [
     items: [
       { href: '/dashboard/workflows', label: 'Workflows', icon: Zap },
       { href: '/dashboard/reports', label: 'Reports', icon: TrendingUp },
+    ],
+  },
+  {
+    label: 'Admissions',
+    items: [
+      { href: '/dashboard/applications', label: 'Applications', icon: GraduationCap },
     ],
   },
 ];
