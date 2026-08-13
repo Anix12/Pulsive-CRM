@@ -11,6 +11,7 @@ export const UpdateTenantSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   emailFrom: z.string().email().optional(),
   emailFromName: z.string().optional(),
+  inactivityTimeoutMinutes: z.number().int().min(1).max(240).optional(),
 });
 
 export const UpdateTwilioSchema = z.object({
