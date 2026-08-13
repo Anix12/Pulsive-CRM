@@ -1,3 +1,4 @@
+import Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/db/client';
 import { AppError } from '@/middleware/errorHandler';
 import { getPagination } from '@/utils/pagination';
@@ -5,17 +6,19 @@ import { paginationMeta } from '@/utils/response';
 import { getSmsProvider, getWhatsAppProvider } from '@/providers/messaging';
 import { emitToTenant } from '@/websocket';
 import { SOCKET_EVENTS } from '@/config/constants';
+import { env } from '@/config/env';
 import { Request } from 'express';
-import { SendMessageInput, CreateTemplateInput } from './messaging.types';
+import { SendMessageInput, CreateTemplateInput, AiDraftEmailInput, EmailConfigInput } from './messaging.types';
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { channel, contactId, status } = req.query as Record<string, string>;
+  const { channel, contactId, status, agentId } = req.query as Record<string, string>;
 
   const where: any = { tenantId };
   if (channel) where.channel = channel;
   if (contactId) where.contactId = contactId;
   if (status) where.status = status;
+  if (agentId) where.agentId = agentId;
 
   const [messages, total] = await Promise.all([
     prisma.message.findMany({
@@ -152,4 +155,77 @@ export const deleteTemplate = async (tenantId: string, id: string) => {
   const existing = await prisma.messageTemplate.findFirst({ where: { id, tenantId } });
   if (!existing) throw new AppError(404, 'NOT_FOUND', 'Template not found');
   await prisma.messageTemplate.delete({ where: { id } });
+};
+
+// AI-drafted email templates
+export const aiDraftEmail = async (input: AiDraftEmailInput): Promise<{ subject: string; body: string }> => {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AppError(
+      400,
+      'AI_NOT_CONFIGURED',
+      'AI drafting is not configured for this workspace. Set ANTHROPIC_API_KEY to enable it.',
+    );
+  }
+
+  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 1024,
+    system:
+      'You are an expert marketing copywriter for an education/admissions consultancy. ' +
+      'Draft a short, warm, professional outreach email. Use personalization placeholders ' +
+      'like {{firstName}} where appropriate. Respond with ONLY valid JSON in the exact shape ' +
+      '{"subject": "...", "body": "..."} — no markdown fences, no other text. The body should ' +
+      'be plain text (no HTML), concise (under 150 words), and end with a clear call to action.',
+    messages: [
+      {
+        role: 'user',
+        content: `Topic: ${input.topic}${input.tone ? `\nDesired tone: ${input.tone}` : ''}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === 'text');
+  const raw = textBlock && 'text' in textBlock ? textBlock.text : '';
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.subject === 'string' && typeof parsed.body === 'string') {
+      return { subject: parsed.subject, body: parsed.body };
+    }
+    throw new Error('Malformed AI draft response');
+  } catch {
+    return { subject: `Re: ${input.topic}`, body: raw || 'AI draft could not be generated. Please try again.' };
+  }
+};
+
+// Email configuration
+export const getEmailConfig = async (tenantId: string) => {
+  const config = await prisma.emailConfig.findUnique({ where: { tenantId } });
+  if (config) return config;
+  return {
+    id: null,
+    tenantId,
+    provider: 'SES',
+    sendingDomain: null,
+    smtpHost: null,
+    smtpPort: null,
+    smtpUser: null,
+    isVerified: false,
+  };
+};
+
+export const upsertEmailConfig = async (tenantId: string, input: EmailConfigInput) => {
+  const { smtpPassword, ...rest } = input;
+  const data = {
+    ...rest,
+    ...(smtpPassword !== undefined ? { smtpPasswordEnc: smtpPassword } : {}),
+  };
+
+  return prisma.emailConfig.upsert({
+    where: { tenantId },
+    create: { tenantId, ...data },
+    update: data,
+  });
 };
