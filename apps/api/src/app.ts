@@ -14,6 +14,8 @@ import authRoutes from '@/modules/auth/auth.routes';
 import tenantRoutes from '@/modules/tenants/tenants.routes';
 import contactRoutes from '@/modules/contacts/contacts.routes';
 import dealRoutes from '@/modules/deals/deals.routes';
+import programRoutes from '@/modules/programs/programs.routes';
+import applicationRoutes from '@/modules/applications/applications.routes';
 import callRoutes from '@/modules/calls/calls.routes';
 import messagingRoutes from '@/modules/messaging/messaging.routes';
 import workflowRoutes from '@/modules/workflows/workflows.routes';
@@ -63,6 +65,8 @@ export const createApp = () => {
   app.use('/api/v1/tenants', tenantRoutes);
   app.use('/api/v1/contacts', contactRoutes);
   app.use('/api/v1/deals', dealRoutes);
+  app.use('/api/v1/programs', programRoutes);
+  app.use('/api/v1/applications', applicationRoutes);
   app.use('/api/v1/calls', callRoutes);
   app.use('/api/v1/messages', messagingRoutes);
   app.use('/api/v1/workflows', workflowRoutes);
