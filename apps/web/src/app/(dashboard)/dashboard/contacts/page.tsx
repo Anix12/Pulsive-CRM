@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { useState } from 'react';
-import { Plus, Search, Pencil, Trash2, Upload, Users } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Search, Pencil, Trash2, Upload, Users, SlidersHorizontal, Columns3, Flame } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
 import { CsvImportModal } from '@/components/ui/CsvImportModal';
@@ -236,24 +236,90 @@ function TempToggle({ contact }: { contact: any }) {
   );
 }
 
+// ── Customizable columns ──────────────────────────────────────────────────────
+const ALL_COLUMNS = [
+  { key: 'phone', label: 'Phone' },
+  { key: 'company', label: 'Company' },
+  { key: 'source', label: 'Source' },
+  { key: 'temperature', label: 'Temperature' },
+  { key: 'score', label: 'Score' },
+  { key: 'status', label: 'Status' },
+] as const;
+type ColumnKey = typeof ALL_COLUMNS[number]['key'];
+const DEFAULT_COLUMNS: ColumnKey[] = ['phone', 'company', 'temperature', 'score', 'status'];
+
+function ColumnPicker({ columns, onChange }: { columns: ColumnKey[]; onChange: (c: ColumnKey[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const toggle = (key: ColumnKey) => {
+    onChange(columns.includes(key) ? columns.filter((c) => c !== key) : [...columns, key]);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+      >
+        <Columns3 className="h-3.5 w-3.5" />
+        Columns
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-xl border border-gray-100 bg-white p-1.5 shadow-lg">
+          {ALL_COLUMNS.map((c) => (
+            <label key={c.key} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              <input type="checkbox" checked={columns.includes(c.key)} onChange={() => toggle(c.key)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              {c.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Score badge ────────────────────────────────────────────────────────────────
+function ScoreBadge({ score }: { score: number }) {
+  const tier = score >= 50 ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : score >= 20 ? 'bg-amber-50 text-amber-700 ring-amber-100' : 'bg-gray-100 text-gray-500 ring-gray-200';
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1', tier)}>
+      <Flame className="h-2.5 w-2.5" /> {score}
+    </span>
+  );
+}
+
 // ── Contacts Page ─────────────────────────────────────────────────────────────
 export default function ContactsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tempFilter, setTempFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [minScore, setMinScore] = useState('');
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [modal, setModal] = useState<{ open: boolean; contact?: any }>({ open: false });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [columns, setColumns] = useState<ColumnKey[]>(DEFAULT_COLUMNS);
+  const showCol = (k: ColumnKey) => columns.includes(k);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, statusFilter, tempFilter],
+    queryKey: ['contacts', search, statusFilter, tempFilter, sourceFilter, minScore],
     queryFn: async () => {
       const { data } = await api.get('/api/v1/contacts', {
         params: {
           search: search || undefined,
           status: statusFilter || undefined,
           temperature: tempFilter || undefined,
+          source: sourceFilter || undefined,
+          minScore: minScore || undefined,
         },
       });
       return data;
@@ -275,6 +341,7 @@ export default function ContactsPage() {
           {total.toLocaleString()} {total === 1 ? 'contact' : 'contacts'}
         </p>
         <div className="flex items-center gap-2">
+          <ColumnPicker columns={columns} onChange={setColumns} />
           <button
             onClick={() => setImportOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
@@ -292,16 +359,62 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, email, phone…"
-          className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-        />
+      {/* Search + More Filters */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, phone…"
+            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          />
+        </div>
+        <button
+          onClick={() => setMoreFiltersOpen((o) => !o)}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium shadow-sm transition',
+            moreFiltersOpen || sourceFilter || minScore
+              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
+          )}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          More Filters
+        </button>
       </div>
+
+      {moreFiltersOpen && (
+        <div className="flex flex-wrap items-end gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">Source</label>
+            <input
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              placeholder="e.g. Facebook Ads"
+              className="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">Min Score</label>
+            <input
+              value={minScore}
+              onChange={(e) => setMinScore(e.target.value)}
+              type="number"
+              placeholder="0"
+              className="mt-1 w-24 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+          {(sourceFilter || minScore) && (
+            <button
+              onClick={() => { setSourceFilter(''); setMinScore(''); }}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter chips — Status row */}
       <div className="flex flex-wrap items-center gap-2">
@@ -399,11 +512,13 @@ export default function ContactsPage() {
           <table className="min-w-full divide-y divide-gray-50">
             <thead>
               <tr className="bg-gray-50/70">
-                {['Name', 'Phone', 'Company', 'Temperature', 'Status', ''].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                    {h}
+                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name</th>
+                {ALL_COLUMNS.filter((c) => showCol(c.key)).map((c) => (
+                  <th key={c.key} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    {c.label}
                   </th>
                 ))}
+                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -426,25 +541,40 @@ export default function ContactsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{contact.phone}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-500">
-                      {contact.company || <span className="text-gray-300">—</span>}
-                    </td>
-                    {/* Temperature — quick toggle inline */}
-                    <td className="px-5 py-3.5">
-                      {temp ? (
-                        <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold', tempConfig[temp].pill)}>
-                          {tempConfig[temp].emoji} {tempConfig[temp].label}
+                    {showCol('phone') && <td className="px-5 py-3.5 text-sm text-gray-600">{contact.phone}</td>}
+                    {showCol('company') && (
+                      <td className="px-5 py-3.5 text-sm text-gray-500">
+                        {contact.company || <span className="text-gray-300">—</span>}
+                      </td>
+                    )}
+                    {showCol('source') && (
+                      <td className="px-5 py-3.5 text-sm text-gray-500">
+                        {contact.source || <span className="text-gray-300">—</span>}
+                      </td>
+                    )}
+                    {showCol('temperature') && (
+                      <td className="px-5 py-3.5">
+                        {temp ? (
+                          <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold', tempConfig[temp].pill)}>
+                            {tempConfig[temp].emoji} {tempConfig[temp].label}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
+                      </td>
+                    )}
+                    {showCol('score') && (
+                      <td className="px-5 py-3.5">
+                        <ScoreBadge score={contact.score ?? 0} />
+                      </td>
+                    )}
+                    {showCol('status') && (
+                      <td className="px-5 py-3.5">
+                        <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold', statusConfig[contact.status]?.pill ?? 'bg-gray-100 text-gray-500')}>
+                          {statusConfig[contact.status]?.label ?? contact.status}
                         </span>
-                      ) : (
-                        <span className="text-gray-300 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold', statusConfig[contact.status]?.pill ?? 'bg-gray-100 text-gray-500')}>
-                        {statusConfig[contact.status]?.label ?? contact.status}
-                      </span>
-                    </td>
+                      </td>
+                    )}
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                         {/* Inline temperature quick-set */}

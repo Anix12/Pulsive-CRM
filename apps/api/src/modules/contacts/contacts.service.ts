@@ -9,13 +9,16 @@ import { CreateContactInput, UpdateContactInput, CreateContactSchema } from './c
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { search, status, temperature, assignedToId, tag } = req.query as Record<string, string>;
+  const { search, status, temperature, assignedToId, tag, source, campaignId, minScore } = req.query as Record<string, string>;
 
   const where: any = { tenantId };
   if (status) where.status = status;
   if (temperature) where.temperature = temperature;
   if (assignedToId) where.assignedToId = assignedToId;
   if (tag) where.tags = { has: tag };
+  if (source) where.source = source;
+  if (campaignId) where.campaignId = campaignId;
+  if (minScore) where.score = { gte: Number(minScore) };
   if (search) {
     where.OR = [
       { firstName: { contains: search, mode: 'insensitive' } },
@@ -26,8 +29,11 @@ export const list = async (tenantId: string, req: Request) => {
     ];
   }
 
+  const { sortBy } = req.query as Record<string, string>;
+  const orderBy = sortBy === 'score' ? { score: 'desc' as const } : { createdAt: 'desc' as const };
+
   const [contacts, total] = await Promise.all([
-    prisma.contact.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+    prisma.contact.findMany({ where, skip, take: limit, orderBy }),
     prisma.contact.count({ where }),
   ]);
 
