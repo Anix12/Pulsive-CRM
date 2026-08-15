@@ -26,6 +26,8 @@ import integrationRoutes from '@/modules/integrations/integrations.routes';
 import webhookRoutes from '@/modules/webhooks/webhooks.routes';
 import settingsRoutes from '@/modules/settings/settings.routes';
 import presenceRoutes from '@/modules/presence/presence.routes';
+import notificationRoutes from '@/modules/notifications/notifications.routes';
+import taskRoutes from '@/modules/tasks/tasks.routes';
 
 if (env.SENTRY_DSN) {
   Sentry.init({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
@@ -79,6 +81,8 @@ export const createApp = () => {
   app.use('/api/v1/webhooks', webhookRoutes);
   app.use('/api/v1/settings', settingsRoutes);
   app.use('/api/v1/presence', presenceRoutes);
+  app.use('/api/v1/notifications', notificationRoutes);
+  app.use('/api/v1/tasks', taskRoutes);
 
   // Error handling
   app.use(notFoundHandler);
