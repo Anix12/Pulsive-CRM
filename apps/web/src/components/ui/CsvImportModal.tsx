@@ -67,9 +67,22 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onImported: () => void;
+  /** Import endpoint, relative to NEXT_PUBLIC_API_URL. Defaults to the contacts importer. */
+  endpoint?: string;
+  /** Modal title. Defaults to the contacts importer's title. */
+  title?: string;
+  /** Label for the "imported" stat + submit button. Defaults to "Contacts". */
+  resultLabel?: string;
 }
 
-export function CsvImportModal({ open, onClose, onImported }: Props) {
+export function CsvImportModal({
+  open,
+  onClose,
+  onImported,
+  endpoint = '/api/v1/contacts/import',
+  title = 'Import Contacts from CSV',
+  resultLabel = 'Contacts',
+}: Props) {
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -120,7 +133,7 @@ export function CsvImportModal({ open, onClose, onImported }: Props) {
       const form = new FormData();
       form.append('file', file);
       form.append('mapping', JSON.stringify(mapping));
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/contacts/import`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -150,7 +163,7 @@ export function CsvImportModal({ open, onClose, onImported }: Props) {
   const handleClose = () => { reset(); onClose(); };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Import Contacts from CSV" size="lg">
+    <Modal open={open} onClose={handleClose} title={title} size="lg">
       {/* Step indicator */}
       <div className="mb-6 flex items-center gap-2 text-xs text-gray-500">
         {(['upload', 'map', 'result'] as Step[]).map((s, i) => (
@@ -255,7 +268,7 @@ export function CsvImportModal({ open, onClose, onImported }: Props) {
               Back
             </button>
             <button onClick={submit} disabled={loading} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
-              {loading ? 'Importing...' : 'Import Contacts'}
+              {loading ? 'Importing...' : `Import ${resultLabel}`}
             </button>
           </div>
         </div>
@@ -269,7 +282,7 @@ export function CsvImportModal({ open, onClose, onImported }: Props) {
               <CheckCircle2 className="h-6 w-6 text-green-500" />
               <div>
                 <p className="text-2xl font-bold text-green-700">{result.imported}</p>
-                <p className="text-xs text-green-600">Contacts imported</p>
+                <p className="text-xs text-green-600">{resultLabel} imported</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-xl bg-red-50 p-4">
