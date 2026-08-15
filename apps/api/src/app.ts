@@ -22,6 +22,8 @@ import adminRoutes from '@/modules/admin/admin.routes';
 import apiKeyRoutes from '@/modules/api-keys/api-keys.routes';
 import integrationRoutes from '@/modules/integrations/integrations.routes';
 import webhookRoutes from '@/modules/webhooks/webhooks.routes';
+import campaignRoutes from '@/modules/campaigns/campaigns.routes';
+import marketingRoutes from '@/modules/marketing/marketing.routes';
 
 if (env.SENTRY_DSN) {
   Sentry.init({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
@@ -71,6 +73,8 @@ export const createApp = () => {
   app.use('/api/v1/admin', adminRoutes);
   app.use('/api/v1/integrations', integrationRoutes);
   app.use('/api/v1/webhooks', webhookRoutes);
+  app.use('/api/v1/campaigns', campaignRoutes);
+  app.use('/api/v1/marketing', marketingRoutes);
 
   // Error handling
   app.use(notFoundHandler);
