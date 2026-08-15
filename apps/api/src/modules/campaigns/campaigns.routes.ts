@@ -22,6 +22,7 @@ const router = Router();
 router.use(authenticate, requireActiveTenant);
 
 router.get('/', controller.list);
+router.get('/intelligence', controller.intelligence);
 router.get('/:id', controller.getById);
 router.post('/', validate(CreateCampaignSchema), controller.create);
 router.post('/:id/import', upload.single('file'), controller.importCsv);

@@ -30,6 +30,7 @@ import notificationRoutes from '@/modules/notifications/notifications.routes';
 import taskRoutes from '@/modules/tasks/tasks.routes';
 import campaignRoutes from '@/modules/campaigns/campaigns.routes';
 import marketingRoutes from '@/modules/marketing/marketing.routes';
+import forecastRoutes from '@/modules/forecast/forecast.routes';
 
 if (env.SENTRY_DSN) {
   Sentry.init({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
@@ -87,6 +88,7 @@ export const createApp = () => {
   app.use('/api/v1/tasks', taskRoutes);
   app.use('/api/v1/campaigns', campaignRoutes);
   app.use('/api/v1/marketing', marketingRoutes);
+  app.use('/api/v1/forecast', forecastRoutes);
 
   // Error handling
   app.use(notFoundHandler);

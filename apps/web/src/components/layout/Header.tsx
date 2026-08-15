@@ -13,6 +13,8 @@ const pageTitles: [string, string][] = [
   ['/dashboard/messages', 'Messages'],
   ['/dashboard/workflows', 'Workflows'],
   ['/dashboard/reports', 'Reports'],
+  ['/dashboard/forecast', 'Sales Forecast'],
+  ['/dashboard/campaign-intelligence', 'Campaign Intelligence'],
   ['/dashboard/tasks', 'Tasks'],
   ['/dashboard/campaigns', 'Campaigns'],
   ['/dashboard/marketing', 'Marketing'],

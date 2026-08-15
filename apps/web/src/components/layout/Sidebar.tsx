@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Briefcase, Phone, MessageSquare,
   Zap, TrendingUp, Plug, Settings, GraduationCap, FileText,
-  Megaphone, Send, CheckSquare,
+  Megaphone, Send, CheckSquare, LineChart, Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
@@ -39,6 +39,8 @@ const navGroups = [
     items: [
       { href: '/dashboard/workflows', label: 'Workflows', icon: Zap },
       { href: '/dashboard/reports', label: 'Reports', icon: TrendingUp },
+      { href: '/dashboard/forecast', label: 'Sales Forecast', icon: LineChart },
+      { href: '/dashboard/campaign-intelligence', label: 'Campaign Intelligence', icon: Brain },
     ],
   },
   {

@@ -192,3 +192,70 @@ export const importCsv = async (
 
   return { imported: imported.length, failed: errors.length, errors };
 };
+
+// ─── Campaign Intelligence ──────────────────────────────────────────────────────
+
+const isPaidAd = (source: string | null) => !!source && /ad|ads|ppc|google|facebook|meta/i.test(source);
+
+export const campaignIntelligence = async (tenantId: string) => {
+  const campaigns = await prisma.campaign.findMany({
+    where: { tenantId },
+    include: {
+      contacts: { select: { id: true, status: true, source: true, calls: { select: { id: true }, take: 1 }, messages: { select: { id: true }, take: 1 } } },
+    },
+  });
+
+  const rankings = campaigns.map((c) => {
+    const leads = c.contacts.length;
+    const contacted = c.contacts.filter((ct) => ct.calls.length > 0 || ct.messages.length > 0).length;
+    const converted = c.contacts.filter((ct) => ct.status === 'CUSTOMER').length;
+    const lost = c.contacts.filter((ct) => ['CHURNED', 'BLOCKED'].includes(ct.status)).length;
+    const interested = c.contacts.filter((ct) => ['PROSPECT', 'CUSTOMER'].includes(ct.status)).length;
+
+    return {
+      campaignId: c.id,
+      name: c.name,
+      leads,
+      contactPct: leads > 0 ? Math.round((contacted / leads) * 100) : 0,
+      interestPct: leads > 0 ? Math.round((interested / leads) * 100) : 0,
+      conversionPct: leads > 0 ? Math.round((converted / leads) * 100) : 0,
+      lostPct: leads > 0 ? Math.round((lost / leads) * 100) : 0,
+      isPaid: isPaidAd(c.source ?? c.category),
+    };
+  });
+
+  const totalLeads = rankings.reduce((s, r) => s + r.leads, 0);
+  const totalContacted = campaigns.reduce((s, c) => s + c.contacts.filter((ct) => ct.calls.length > 0 || ct.messages.length > 0).length, 0);
+  const totalConverted = campaigns.reduce((s, c) => s + c.contacts.filter((ct) => ct.status === 'CUSTOMER').length, 0);
+  const totalLost = campaigns.reduce((s, c) => s + c.contacts.filter((ct) => ['CHURNED', 'BLOCKED'].includes(ct.status)).length, 0);
+
+  const paid = rankings.filter((r) => r.isPaid);
+  const web = rankings.filter((r) => !r.isPaid);
+  const channelStats = (group: typeof rankings) => {
+    const leads = group.reduce((s, r) => s + r.leads, 0);
+    return {
+      leads,
+      contactedPct: leads > 0 ? Math.round(group.reduce((s, r) => s + (r.contactPct * r.leads) / 100, 0) / leads * 100) : 0,
+      convertedPct: leads > 0 ? Math.round(group.reduce((s, r) => s + (r.conversionPct * r.leads) / 100, 0) / leads * 100) : 0,
+      lostPct: leads > 0 ? Math.round(group.reduce((s, r) => s + (r.lostPct * r.leads) / 100, 0) / leads * 100) : 0,
+    };
+  };
+
+  const best = rankings.slice().sort((a, b) => b.conversionPct - a.conversionPct)[0] ?? null;
+
+  return {
+    kpis: {
+      campaignCount: campaigns.length,
+      totalLeads,
+      contactRate: totalLeads > 0 ? Math.round((totalContacted / totalLeads) * 100) : 0,
+      conversionRate: totalLeads > 0 ? Math.round((totalConverted / totalLeads) * 100) : 0,
+      lostRate: totalLeads > 0 ? Math.round((totalLost / totalLeads) * 100) : 0,
+    },
+    channels: {
+      paidAds: channelStats(paid),
+      webLeads: channelStats(web),
+    },
+    rankings: rankings.sort((a, b) => b.leads - a.leads),
+    bestPerformingCampaign: best,
+  };
+};

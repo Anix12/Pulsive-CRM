@@ -37,6 +37,12 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
   } catch (err) { next(err); }
 };
 
+export const intelligence = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.campaignIntelligence(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
 export const importCsv = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {
