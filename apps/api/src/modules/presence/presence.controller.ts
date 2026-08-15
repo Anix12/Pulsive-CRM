@@ -17,6 +17,11 @@ export const endBreak = async (req: Request, res: Response, next: NextFunction) 
   catch (err) { next(err); }
 };
 
+export const getMyPresence = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await service.getMyPresence(req.user!.id)); }
+  catch (err) { next(err); }
+};
+
 export const listAgentFloor = async (req: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await service.listAgentFloor(req.tenantId!)); }
   catch (err) { next(err); }

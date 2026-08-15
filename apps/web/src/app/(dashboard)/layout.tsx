@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import api from '@/lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -18,6 +19,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (hydrated && !isAuthenticated) router.push('/login');
   }, [hydrated, isAuthenticated, router]);
+
+  // Agent floor status: periodic heartbeat while the dashboard is open in this tab.
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated) return;
+    const ping = () => api.post('/api/v1/presence/heartbeat').catch(() => {});
+    ping();
+    const interval = setInterval(ping, 60000);
+    return () => clearInterval(interval);
+  }, [hydrated, isAuthenticated]);
 
   if (!hydrated || !isAuthenticated) return null;
 

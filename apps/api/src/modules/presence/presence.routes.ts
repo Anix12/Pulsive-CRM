@@ -11,6 +11,7 @@ router.use(authenticate, requireActiveTenant);
 router.post('/heartbeat', controller.heartbeat);
 router.post('/break/start', validate(StartBreakSchema), controller.startBreak);
 router.post('/break/end', controller.endBreak);
+router.get('/me', controller.getMyPresence);
 router.get('/agents', controller.listAgentFloor);
 
 export default router;

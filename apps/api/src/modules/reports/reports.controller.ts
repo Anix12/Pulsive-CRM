@@ -22,3 +22,9 @@ export const aiVsHuman = async (req: Request, res: Response, next: NextFunction)
     sendSuccess(res, await service.aiVsHuman(req.tenantId!, from, to));
   } catch (err) { next(err); }
 };
+
+export const dashboardOverview = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.dashboardOverview(req.tenantId!));
+  } catch (err) { next(err); }
+};

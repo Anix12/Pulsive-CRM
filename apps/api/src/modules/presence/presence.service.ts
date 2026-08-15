@@ -42,6 +42,10 @@ export const endBreak = async (tenantId: string, userId: string) => {
   });
 };
 
+export const getMyPresence = async (userId: string) => {
+  return prisma.agentPresence.findUnique({ where: { userId } });
+};
+
 // Floor status for the dashboard's Agent Activity panel
 export const listAgentFloor = async (tenantId: string) => {
   const [tenant, users, presences] = await Promise.all([

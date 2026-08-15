@@ -143,3 +143,58 @@ export const aiVsHuman = async (tenantId: string, from?: string, to?: string) =>
     },
   };
 };
+
+// ─── Dashboard Overview (KPI tiles + Today's Activity strip) ──────────────────
+
+export const dashboardOverview = async (tenantId: string) => {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday.getTime() - startOfToday.getDay() * 86400000);
+
+  const [
+    totalLeads,
+    todayLeads,
+    pendingFollowups,
+    overdueFollowups,
+    wonDeals,
+    totalClosedDeals,
+    callsToday,
+    smsToday,
+    emailsToday,
+    tasksDueToday,
+    newLeadsThisWeek,
+  ] = await Promise.all([
+    prisma.contact.count({ where: { tenantId } }),
+    prisma.contact.count({ where: { tenantId, createdAt: { gte: startOfToday } } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING' } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { lt: now } } }),
+    prisma.deal.count({ where: { tenantId, isWon: true } }),
+    prisma.deal.count({ where: { tenantId, isWon: { not: null } } }),
+    prisma.call.count({ where: { tenantId, createdAt: { gte: startOfToday } } }),
+    prisma.message.count({ where: { tenantId, channel: 'SMS', direction: 'OUTBOUND', createdAt: { gte: startOfToday } } }),
+    prisma.message.count({ where: { tenantId, channel: 'EMAIL', direction: 'OUTBOUND', createdAt: { gte: startOfToday } } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { gte: startOfToday, lt: new Date(startOfToday.getTime() + 86400000) } } }),
+    prisma.contact.count({ where: { tenantId, createdAt: { gte: startOfWeek } } }),
+  ]);
+
+  const conversionRate = totalClosedDeals > 0 ? Math.round((wonDeals / totalClosedDeals) * 100) : 0;
+
+  return {
+    leads: {
+      total: totalLeads,
+      today: todayLeads,
+      pendingFollowups,
+      overdueFollowups,
+      conversions: wonDeals,
+      conversionRate,
+    },
+    activityToday: {
+      calls: callsToday,
+      sms: smsToday,
+      emails: emailsToday,
+      tasksDue: tasksDueToday,
+      overdueTasks: overdueFollowups,
+      newLeadsThisWeek,
+    },
+  };
+};

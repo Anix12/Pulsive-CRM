@@ -2,9 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
-import { TrendingUp, Phone, MessageSquare, Trophy, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  TrendingUp, Phone, MessageSquare, Trophy, ArrowUpRight, ArrowDownRight,
+  Users, CalendarClock, AlertTriangle, Target, Mail, ListChecks, UserPlus,
+  Coffee, Circle,
+} from 'lucide-react';
 
 function StatCard({
   label,
@@ -65,6 +69,15 @@ function SkeletonCard() {
   );
 }
 
+function agentStatusMeta(status: string) {
+  switch (status) {
+    case 'ACTIVE': return { label: 'Active', dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' };
+    case 'BREAK': return { label: 'On Break', dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' };
+    case 'INACTIVE': return { label: 'Inactive', dot: 'bg-red-400', text: 'text-red-600', bg: 'bg-red-50' };
+    default: return { label: "Hasn't started", dot: 'bg-gray-300', text: 'text-gray-500', bg: 'bg-gray-50' };
+  }
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { data: report, isLoading } = useQuery({
@@ -73,6 +86,24 @@ export default function DashboardPage() {
       const { data } = await api.get('/api/v1/reports/business-performance');
       return data.data;
     },
+  });
+
+  const { data: overview, isLoading: overviewLoading } = useQuery({
+    queryKey: ['reports', 'dashboard-overview'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/reports/dashboard-overview');
+      return data.data;
+    },
+    refetchInterval: 60000,
+  });
+
+  const { data: agentFloor = [] } = useQuery<any[]>({
+    queryKey: ['presence', 'agents'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/presence/agents');
+      return data.data;
+    },
+    refetchInterval: 30000,
   });
 
   const greeting = (() => {
@@ -140,6 +171,54 @@ export default function DashboardPage() {
         <p className="mt-0.5 text-sm text-gray-500">
           Here&apos;s how your team is performing this month.
         </p>
+      </div>
+
+      {/* Lead KPI tiles */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-gray-700">Leads Snapshot</h3>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          {overviewLoading ? (
+            Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            <>
+              <StatCard label="Total Leads" value={overview?.leads?.total ?? 0} icon={Users} iconBg="bg-indigo-50" iconColor="text-indigo-600" />
+              <StatCard label="Today's Leads" value={overview?.leads?.today ?? 0} icon={UserPlus} iconBg="bg-blue-50" iconColor="text-blue-600" />
+              <StatCard label="Pending Follow-ups" value={overview?.leads?.pendingFollowups ?? 0} icon={CalendarClock} iconBg="bg-amber-50" iconColor="text-amber-600" />
+              <StatCard label="Overdue Follow-ups" value={overview?.leads?.overdueFollowups ?? 0} icon={AlertTriangle} iconBg="bg-red-50" iconColor="text-red-600" />
+              <StatCard
+                label="Conversions"
+                value={`${overview?.leads?.conversions ?? 0}`}
+                icon={Target}
+                iconBg="bg-emerald-50"
+                iconColor="text-emerald-600"
+                trend={{ value: overview?.leads?.conversionRate ?? 0, label: 'rate' }}
+              />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Today's Activity strip */}
+      <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <h3 className="mb-4 text-sm font-semibold text-gray-700">Today&apos;s Activity</h3>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { label: 'Calls Made', value: overview?.activityToday?.calls ?? 0, icon: Phone, color: 'text-blue-600' },
+            { label: 'SMS Sent', value: overview?.activityToday?.sms ?? 0, icon: MessageSquare, color: 'text-violet-600' },
+            { label: 'Emails Sent', value: overview?.activityToday?.emails ?? 0, icon: Mail, color: 'text-indigo-600' },
+            { label: 'Tasks Due', value: overview?.activityToday?.tasksDue ?? 0, icon: ListChecks, color: 'text-amber-600' },
+            { label: 'Overdue', value: overview?.activityToday?.overdueTasks ?? 0, icon: AlertTriangle, color: 'text-red-600' },
+            { label: 'New Leads (Week)', value: overview?.activityToday?.newLeadsThisWeek ?? 0, icon: TrendingUp, color: 'text-emerald-600' },
+          ].map((a) => (
+            <div key={a.label} className="flex items-center gap-2.5">
+              <a.icon className={cn('h-4 w-4 shrink-0', a.color)} />
+              <div>
+                <p className="text-base font-bold text-gray-900">{a.value}</p>
+                <p className="text-[11px] text-gray-400">{a.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Stats */}
@@ -259,6 +338,56 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Agent Activity */}
+      <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Agent Activity</h3>
+            <p className="text-xs text-gray-400">Live floor status</p>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] text-gray-400">
+            {['ACTIVE', 'BREAK', 'INACTIVE', 'NOT_STARTED'].map((s) => {
+              const meta = agentStatusMeta(s);
+              return (
+                <span key={s} className="flex items-center gap-1">
+                  <Circle className={cn('h-2 w-2 fill-current', meta.dot.replace('bg-', 'text-'))} />
+                  {meta.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        {agentFloor.length === 0 ? (
+          <p className="py-6 text-center text-sm text-gray-400">No agents on the floor yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {agentFloor.map((a) => {
+              const meta = agentStatusMeta(a.status);
+              const initials = a.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+              return (
+                <div key={a.userId} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-600">
+                      {initials}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-gray-900">{a.name}</p>
+                      <p className="text-[11px] capitalize text-gray-400">{a.role?.toLowerCase()}</p>
+                    </div>
+                  </div>
+                  <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold', meta.bg, meta.text)}>
+                    {a.status === 'BREAK' ? <Coffee className="h-3 w-3" /> : <Circle className="h-2 w-2 fill-current" />}
+                    {meta.label}
+                    {a.status === 'BREAK' && a.breakMinutes !== null && ` · ${a.breakMinutes}m`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

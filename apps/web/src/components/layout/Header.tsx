@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { BreakToggle } from './BreakToggle';
 
 const pageTitles: [string, string][] = [
   ['/dashboard/contacts', 'Contacts'],
@@ -41,6 +42,7 @@ export function Header() {
       <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
 
       <div className="flex items-center gap-1">
+        <BreakToggle />
         <NotificationBell />
 
         <div className="mx-2 h-4 w-px bg-gray-200" />
