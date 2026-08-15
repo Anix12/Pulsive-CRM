@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Briefcase, Phone, MessageSquare,
-  Zap, TrendingUp, Plug, Settings, GraduationCap,
+  Zap, TrendingUp, Plug, Settings, GraduationCap, FileText,
+  Megaphone, Send, CheckSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
@@ -18,8 +19,10 @@ const navGroups = [
   {
     label: 'Sales',
     items: [
-      { href: '/dashboard/contacts', label: 'Contacts', icon: Users },
+      { href: '/dashboard/contacts', label: 'Leads', icon: Users },
       { href: '/dashboard/deals', label: 'Pipeline', icon: Briefcase },
+      { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone },
+      { href: '/dashboard/tasks', label: 'Tasks', icon: CheckSquare },
     ],
   },
   {
@@ -27,6 +30,8 @@ const navGroups = [
     items: [
       { href: '/dashboard/calls', label: 'Calls', icon: Phone },
       { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
+      { href: '/dashboard/templates', label: 'Templates', icon: FileText },
+      { href: '/dashboard/marketing', label: 'Marketing', icon: Send },
     ],
   },
   {

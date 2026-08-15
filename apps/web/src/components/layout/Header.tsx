@@ -2,7 +2,8 @@
 
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Bell } from 'lucide-react';
+import { LogOut } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 
 const pageTitles: [string, string][] = [
   ['/dashboard/contacts', 'Contacts'],
@@ -11,6 +12,11 @@ const pageTitles: [string, string][] = [
   ['/dashboard/messages', 'Messages'],
   ['/dashboard/workflows', 'Workflows'],
   ['/dashboard/reports', 'Reports'],
+  ['/dashboard/tasks', 'Tasks'],
+  ['/dashboard/campaigns', 'Campaigns'],
+  ['/dashboard/marketing', 'Marketing'],
+  ['/dashboard/templates', 'Templates'],
+  ['/dashboard/applications', 'Applications'],
   ['/dashboard/integrations', 'Integrations'],
   ['/dashboard/settings', 'Settings'],
   ['/dashboard', 'Dashboard'],
@@ -35,12 +41,7 @@ export function Header() {
       <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
 
       <div className="flex items-center gap-1">
-        <button
-          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
 
         <div className="mx-2 h-4 w-px bg-gray-200" />
 

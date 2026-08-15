@@ -1,5 +1,6 @@
 import { PrismaClient } from '../src/db/generated';
 import bcrypt from 'bcryptjs';
+import { seedAdmissionsTemplates } from './seed-templates';
 
 const prisma = new PrismaClient();
 
@@ -199,6 +200,11 @@ async function main() {
   }
 
   console.log(`Seeded ${dealsCreated} deals`);
+
+  // ── Message Templates ────────────────────────────────────────────────────────
+  await seedAdmissionsTemplates(tenant.id);
+  console.log('Seeded admissions outreach templates');
+
   console.log('');
   console.log('────────────────────────────────────────────');
   console.log('  Login credentials');
