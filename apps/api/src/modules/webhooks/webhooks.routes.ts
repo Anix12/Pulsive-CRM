@@ -15,5 +15,6 @@ router.post('/google-ads/:tenantId', controller.googleAds);
 router.get('/facebook-leads/:tenantId', controller.facebookVerify);
 router.post('/facebook-leads/:tenantId', controller.facebookLeads);
 router.post('/google-forms/:tenantId', controller.googleForms);
+router.post('/custom/:tenantId', controller.custom);
 
 export default router;

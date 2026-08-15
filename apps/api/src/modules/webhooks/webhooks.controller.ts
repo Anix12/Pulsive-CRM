@@ -58,6 +58,28 @@ export const indiamart = async (req: Request, res: Response) => {
   sendSuccess(res, { received: true });
 };
 
+// Custom Integration: POST /webhooks/custom/:tenantId
+// A generic catch-all for landing pages, other CRMs, or custom apps — accepts
+// common field-name variants rather than requiring an exact schema.
+export const custom = async (req: Request, res: Response) => {
+  const { tenantId } = req.params;
+  const b = req.body || {};
+  const nameField = b.name || b.fullName || b.full_name || '';
+  const { firstName, lastName } = b.firstName ? { firstName: b.firstName, lastName: b.lastName } : splitName(nameField);
+  const lead: LeadData = {
+    firstName,
+    lastName,
+    phone: b.phone || b.mobile || b.phoneNumber || b.contact || '',
+    email: b.email || b.emailAddress,
+    company: b.company || b.organization,
+    source: b.source || 'Custom Integration',
+    note: b.message || b.note || b.notes,
+  };
+  if (!lead.phone) return res.status(400).json({ error: 'Missing phone' });
+  await createContactFromLead(tenantId, lead);
+  sendSuccess(res, { received: true });
+};
+
 // JustDial: POST /webhooks/justdial/:tenantId
 export const justdial = async (req: Request, res: Response) => {
   const { tenantId } = req.params;

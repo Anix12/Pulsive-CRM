@@ -17,6 +17,7 @@ interface IntegrationDef {
   fields: { key: string; label: string; placeholder: string; secret?: boolean }[];
   webhookBased: boolean;
   webhookInstructions?: (webhookUrl: string) => React.ReactNode;
+  comingSoon?: boolean;
 }
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -214,6 +215,64 @@ function onFormSubmit(e) {
     ),
   },
   {
+    type: 'GOOGLE_SHEETS',
+    label: 'Google Sheets',
+    category: 'Lead Generation',
+    description: 'Auto-imports new rows as leads from a shared Google Sheet every 5 minutes.',
+    color: '#0F9D58',
+    domain: 'sheets.google.com',
+    fields: [
+      { key: 'sheetUrl', label: 'Google Sheet URL', placeholder: 'https://docs.google.com/spreadsheets/d/…' },
+      { key: 'sheetName', label: 'Sheet / Tab Name (optional)', placeholder: 'Sheet1' },
+    ],
+    webhookBased: false,
+    webhookInstructions: () => (
+      <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+        <p className="text-xs font-semibold text-emerald-800">How to connect a Google Sheet</p>
+        <ol className="space-y-2 text-xs text-emerald-700">
+          <li className="flex gap-2"><span className="font-bold shrink-0">1.</span><span>Open your sheet → <strong>Share</strong> → set access to <strong>Anyone with the link can view</strong></span></li>
+          <li className="flex gap-2"><span className="font-bold shrink-0">2.</span><span>Paste the sheet URL above. Include the tab name if leads aren&apos;t on the first tab.</span></li>
+          <li className="flex gap-2"><span className="font-bold shrink-0">3.</span><span>Use column headers <em>Name, Phone, Email, Company</em> — new rows are imported as leads automatically every 5 minutes.</span></li>
+        </ol>
+      </div>
+    ),
+  },
+  {
+    type: 'CUSTOM',
+    label: 'Custom Integration',
+    category: 'Lead Generation',
+    description: 'A generic webhook endpoint for landing pages, other CRMs, or custom apps.',
+    color: '#334155',
+    domain: 'example.com',
+    fields: [],
+    webhookBased: true,
+    webhookInstructions: (webhookUrl: string) => (
+      <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <p className="text-xs font-semibold text-gray-700">Payload format</p>
+        <p className="text-xs text-gray-500">POST JSON to the webhook URL above. Common field names are matched automatically:</p>
+        <pre className="overflow-x-auto rounded-lg bg-gray-900 p-3 text-[11px] leading-relaxed text-green-300">{`{
+  "name": "Jane Doe",
+  "phone": "+919876500000",
+  "email": "jane@example.com",
+  "company": "Acme Inc",
+  "source": "Landing Page",
+  "message": "Interested in demo"
+}`}</pre>
+      </div>
+    ),
+  },
+  {
+    type: 'ZAPIER',
+    label: 'Zapier',
+    category: 'Automation',
+    description: 'Connect to 5,000+ apps through Zapier. Coming soon.',
+    color: '#FF4A00',
+    domain: 'zapier.com',
+    fields: [],
+    webhookBased: false,
+    comingSoon: true,
+  },
+  {
     type: 'EXOTEL',
     label: 'Exotel',
     category: 'Calling',
@@ -365,13 +424,17 @@ export default function IntegrationsPage() {
                   key={def.type}
                   className={cn(
                     'flex flex-col justify-between rounded-xl border bg-white p-5 shadow-sm transition',
-                    connected ? 'border-emerald-100' : 'border-gray-100',
+                    def.comingSoon ? 'border-gray-100 opacity-60' : connected ? 'border-emerald-100' : 'border-gray-100',
                   )}
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <IntegrationLogo domain={def.domain} label={def.label} color={def.color} />
-                      {connected ? (
+                      {def.comingSoon ? (
+                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">
+                          Coming Soon
+                        </span>
+                      ) : connected ? (
                         <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
                           <CheckCircle2 className="h-3 w-3" />
                           Connected
@@ -393,7 +456,8 @@ export default function IntegrationsPage() {
                   <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => openConfigure(def)}
-                      className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+                      disabled={def.comingSoon}
+                      className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
                     >
                       {connected ? 'Reconfigure' : 'Configure'}
                     </button>
@@ -493,16 +557,18 @@ export default function IntegrationsPage() {
 
             {/* Per-integration setup instructions */}
             {active.webhookInstructions && (
-              webhookUrl
-                ? active.webhookInstructions(webhookUrl)
-                : (
-                  <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                    <p className="text-xs font-semibold text-amber-800">Setup instructions</p>
-                    <p className="mt-1 text-xs text-amber-700">
-                      Click <strong>Save &amp; Enable</strong> first — your personalised Apps Script code will appear here with your webhook URL pre-filled.
-                    </p>
-                  </div>
-                )
+              !active.webhookBased
+                ? active.webhookInstructions(webhookUrl ?? '')
+                : webhookUrl
+                  ? active.webhookInstructions(webhookUrl)
+                  : (
+                    <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                      <p className="text-xs font-semibold text-amber-800">Setup instructions</p>
+                      <p className="mt-1 text-xs text-amber-700">
+                        Click <strong>Save &amp; Enable</strong> first — your personalised Apps Script code will appear here with your webhook URL pre-filled.
+                      </p>
+                    </div>
+                  )
             )}
 
             {saveError && (

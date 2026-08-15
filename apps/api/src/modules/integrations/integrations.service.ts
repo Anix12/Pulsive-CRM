@@ -12,21 +12,37 @@ export const INTEGRATION_TYPES = [
   'GOOGLE_ADS',
   'FACEBOOK_LEADS',
   'GOOGLE_FORMS',
+  'GOOGLE_SHEETS',
+  'CUSTOM',
   'EXOTEL',
 ] as const;
 
 export type IntegrationType = (typeof INTEGRATION_TYPES)[number];
 
+// Not yet wired to a live connector — shown in the catalog as a placeholder.
+export const COMING_SOON_TYPES = ['ZAPIER'] as const;
+
 export const list = async (tenantId: string) => {
   const saved = await prisma.integration.findMany({ where: { tenantId } });
   const savedMap = Object.fromEntries(saved.map((i) => [i.type, i]));
 
-  return INTEGRATION_TYPES.map((type) => ({
+  const live = INTEGRATION_TYPES.map((type) => ({
     type,
     isActive: savedMap[type]?.isActive ?? false,
     config: savedMap[type]?.config ?? {},
     webhookUrl: hasWebhook(type) ? `${env.API_URL}/api/v1/webhooks/${type.toLowerCase().replace('_', '-')}/${tenantId}` : null,
+    comingSoon: false,
   }));
+
+  const comingSoon = COMING_SOON_TYPES.map((type) => ({
+    type,
+    isActive: false,
+    config: {},
+    webhookUrl: null,
+    comingSoon: true,
+  }));
+
+  return [...live, ...comingSoon];
 };
 
 export const upsert = async (tenantId: string, type: string, config: Record<string, string>) => {
@@ -48,4 +64,4 @@ export const disconnect = async (tenantId: string, type: string) => {
   });
 };
 
-const hasWebhook = (type: string) => type !== 'EXOTEL';
+const hasWebhook = (type: string) => type !== 'EXOTEL' && type !== 'GOOGLE_SHEETS';
