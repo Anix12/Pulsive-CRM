@@ -16,9 +16,13 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY . .
 RUN pnpm --filter api exec prisma generate
 # Type errors are surfaced but don't block this temporary-demo build; tsc still
-# emits JS on error since noEmitOnError isn't set. Fix the errors properly before
-# using this Dockerfile for a real production deploy.
-RUN pnpm --filter api build || true
+# emits JS on error since noEmitOnError isn't set. tsc-alias must run regardless
+# of tsc's exit code, so these run as separate steps rather than via the
+# package.json "build" script (which short-circuits on tsc's non-zero exit).
+# Fix the underlying type errors properly before using this Dockerfile for a
+# real production deploy.
+RUN pnpm --filter api exec tsc -p tsconfig.build.json || true
+RUN pnpm --filter api exec tsc-alias -p tsconfig.build.json
 RUN test -f apps/api/dist/server.js || (echo "Build produced no output" && exit 1)
 
 # Production image
