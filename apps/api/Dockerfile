@@ -23,6 +23,11 @@ RUN pnpm --filter api exec prisma generate
 # real production deploy.
 RUN pnpm --filter api exec tsc -p tsconfig.build.json || true
 RUN pnpm --filter api exec tsc-alias -p tsconfig.build.json
+# The Prisma client is generated as plain .js, which tsc's TS-only compilation
+# never copies into dist/ (only the stray .d.ts files inside that folder get
+# picked up). Replace whatever partial dist/db/generated tsc produced with the
+# real generated client, built for this container's platform.
+RUN rm -rf apps/api/dist/db/generated && cp -r apps/api/src/db/generated apps/api/dist/db/generated
 RUN test -f apps/api/dist/server.js || (echo "Build produced no output" && exit 1)
 
 # Production image
