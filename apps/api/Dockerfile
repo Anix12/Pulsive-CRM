@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install dependencies
 FROM base AS deps
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/types/package.json ./packages/types/
 RUN pnpm install --frozen-lockfile --filter api...
