@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Phone, Mail, Building, Tag } from 'lucide-react';
 import { format } from 'date-fns';
+import { getInitials } from '@/lib/utils';
 
 const statusColors: Record<string, string> = {
   LEAD: 'bg-blue-50 text-blue-700',
@@ -40,10 +41,10 @@ export default function ContactDetailPage() {
         </button>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
-            {contact.firstName[0]}{contact.lastName?.[0] || ''}
+            {getInitials(contact.name)}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{contact.firstName} {contact.lastName}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{contact.name}</h1>
             {contact.jobTitle && <p className="text-sm text-gray-500">{contact.jobTitle}</p>}
           </div>
           <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[contact.status] || ''}`}>

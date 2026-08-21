@@ -130,7 +130,7 @@ function WorkflowFormModal({ open, onClose }: { open: boolean; onClose: () => vo
                     <textarea
                       {...register(`steps.${i}.config.message`)}
                       rows={2}
-                      placeholder="Hi {{firstName}}, ..."
+                      placeholder="Hi {{name}}, ..."
                       className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
                     />
                   </div>

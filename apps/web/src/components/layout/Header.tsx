@@ -40,18 +40,18 @@ export function Header() {
     'Dashboard';
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white px-6">
-      <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-6 backdrop-blur-xl">
+      <h1 className="text-[15px] font-semibold text-white/90">{title}</h1>
 
       <div className="flex items-center gap-1">
         <BreakToggle />
         <NotificationBell />
 
-        <div className="mx-2 h-4 w-px bg-gray-200" />
+        <div className="mx-2 h-4 w-px bg-white/10" />
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white/50 transition-colors hover:bg-red-500/10 hover:text-red-400"
         >
           <LogOut className="h-3.5 w-3.5" />
           Sign out

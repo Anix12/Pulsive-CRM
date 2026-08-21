@@ -25,7 +25,8 @@ export const aiVsHuman = async (req: Request, res: Response, next: NextFunction)
 
 export const dashboardOverview = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    sendSuccess(res, await service.dashboardOverview(req.tenantId!));
+    const { from, to } = req.query as Record<string, string>;
+    sendSuccess(res, await service.dashboardOverview(req.tenantId!, from, to));
   } catch (err) { next(err); }
 };
 

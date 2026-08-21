@@ -41,8 +41,7 @@ export const getById = async (tenantId: string, id: string) => {
         take: 20,
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
+          name: true,
           phone: true,
           email: true,
           status: true,

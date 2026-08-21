@@ -14,15 +14,15 @@ export const list = async (tenantId: string, req: Request) => {
   const where: any = { tenantId };
   if (status) where.status = status;
   if (temperature) where.temperature = temperature;
-  if (assignedToId) where.assignedToId = assignedToId;
+  if (assignedToId === 'unassigned') where.assignedToId = null;
+  else if (assignedToId) where.assignedToId = assignedToId;
   if (tag) where.tags = { has: tag };
   if (source) where.source = source;
   if (campaignId) where.campaignId = campaignId;
   if (minScore) where.score = { gte: Number(minScore) };
   if (search) {
     where.OR = [
-      { firstName: { contains: search, mode: 'insensitive' } },
-      { lastName: { contains: search, mode: 'insensitive' } },
+      { name: { contains: search, mode: 'insensitive' } },
       { email: { contains: search, mode: 'insensitive' } },
       { phone: { contains: search } },
       { company: { contains: search, mode: 'insensitive' } },
@@ -33,7 +33,13 @@ export const list = async (tenantId: string, req: Request) => {
   const orderBy = sortBy === 'score' ? { score: 'desc' as const } : { createdAt: 'desc' as const };
 
   const [contacts, total] = await Promise.all([
-    prisma.contact.findMany({ where, skip, take: limit, orderBy }),
+    prisma.contact.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      include: { assignedTo: { select: { id: true, firstName: true, lastName: true } } },
+    }),
     prisma.contact.count({ where }),
   ]);
 
@@ -46,6 +52,7 @@ export const getById = async (tenantId: string, id: string) => {
     include: {
       activities: { orderBy: { occurredAt: 'desc' }, take: 20 },
       deals: { include: { stage: true } },
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
     },
   });
   if (!contact) throw new AppError(404, 'NOT_FOUND', 'Contact not found');
@@ -64,7 +71,7 @@ export const create = async (tenantId: string, userId: string, input: CreateCont
         contactId: contact.id,
         userId,
         type: 'CONTACT_CREATED',
-        subject: `Contact ${contact.firstName} created`,
+        subject: `Contact ${contact.name} created`,
       },
     }),
     prisma.onboardingProgress.updateMany({

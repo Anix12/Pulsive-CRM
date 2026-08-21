@@ -58,13 +58,11 @@ export const syncGoogleSheets = async (): Promise<void> => {
         if (existing) continue;
 
         const fullName = pick(row, ['name', 'full name']) || '';
-        const [firstName, ...rest] = fullName.split(' ');
 
         await prisma.contact.create({
           data: {
             tenantId: integration.tenantId,
-            firstName: firstName || 'Unknown',
-            lastName: rest.join(' ') || undefined,
+            name: fullName.trim() || 'Unknown',
             phone,
             email: pick(row, ['email', 'email address']),
             company: pick(row, ['company', 'organisation', 'organization']),

@@ -8,7 +8,7 @@ import { createNotification } from '@/modules/notifications/notifications.servic
 import { CreateTaskInput, UpdateTaskInput } from './tasks.types';
 
 const includeRelations = {
-  contact: { select: { id: true, firstName: true, lastName: true } },
+  contact: { select: { id: true, name: true } },
   assignedTo: { select: { id: true, firstName: true, lastName: true } },
 };
 

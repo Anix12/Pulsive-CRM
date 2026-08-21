@@ -383,7 +383,7 @@ export default function TemplatesPage() {
               {...form.register('body')}
               rows={6}
               className={inputCls}
-              placeholder="Write your message here. Use {{variableName}} for personalization, e.g. Hi {{firstName}}..."
+              placeholder="Write your message here. Use {{variableName}} for personalization, e.g. Hi {{name}}..."
             />
             {form.formState.errors.body && (
               <p className="mt-1 text-xs text-red-500">{form.formState.errors.body.message}</p>

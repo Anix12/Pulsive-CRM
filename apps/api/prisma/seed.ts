@@ -122,8 +122,7 @@ async function main() {
       contact = await prisma.contact.create({
         data: {
           tenantId: tenant.id,
-          firstName: c.firstName,
-          lastName: c.lastName,
+          name: `${c.firstName} ${c.lastName}`.trim(),
           phone: c.phone,
           email: c.email,
           company: c.company,

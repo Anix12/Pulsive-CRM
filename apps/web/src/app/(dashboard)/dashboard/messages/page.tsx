@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { useState } from 'react';
 import { Search, Send, MessageSquare, Users, Wifi, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { Modal } from '@/components/ui/Modal';
 
@@ -61,7 +61,7 @@ export default function MessagesPage() {
   });
 
   const filteredContacts = (contacts || []).filter((c: any) =>
-    `${c.firstName} ${c.lastName} ${c.phone}`.toLowerCase().includes(search.toLowerCase())
+    `${c.name} ${c.phone}`.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -106,10 +106,10 @@ export default function MessagesPage() {
               )}
             >
               <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-                {c.firstName[0]}{c.lastName?.[0] || ''}
+                {getInitials(c.name)}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-gray-900">{c.firstName} {c.lastName}</p>
+                <p className="truncate text-sm font-medium text-gray-900">{c.name}</p>
                 <p className="text-xs text-gray-500">{c.phone}</p>
               </div>
             </button>
@@ -161,10 +161,10 @@ export default function MessagesPage() {
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-                {selectedContact.firstName[0]}{selectedContact.lastName?.[0] || ''}
+                {getInitials(selectedContact.name)}
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{selectedContact.firstName} {selectedContact.lastName}</p>
+                <p className="text-sm font-semibold text-gray-900">{selectedContact.name}</p>
                 <p className="text-xs text-gray-500">{selectedContact.phone}</p>
               </div>
             </div>

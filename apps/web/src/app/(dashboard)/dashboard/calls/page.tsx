@@ -63,7 +63,7 @@ function InitiateCallModal({ open, onClose }: { open: boolean; onClose: () => vo
           <select {...register('contactId')} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
             <option value="">Choose a contact...</option>
             {(contactsData || []).map((c: any) => (
-              <option key={c.id} value={c.id}>{c.firstName} {c.lastName} — {c.phone}</option>
+              <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>
             ))}
           </select>
           {errors.contactId && <p className="mt-1 text-xs text-red-500">{errors.contactId.message}</p>}
@@ -149,7 +149,7 @@ export default function CallsPage() {
               {data.data.map((call: any) => (
                 <tr key={call.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {call.contact ? `${call.contact.firstName} ${call.contact.lastName || ''}` : call.toNumber}
+                    {call.contact ? call.contact.name : call.toNumber}
                   </td>
                   <td className="px-4 py-3">
                     {call.direction === 'OUTBOUND'

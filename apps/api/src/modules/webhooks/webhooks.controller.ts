@@ -4,8 +4,7 @@ import prisma from '@/db/client';
 import { sendSuccess } from '@/utils/response';
 
 interface LeadData {
-  firstName: string;
-  lastName?: string;
+  name: string;
   phone: string;
   email?: string;
   company?: string;
@@ -22,8 +21,7 @@ async function createContactFromLead(tenantId: string, lead: LeadData) {
   return prisma.contact.create({
     data: {
       tenantId,
-      firstName: lead.firstName,
-      lastName: lead.lastName,
+      name: lead.name,
       phone: lead.phone,
       email: lead.email,
       company: lead.company,
@@ -34,19 +32,16 @@ async function createContactFromLead(tenantId: string, lead: LeadData) {
   });
 }
 
-function splitName(full: string): { firstName: string; lastName?: string } {
-  const parts = (full || '').trim().split(' ');
-  return { firstName: parts[0] || 'Unknown', lastName: parts.slice(1).join(' ') || undefined };
+function cleanName(full: string): string {
+  return (full || '').trim() || 'Unknown';
 }
 
 // IndiaMART: POST /webhooks/indiamart/:tenantId
 export const indiamart = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.SENDER_NAME || b.name || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.SENDER_NAME || b.name || ''),
     phone: b.SENDER_MOBILE || b.mobile || '',
     email: b.SENDER_EMAIL || b.email,
     company: b.SENDER_COMPANY || b.company,
@@ -64,11 +59,9 @@ export const indiamart = async (req: Request, res: Response) => {
 export const custom = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body || {};
-  const nameField = b.name || b.fullName || b.full_name || '';
-  const { firstName, lastName } = b.firstName ? { firstName: b.firstName, lastName: b.lastName } : splitName(nameField);
+  const nameField = b.name || b.fullName || b.full_name || `${b.firstName || ''} ${b.lastName || ''}`;
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(nameField),
     phone: b.phone || b.mobile || b.phoneNumber || b.contact || '',
     email: b.email || b.emailAddress,
     company: b.company || b.organization,
@@ -84,10 +77,8 @@ export const custom = async (req: Request, res: Response) => {
 export const justdial = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.name || b.NAME || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.name || b.NAME || ''),
     phone: b.mobile || b.phone || b.MOBILE || '',
     email: b.email || b.EMAIL,
     company: b.company || b.COMPANY,
@@ -103,10 +94,8 @@ export const justdial = async (req: Request, res: Response) => {
 export const tradeindia = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.name || b.buyer_name || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.name || b.buyer_name || ''),
     phone: b.mobile || b.phone || b.buyer_mobile || '',
     email: b.email || b.buyer_email,
     company: b.company || b.buyer_company,
@@ -122,10 +111,8 @@ export const tradeindia = async (req: Request, res: Response) => {
 export const sulekha = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.name || b.customer_name || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.name || b.customer_name || ''),
     phone: b.mobile || b.phone || b.customer_phone || '',
     email: b.email || b.customer_email,
     company: b.company,
@@ -141,10 +128,8 @@ export const sulekha = async (req: Request, res: Response) => {
 export const acres99 = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.name || b.buyer_name || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.name || b.buyer_name || ''),
     phone: b.phone || b.mobile || b.buyer_phone || '',
     email: b.email || b.buyer_email,
     company: b.company,
@@ -160,10 +145,8 @@ export const acres99 = async (req: Request, res: Response) => {
 export const magicbricks = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.name || b.buyerName || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.name || b.buyerName || ''),
     phone: b.phone || b.mobile || b.buyerPhone || '',
     email: b.email || b.buyerEmail,
     company: b.company,
@@ -179,10 +162,8 @@ export const magicbricks = async (req: Request, res: Response) => {
 export const housing = async (req: Request, res: Response) => {
   const { tenantId } = req.params;
   const b = req.body;
-  const { firstName, lastName } = splitName(b.name || b.lead_name || '');
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(b.name || b.lead_name || ''),
     phone: b.phone || b.mobile || b.lead_phone || '',
     email: b.email || b.lead_email,
     company: b.company,
@@ -208,12 +189,8 @@ export const googleAds = async (req: Request, res: Response) => {
     fields[key] = val;
   });
 
-  const { firstName, lastName } = splitName(
-    fields['full_name'] || fields['name'] || `${fields['first_name'] || ''} ${fields['last_name'] || ''}`.trim()
-  );
   const lead: LeadData = {
-    firstName,
-    lastName,
+    name: cleanName(fields['full_name'] || fields['name'] || `${fields['first_name'] || ''} ${fields['last_name'] || ''}`),
     phone: fields['phone_number'] || fields['phone'] || b.phone || '',
     email: fields['email'] || b.email,
     source: 'Google Ads',
@@ -282,16 +259,13 @@ export const facebookLeads = async (req: Request, res: Response) => {
         } catch (_) { /* skip lead if Graph API unreachable */ }
       }
 
-      const { firstName, lastName } = splitName(
-        fields['full_name'] || `${fields['first_name'] || ''} ${fields['last_name'] || ''}`.trim()
-      );
+      const name = cleanName(fields['full_name'] || `${fields['first_name'] || ''} ${fields['last_name'] || ''}`);
       const phone = fields['phone_number'] || fields['phone'] || '';
       const email = fields['email'] || '';
       if (!phone && !email) continue;
 
       await createContactFromLead(tenantId, {
-        firstName,
-        lastName,
+        name,
         phone,
         email,
         source: 'Facebook Leads',
@@ -330,11 +304,11 @@ export const googleForms = async (req: Request, res: Response) => {
     });
   }
 
-  const name =
+  const name = cleanName(
     b.name || b.full_name ||
     fields['name'] || fields['full_name'] ||
-    `${fields['first_name'] || ''} ${fields['last_name'] || ''}`.trim() ||
-    'Unknown';
+    `${fields['first_name'] || ''} ${fields['last_name'] || ''}`,
+  );
   const phone =
     b.phone || b.mobile || b.phone_number ||
     fields['phone'] || fields['mobile'] || fields['phone_number'] || '';
@@ -348,10 +322,8 @@ export const googleForms = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing phone or email' });
   }
 
-  const { firstName, lastName } = splitName(name);
   await createContactFromLead(tenantId, {
-    firstName,
-    lastName,
+    name,
     phone,
     email,
     company,

@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const CreateContactSchema = z.object({
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().max(100).optional(),
+  name: z.string().min(1).max(200),
   email: z.string().email().optional(),
   phone: z.string().min(7).max(20),
+  alternatePhone: z.string().max(20).optional(),
   whatsapp: z.string().max(20).optional(),
   company: z.string().max(200).optional(),
   jobTitle: z.string().max(200).optional(),

@@ -21,7 +21,7 @@ interface Task {
   dueDate: string;
   status: 'PENDING' | 'COMPLETED';
   completedAt?: string | null;
-  contact?: { id: string; firstName: string; lastName?: string | null } | null;
+  contact?: { id: string; name: string } | null;
   assignedTo: { id: string; firstName: string; lastName?: string | null };
 }
 
@@ -123,7 +123,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
             <option value="">No contact</option>
             {(contacts || []).map((c: any) => (
               <option key={c.id} value={c.id}>
-                {c.firstName} {c.lastName || ''}
+                {c.name}
               </option>
             ))}
           </select>
@@ -318,9 +318,9 @@ export default function TasksPage() {
           <table className="min-w-full divide-y divide-gray-50">
             <thead className="bg-gray-50/60">
               <tr>
-                {['', 'Title', 'Contact', 'Assignee', 'Due Date', 'Status', ''].map((h) => (
+                {['', 'Title', 'Contact', 'Assignee', 'Due Date', 'Status', ''].map((h, i) => (
                   <th
-                    key={h}
+                    key={i}
                     className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400"
                   >
                     {h}
@@ -365,7 +365,7 @@ export default function TasksPage() {
                     <td className="px-5 py-3.5 text-sm">
                       {task.contact ? (
                         <span className="font-medium text-indigo-600">
-                          {task.contact.firstName} {task.contact.lastName || ''}
+                          {task.contact.name}
                         </span>
                       ) : (
                         <span className="text-gray-300">—</span>

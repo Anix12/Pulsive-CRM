@@ -328,7 +328,7 @@ function ListsTab() {
                               <tbody className="divide-y divide-gray-100">
                                 {detail.members.map((m: any) => (
                                   <tr key={m.id}>
-                                    <td className="px-3 py-1.5 text-gray-700">{m.contact.firstName} {m.contact.lastName}</td>
+                                    <td className="px-3 py-1.5 text-gray-700">{m.contact.name}</td>
                                     <td className="px-3 py-1.5 text-gray-600">{m.contact.phone}</td>
                                     <td className="px-3 py-1.5 text-gray-500">{m.contact.email || '—'}</td>
                                   </tr>

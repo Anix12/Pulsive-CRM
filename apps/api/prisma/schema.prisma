@@ -103,14 +103,15 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  activities    Activity[]
-  auditLogs     AuditLog[]
-  calls         Call[]          @relation("AssignedAgent")
-  tasksAssigned Task[]          @relation("TaskAssignee")
-  notifications Notification[]
-  agentPresence AgentPresence?
-  breakLogs     AgentBreakLog[]
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activities       Activity[]
+  auditLogs        AuditLog[]
+  calls            Call[]          @relation("AssignedAgent")
+  tasksAssigned    Task[]          @relation("TaskAssignee")
+  contactsAssigned Contact[]       @relation("ContactAssignee")
+  notifications    Notification[]
+  agentPresence    AgentPresence?
+  breakLogs        AgentBreakLog[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -165,13 +166,13 @@ model ImpersonationLog {
 // ─── Contacts ─────────────────────────────────────────────────────────────────
 
 model Contact {
-  id           String              @id @default(cuid())
-  tenantId     String
-  firstName    String
-  lastName     String?
-  email        String?
-  phone        String
-  whatsapp     String?
+  id             String              @id @default(cuid())
+  tenantId       String
+  name           String
+  email          String?
+  phone          String
+  alternatePhone String?
+  whatsapp       String?
   company      String?
   jobTitle     String?
   status       ContactStatus       @default(LEAD)
@@ -188,6 +189,7 @@ model Contact {
 
   tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   campaign        Campaign?             @relation(fields: [campaignId], references: [id])
+  assignedTo      User?                 @relation("ContactAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   deals           Deal[]
   calls           Call[]
   messages        Message[]
@@ -202,6 +204,7 @@ model Contact {
   @@index([tenantId, email])
   @@index([tenantId, campaignId])
   @@index([tenantId, score])
+  @@index([tenantId, assignedToId])
 }
 
 enum ContactStatus {

@@ -26,7 +26,7 @@ export const list = async (tenantId: string, req: Request) => {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: { contact: { select: { id: true, firstName: true, lastName: true } } },
+      include: { contact: { select: { id: true, name: true } } },
     }),
     prisma.message.count({ where }),
   ]);
@@ -175,7 +175,7 @@ export const aiDraftEmail = async (input: AiDraftEmailInput): Promise<{ subject:
     system:
       'You are an expert marketing copywriter for an education/admissions consultancy. ' +
       'Draft a short, warm, professional outreach email. Use personalization placeholders ' +
-      'like {{firstName}} where appropriate. Respond with ONLY valid JSON in the exact shape ' +
+      'like {{name}} where appropriate. Respond with ONLY valid JSON in the exact shape ' +
       '{"subject": "...", "body": "..."} — no markdown fences, no other text. The body should ' +
       'be plain text (no HTML), concise (under 150 words), and end with a clear call to action.',
     messages: [

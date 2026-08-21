@@ -27,7 +27,7 @@ export const list = async (tenantId: string, req: Request) => {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        contact: { select: { id: true, firstName: true, lastName: true } },
+        contact: { select: { id: true, name: true } },
         agent: { select: { id: true, firstName: true, lastName: true } },
       },
     }),

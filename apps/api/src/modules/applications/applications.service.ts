@@ -6,7 +6,7 @@ import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateApplicationInput, UpdateApplicationInput } from './applications.types';
 
-const CONTACT_SELECT = { id: true, firstName: true, lastName: true, phone: true, email: true } as const;
+const CONTACT_SELECT = { id: true, name: true, phone: true, email: true } as const;
 const PROGRAM_SELECT = { id: true, code: true, name: true } as const;
 
 const FUNNEL_STAGES = ['SUBMITTED', 'UNDER_REVIEW', 'SHORTLISTED', 'OFFERED', 'ENROLLED'] as const;
@@ -36,8 +36,7 @@ export const list = async (tenantId: string, req: Request) => {
       {
         contact: {
           OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
+            { name: { contains: search, mode: 'insensitive' } },
             { phone: { contains: search } },
           ],
         },

@@ -71,7 +71,7 @@ export const list = async (tenantId: string, req: Request) => {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: { stage: true, contact: { select: { id: true, firstName: true, lastName: true, phone: true } } },
+      include: { stage: true, contact: { select: { id: true, name: true, phone: true } } },
     }),
     prisma.deal.count({ where }),
   ]);

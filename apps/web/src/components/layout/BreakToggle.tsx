@@ -58,7 +58,7 @@ export function BreakToggle() {
         onClick={() => (anyOnBreak ? endBreak.mutate() : setOpen((o) => !o))}
         className={cn(
           'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-          anyOnBreak ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700',
+          anyOnBreak ? 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/15' : 'text-white/50 hover:bg-white/[0.06] hover:text-white/80',
         )}
       >
         <Coffee className="h-3.5 w-3.5" />
@@ -67,18 +67,18 @@ export function BreakToggle() {
       </button>
 
       {open && !anyOnBreak && (
-        <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-gray-100 bg-white p-1.5 shadow-lg">
+        <div className="glass-panel absolute right-0 top-full z-20 mt-2 w-52 rounded-xl p-1.5">
           {windows.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-gray-400">No break windows configured in Settings yet.</p>
+            <p className="px-3 py-2 text-xs text-white/40">No break windows configured in Settings yet.</p>
           ) : (
             windows.map((w: any) => (
               <button
                 key={w.id}
                 onClick={() => startBreak.mutate(w.name)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-white/80 hover:bg-white/[0.06]"
               >
                 {w.name}
-                <span className="text-gray-400">{w.startTime}–{w.endTime}</span>
+                <span className="text-white/35">{w.startTime}–{w.endTime}</span>
               </button>
             ))
           )}

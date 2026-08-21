@@ -365,7 +365,7 @@ function CreateDealModal({ open, onClose, stages }: { open: boolean; onClose: ()
             <option value="">Select a contact</option>
             {(contactsData || []).map((c: any) => (
               <option key={c.id} value={c.id}>
-                {c.firstName} {c.lastName} — {c.company || c.phone}
+                {c.name} — {c.company || c.phone}
               </option>
             ))}
           </select>
@@ -570,7 +570,7 @@ export default function DealsPage() {
                         </div>
                         {deal.contact && (
                           <p className="mt-1 text-xs text-gray-400">
-                            {deal.contact.firstName} {deal.contact.lastName}
+                            {deal.contact.name}
                             {deal.contact.company && ` · ${deal.contact.company}`}
                           </p>
                         )}

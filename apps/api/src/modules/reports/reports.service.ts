@@ -146,55 +146,54 @@ export const aiVsHuman = async (tenantId: string, from?: string, to?: string) =>
 
 // ─── Dashboard Overview (KPI tiles + Today's Activity strip) ──────────────────
 
-export const dashboardOverview = async (tenantId: string) => {
+export const dashboardOverview = async (tenantId: string, from?: string, to?: string) => {
+  const range = parseDateRange(from, to);
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfWeek = new Date(startOfToday.getTime() - startOfToday.getDay() * 86400000);
 
   const [
     totalLeads,
-    todayLeads,
+    newLeadsInRange,
     pendingFollowups,
     overdueFollowups,
-    wonDeals,
-    totalClosedDeals,
-    callsToday,
-    smsToday,
-    emailsToday,
+    wonDealsInRange,
+    closedDealsInRange,
+    callsInRange,
+    smsInRange,
+    emailsInRange,
     tasksDueToday,
-    newLeadsThisWeek,
   ] = await Promise.all([
     prisma.contact.count({ where: { tenantId } }),
-    prisma.contact.count({ where: { tenantId, createdAt: { gte: startOfToday } } }),
+    prisma.contact.count({ where: { tenantId, createdAt: { gte: range.from, lte: range.to } } }),
     prisma.task.count({ where: { tenantId, status: 'PENDING' } }),
     prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { lt: now } } }),
-    prisma.deal.count({ where: { tenantId, isWon: true } }),
-    prisma.deal.count({ where: { tenantId, isWon: { not: null } } }),
-    prisma.call.count({ where: { tenantId, createdAt: { gte: startOfToday } } }),
-    prisma.message.count({ where: { tenantId, channel: 'SMS', direction: 'OUTBOUND', createdAt: { gte: startOfToday } } }),
-    prisma.message.count({ where: { tenantId, channel: 'EMAIL', direction: 'OUTBOUND', createdAt: { gte: startOfToday } } }),
+    prisma.deal.count({ where: { tenantId, isWon: true, closedAt: { gte: range.from, lte: range.to } } }),
+    prisma.deal.count({ where: { tenantId, isWon: { not: null }, closedAt: { gte: range.from, lte: range.to } } }),
+    prisma.call.count({ where: { tenantId, createdAt: { gte: range.from, lte: range.to } } }),
+    prisma.message.count({ where: { tenantId, channel: 'SMS', direction: 'OUTBOUND', createdAt: { gte: range.from, lte: range.to } } }),
+    prisma.message.count({ where: { tenantId, channel: 'EMAIL', direction: 'OUTBOUND', createdAt: { gte: range.from, lte: range.to } } }),
     prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { gte: startOfToday, lt: new Date(startOfToday.getTime() + 86400000) } } }),
-    prisma.contact.count({ where: { tenantId, createdAt: { gte: startOfWeek } } }),
   ]);
 
-  const conversionRate = totalClosedDeals > 0 ? Math.round((wonDeals / totalClosedDeals) * 100) : 0;
+  const conversionRate = closedDealsInRange > 0 ? Math.round((wonDealsInRange / closedDealsInRange) * 100) : 0;
 
   return {
+    period: { from: range.from, to: range.to },
     leads: {
       total: totalLeads,
-      today: todayLeads,
+      newInRange: newLeadsInRange,
       pendingFollowups,
       overdueFollowups,
-      conversions: wonDeals,
+      conversions: wonDealsInRange,
       conversionRate,
     },
-    activityToday: {
-      calls: callsToday,
-      sms: smsToday,
-      emails: emailsToday,
+    activityInRange: {
+      calls: callsInRange,
+      sms: smsInRange,
+      emails: emailsInRange,
       tasksDue: tasksDueToday,
       overdueTasks: overdueFollowups,
-      newLeadsThisWeek,
+      newLeads: newLeadsInRange,
     },
   };
 };
@@ -421,7 +420,7 @@ export const campaignCallLogsReport = async (tenantId: string, campaignId?: stri
       contact: campaignId ? { campaignId } : { campaignId: { not: null } },
     },
     include: {
-      contact: { select: { firstName: true, lastName: true, campaign: { select: { id: true, name: true } } } },
+      contact: { select: { name: true, campaign: { select: { id: true, name: true } } } },
       agent: { select: { firstName: true, lastName: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -432,7 +431,7 @@ export const campaignCallLogsReport = async (tenantId: string, campaignId?: stri
     calls: calls.map((c) => ({
       id: c.id,
       campaign: c.contact?.campaign?.name ?? '—',
-      contact: c.contact ? `${c.contact.firstName} ${c.contact.lastName ?? ''}`.trim() : '—',
+      contact: c.contact?.name ?? '—',
       agent: c.agent ? `${c.agent.firstName} ${c.agent.lastName ?? ''}`.trim() : '—',
       status: c.status,
       duration: c.duration,

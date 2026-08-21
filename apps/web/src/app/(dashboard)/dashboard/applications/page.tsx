@@ -107,12 +107,12 @@ function ContactSelect({ value, onChange }: { value: { id: string; label: string
               key={c.id}
               type="button"
               onMouseDown={() => {
-                onChange({ id: c.id, label: `${c.firstName} ${c.lastName ?? ''}`.trim() + (c.phone ? ` — ${c.phone}` : '') });
+                onChange({ id: c.id, label: c.name + (c.phone ? ` — ${c.phone}` : '') });
                 setOpen(false);
               }}
               className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50"
             >
-              {c.firstName} {c.lastName}
+              {c.name}
               {c.phone && <span className="text-gray-400"> — {c.phone}</span>}
             </button>
           ))}
@@ -220,7 +220,7 @@ function ApplicationDetailModal({ application, onClose }: { application: any; on
       <div className="space-y-4">
         <div className="rounded-lg border border-gray-100 bg-gray-50/60 px-4 py-3">
           <p className="text-sm font-medium text-gray-900">
-            {application.contact?.firstName} {application.contact?.lastName}
+            {application.contact?.name}
           </p>
           <p className="text-xs text-gray-400">{application.contact?.phone}{application.contact?.email && ` · ${application.contact.email}`}</p>
           <p className="mt-1 text-xs text-gray-500">{application.program?.code} — {application.program?.name}</p>
@@ -414,7 +414,7 @@ export default function ApplicationsPage() {
                 >
                   <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{a.appNumber}</td>
                   <td className="px-5 py-3.5">
-                    <p className="text-sm font-medium text-gray-900">{a.contact?.firstName} {a.contact?.lastName}</p>
+                    <p className="text-sm font-medium text-gray-900">{a.contact?.name}</p>
                     <p className="text-xs text-gray-400">{a.contact?.phone}</p>
                   </td>
                   <td className="px-5 py-3.5 text-sm text-gray-500">{a.program?.code} — {a.program?.name}</td>

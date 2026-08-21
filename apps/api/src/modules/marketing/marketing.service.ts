@@ -47,7 +47,7 @@ export const getListById = async (tenantId: string, id: string) => {
         orderBy: { createdAt: 'desc' },
         include: {
           contact: {
-            select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+            select: { id: true, name: true, phone: true, email: true },
           },
         },
       },

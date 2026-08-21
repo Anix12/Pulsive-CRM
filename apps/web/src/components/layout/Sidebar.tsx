@@ -73,16 +73,19 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        'group flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-all duration-150',
+        'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-all duration-150',
         isActive
-          ? 'bg-white/10 text-white'
-          : 'text-white/45 hover:bg-white/[0.07] hover:text-white/80',
+          ? 'bg-gradient-to-r from-cyan-400/15 to-cyan-400/0 text-white'
+          : 'text-white/45 hover:bg-white/[0.06] hover:text-white/80',
       )}
     >
+      {isActive && (
+        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-cyan-400 shadow-[0_0_8px_1px_rgba(34,211,238,0.7)]" />
+      )}
       <Icon
         className={cn(
           'h-[15px] w-[15px] shrink-0 transition-colors',
-          isActive ? 'text-indigo-400' : 'text-white/30 group-hover:text-white/60',
+          isActive ? 'text-cyan-400' : 'text-white/30 group-hover:text-white/60',
         )}
       />
       {label}
@@ -97,14 +100,14 @@ export function Sidebar() {
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
 
   return (
-    <aside className="flex w-[218px] shrink-0 flex-col bg-[#0d0f14]">
+    <aside className="flex w-[218px] shrink-0 flex-col border-r border-white/[0.06] bg-[#060a16]">
       {/* Brand */}
       <div className="flex h-14 items-center gap-2.5 border-b border-white/[0.06] px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500">
-          <span className="text-[11px] font-bold tracking-tight text-white">CRM</span>
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-700 shadow-[0_0_16px_-2px_rgba(34,211,238,0.6)]">
+          <span className="text-[13px] font-bold tracking-tight text-white">P</span>
         </div>
         <span className="text-[13.5px] font-semibold tracking-tight text-white/90">
-          CRM Pro
+          <span className="text-gradient-brand">Pulsive</span>
         </span>
       </div>
 
@@ -146,7 +149,7 @@ export function Sidebar() {
       {user && (
         <div className="border-t border-white/[0.06] px-3 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/25 text-[11px] font-bold text-indigo-300">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/30 to-blue-600/30 text-[11px] font-bold text-cyan-300 ring-1 ring-cyan-400/20">
               {initials || '?'}
             </div>
             <div className="min-w-0">
