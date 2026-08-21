@@ -5,7 +5,7 @@ databases:
     user: crm_user
 
 services:
-  - type: redis
+  - type: keyvalue
     name: crm-redis
     plan: free
     ipAllowList: []
@@ -33,7 +33,7 @@ services:
       - key: REDIS_URL
         fromService:
           name: crm-redis
-          type: redis
+          type: keyvalue
           property: connectionString
       - key: JWT_ACCESS_SECRET
         generateValue: true
