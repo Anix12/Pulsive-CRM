@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Pulsive baby-blue light system */
+  --color-background: hsl(214 60% 98%);
+  --color-foreground: hsl(222 25% 14%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222 25% 14%);
+  --color-primary: hsl(217 91% 60%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(214 40% 95%);
+  --color-secondary-foreground: hsl(222 20% 25%);
+  --color-muted: hsl(214 35% 95%);
+  --color-muted-foreground: hsl(220 10% 45%);
+  --color-accent: hsl(217 91% 60%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-destructive: hsl(0 72% 51%);
+  --color-border: hsl(214 25% 90%);
+  --color-input: hsl(214 25% 90%);
+  --color-ring: hsl(217 91% 60%);
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    box-sizing: border-box;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(214 20% 82%);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(217 40% 65%);
+  }
+}
+
+@layer utilities {
+  /* App shell ambient glow — soft baby-blue radial wash */
+  .app-glow-bg {
+    background-color: #f7fafd;
+    background-image:
+      radial-gradient(55% 45% at 15% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+      radial-gradient(45% 40% at 100% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 60%),
+      radial-gradient(60% 55% at 50% 100%, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(59, 130, 246, 0.12);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 12px 32px -16px rgba(30, 58, 95, 0.18);
+  }
+
+  .glass-panel-hover {
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glass-panel-hover:hover {
+    border-color: rgba(59, 130, 246, 0.35);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 16px 40px -14px rgba(59, 130, 246, 0.25);
+  }
+
+  .text-gradient-brand {
+    background-image: linear-gradient(120deg, #22d3ee 0%, #3b82f6 55%, #2563eb 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .btn-gradient-brand {
+    background-image: linear-gradient(120deg, #3b82f6 0%, #2563eb 100%);
+    box-shadow: 0 8px 24px -8px rgba(59, 130, 246, 0.45);
+  }
+  .btn-gradient-brand:hover {
+    box-shadow: 0 10px 30px -8px rgba(59, 130, 246, 0.6);
+  }
+
+  .glow-dot {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 0 12px 1px rgba(59, 130, 246, 0.5);
+  }
+}

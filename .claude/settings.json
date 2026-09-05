@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__get_project",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "Bash(lsof -i :*)",
+      "Bash(cat * | grep *)",
+      "Bash(cat * | head *)",
+      "Bash(cat * | tail *)",
+      "Bash(find * | grep *)",
+      "Bash(find * | head *)",
+      "Bash(find * | sort *)",
+      "Bash(find * | xargs grep *)",
+      "Bash(ls * | grep *)",
+      "Bash(ls * | tail *)",
+      "Bash(ls * | sort *)",
+      "Bash(ls * | head *)",
+      "Bash(lsof -i :* | grep *)",
+      "Bash(lsof -i :* | head *)"
+    ]
+  }
+}
