@@ -34,6 +34,10 @@ model Tenant {
   whatsappAccessToken   String? // AES encrypted
   whatsappPhoneNumberId String?
 
+  // Vapi (AI calling) config
+  vapiApiKey        String? // AES encrypted
+  vapiPhoneNumberId String?
+
   // Agent floor / presence config
   inactivityTimeoutMinutes Int? @default(15)
 
@@ -70,6 +74,8 @@ model Tenant {
   emailConfig        EmailConfig?
   rolePermissions    RolePermission[]
   broadcasts         Broadcast[]
+  aiCallAgents       AiCallAgent[]
+  leadLists          LeadList[]
 }
 
 enum TenantPlan {
@@ -199,6 +205,7 @@ model Contact {
   tasks           Task[]
   applications    Application[]
   listMemberships MarketingListMember[]
+  leadListMemberships LeadListMember[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -354,6 +361,12 @@ model Call {
   isAiInitiated   Boolean       @default(false)
   notes           String?
   dispositionId   String?
+  aiAgentId       String?
+
+  // AI end-of-call analysis (populated from Vapi webhook)
+  aiSuccessEvaluation Boolean?
+  aiSummary           String?
+  cost                Float?   @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -362,13 +375,91 @@ model Call {
   contact     Contact?         @relation(fields: [contactId], references: [id])
   agent       User?            @relation("AssignedAgent", fields: [agentId], references: [id])
   disposition CallDisposition? @relation(fields: [dispositionId], references: [id])
+  aiAgent     AiCallAgent?     @relation(fields: [aiAgentId], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, agentId])
   @@index([tenantId, contactId])
   @@index([tenantId, dispositionId])
+  @@index([tenantId, aiAgentId])
   @@index([providerCallSid])
+}
+
+// ─── AI Calling (Vapi voice agents) ────────────────────────────────────────────
+
+model AiCallAgent {
+  id               String              @id @default(cuid())
+  tenantId         String
+  name             String
+  language         String              @default("English")
+  category         String              @default("General")
+  description      String?
+  callDirection    CallDirection       @default(OUTBOUND)
+  greeting         String
+  systemPrompt     String              @db.Text
+  voiceId          String?
+  vapiAssistantId  String?
+  status           AiAgentStatus       @default(ACTIVE)
+
+  // System Prompt & Rules (composed into the effective Vapi system prompt)
+  scriptSteps           Json? // string[]
+  knowledgeBase         Json? // { topic: string; content: string }[]
+  pricingResponse       String?
+  notInterestedResponse String?
+  escalationRules       String?
+  forbiddenTopics       String?
+  behavioralRules       String?
+  faqs                  Json? // { question: string; answer: string }[]
+
+  // Closing & Hangup
+  closingMessage      String?
+  maxCallDurationSec  Int?    @default(300)
+  dailyCallLimit      Int?    @default(100)
+  customHangupLogic   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  calls  Call[]
+
+  @@index([tenantId])
+}
+
+enum AiAgentStatus {
+  ACTIVE
+  PAUSED
+}
+
+// ─── Lead Lists (CSV/Excel uploads for AI Calling) ─────────────────────────────
+
+model LeadList {
+  id             String @id @default(cuid())
+  tenantId       String
+  name           String
+  sourceFileName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members LeadListMember[]
+
+  @@index([tenantId])
+}
+
+model LeadListMember {
+  id        String   @id @default(cuid())
+  listId    String
+  contactId String
+  createdAt DateTime @default(now())
+
+  list    LeadList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, contactId])
+  @@index([contactId])
 }
 
 enum CallDirection {

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Call" ADD COLUMN     "cost" DOUBLE PRECISION DEFAULT 0;

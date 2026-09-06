@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { LogOut, ArrowLeft } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { BreakToggle } from './BreakToggle';
 import { allNavItems } from '@/lib/navSections';
@@ -25,9 +25,22 @@ export function Header() {
     pageTitles.find(([path]) => pathname === path || pathname.startsWith(path + '/'))?.[1] ??
     'Dashboard';
 
+  const isHome = pathname === '/dashboard';
+
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white/80 px-6 backdrop-blur-xl">
-      <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
+      <div className="flex items-center gap-2">
+        {!isHome && (
+          <button
+            onClick={() => router.back()}
+            aria-label="Go back"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
+        <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
+      </div>
 
       <div className="flex items-center gap-1">
         <BreakToggle />
