@@ -16,5 +16,6 @@ router.get('/facebook-leads/:tenantId', controller.facebookVerify);
 router.post('/facebook-leads/:tenantId', controller.facebookLeads);
 router.post('/google-forms/:tenantId', controller.googleForms);
 router.post('/custom/:tenantId', controller.custom);
+router.post('/integrate/:token/leads', controller.campaignIntegrate);
 
 export default router;

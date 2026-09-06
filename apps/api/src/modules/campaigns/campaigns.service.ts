@@ -3,8 +3,10 @@ import { AppError } from '@/middleware/errorHandler';
 import { getPagination } from '@/utils/pagination';
 import { paginationMeta } from '@/utils/response';
 import { AUDIT_ACTIONS } from '@/config/constants';
+import { env } from '@/config/env';
 import { Request } from 'express';
 import { parse } from 'csv-parse/sync';
+import crypto from 'crypto';
 import { CreateContactSchema } from '@/modules/contacts/contacts.types';
 import { CreateCampaignInput, UpdateCampaignInput } from './campaigns.types';
 
@@ -91,6 +93,21 @@ export const togglePin = async (tenantId: string, id: string) => {
   const existing = await prisma.campaign.findFirst({ where: { id, tenantId } });
   if (!existing) throw new AppError(404, 'NOT_FOUND', 'Campaign not found');
   return prisma.campaign.update({ where: { id }, data: { isPinned: !existing.isPinned } });
+};
+
+// (Re)generates the public lead-capture link for this campaign. Calling it again
+// replaces the old token, which immediately invalidates any URL built on it.
+export const generateWebhookToken = async (tenantId: string, id: string) => {
+  const existing = await prisma.campaign.findFirst({ where: { id, tenantId } });
+  if (!existing) throw new AppError(404, 'NOT_FOUND', 'Campaign not found');
+
+  const token = crypto.randomBytes(16).toString('hex');
+  const updated = await prisma.campaign.update({ where: { id }, data: { leadWebhookToken: token } });
+
+  return {
+    token: updated.leadWebhookToken,
+    webhookUrl: `${env.API_URL}/api/v1/webhooks/integrate/${updated.leadWebhookToken}/leads`,
+  };
 };
 
 export const getById = async (tenantId: string, id: string) => {

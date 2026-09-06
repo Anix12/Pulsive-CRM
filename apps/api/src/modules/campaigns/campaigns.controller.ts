@@ -37,6 +37,12 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
   } catch (err) { next(err); }
 };
 
+export const generateWebhookToken = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.generateWebhookToken(req.tenantId!, req.params.id));
+  } catch (err) { next(err); }
+};
+
 export const intelligence = async (req: Request, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await service.campaignIntelligence(req.tenantId!));
