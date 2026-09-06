@@ -666,6 +666,11 @@ model Campaign {
   source   String?
   status   CampaignStatus @default(ACTIVE)
 
+  // Public lead-capture link: POST /api/v1/webhooks/integrate/:leadWebhookToken/leads
+  // maps a landing-page form straight to this campaign — no field inside the
+  // form's payload has to identify the campaign, the token in the URL does.
+  leadWebhookToken String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
