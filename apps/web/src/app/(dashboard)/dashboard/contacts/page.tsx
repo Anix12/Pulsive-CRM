@@ -57,6 +57,7 @@ const contactSchema = z.object({
   status:      z.enum(STATUS_OPTIONS).default('LEAD'),
   temperature: z.enum(TEMP_OPTIONS).nullable().optional(),
   assignedToId: z.string().nullable().optional(),
+  campaignId:  z.string().nullable().optional(),
 });
 
 type ContactForm = z.infer<typeof contactSchema>;
@@ -129,12 +130,31 @@ function ContactFormModal({ open, onClose, contact }: { open: boolean; onClose: 
     },
   });
 
+  const { data: campaigns = [] } = useQuery<any[]>({
+    queryKey: ['campaigns-list'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/campaigns?limit=100');
+      return data.data;
+    },
+  });
+
+  const buildDefaults = (c?: any): Partial<ContactForm> =>
+    c
+      ? { ...c, temperature: c.temperature ?? null, assignedToId: c.assignedToId ?? null, campaignId: c.campaignId ?? null }
+      : { status: 'LEAD', temperature: null, assignedToId: null, campaignId: null };
+
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<ContactForm>({
     resolver: zodResolver(contactSchema),
-    defaultValues: contact
-      ? { ...contact, temperature: contact.temperature ?? null, assignedToId: contact.assignedToId ?? null }
-      : { status: 'LEAD', temperature: null, assignedToId: null },
+    defaultValues: buildDefaults(contact),
   });
+
+  // defaultValues is only read on first mount by react-hook-form, but this modal
+  // stays mounted across opens with different contacts — resync the form whenever
+  // the modal opens or the contact it's editing changes.
+  useEffect(() => {
+    if (!open) return;
+    reset(buildDefaults(contact));
+  }, [open, contact, reset]);
 
   const temperature = watch('temperature');
 
@@ -188,6 +208,14 @@ function ContactFormModal({ open, onClose, contact }: { open: boolean; onClose: 
               <option value="">Unassigned</option>
               {agents.map((a: any) => (
                 <option key={a.id} value={a.id}>{a.firstName} {a.lastName}</option>
+              ))}
+            </select>
+          </InputField>
+          <InputField label="Campaign">
+            <select {...register('campaignId', { setValueAs: (v) => (v === '' ? null : v) })} className={inputCls}>
+              <option value="">No Campaign</option>
+              {campaigns.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </InputField>

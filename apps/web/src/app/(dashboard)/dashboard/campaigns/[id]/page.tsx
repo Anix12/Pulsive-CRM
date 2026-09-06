@@ -1,13 +1,20 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, PhoneCall, Users, Layers, Tag, Radio } from 'lucide-react';
+import { ArrowLeft, PhoneCall, Users, Layers, Tag, Radio, Link2, Copy, Check, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { getInitials, categoryColor, cn } from '@/lib/utils';
 import { AvatarStack } from '@/components/ui/AvatarStack';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function webhookUrlFor(token: string) {
+  return `${API_BASE}/api/v1/webhooks/integrate/${token}/leads`;
+}
 
 const statusColors: Record<string, string> = {
   LEAD: 'bg-blue-50 text-blue-700',
@@ -31,6 +38,79 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
       <p className="text-xl font-bold" style={{ color }}>{value}</p>
       <p className="mt-0.5 text-xs text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+// ── Lead Capture Link ─────────────────────────────────────────────────────────
+// Lets a business point any external form (a landing page, a Facebook lead form,
+// etc.) straight at this one campaign — the form just posts its normal fields
+// (name, phone, email, ...) to this URL, nothing campaign-specific required.
+function LeadCaptureLinkCard({ campaignId, token }: { campaignId: string; token: string | null }) {
+  const qc = useQueryClient();
+  const [copied, setCopied] = useState(false);
+
+  const generate = useMutation({
+    mutationFn: () => api.post(`/api/v1/campaigns/${campaignId}/webhook-token`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
+  });
+
+  const url = token ? webhookUrlFor(token) : null;
+
+  const copy = async () => {
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+        <Link2 className="h-4 w-4 text-gray-400" />
+        Lead Capture Link
+      </h2>
+      <p className="mt-1 text-xs text-gray-400">
+        Point any website form or ad-lead form at this URL — new leads land straight in this campaign.
+      </p>
+
+      {url ? (
+        <>
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              readOnly
+              value={url}
+              onFocus={(e) => e.target.select()}
+              className="min-w-0 flex-1 truncate rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600"
+            />
+            <button
+              onClick={copy}
+              title="Copy link"
+              className="flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+          <button
+            onClick={() => generate.mutate()}
+            disabled={generate.isPending}
+            className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            {generate.isPending ? 'Regenerating…' : 'Regenerate link'}
+          </button>
+          <p className="mt-1 text-[11px] text-gray-400">Regenerating invalidates the old link immediately.</p>
+        </>
+      ) : (
+        <button
+          onClick={() => generate.mutate()}
+          disabled={generate.isPending}
+          className="mt-3 flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+          {generate.isPending ? 'Generating…' : 'Generate Lead Link'}
+        </button>
+      )}
     </div>
   );
 }
@@ -112,6 +192,8 @@ export default function CampaignDetailPage() {
               </div>
             </div>
           </div>
+
+          <LeadCaptureLinkCard campaignId={campaign.id} token={campaign.leadWebhookToken} />
 
           <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">Assigned Team</h2>

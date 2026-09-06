@@ -12,10 +12,12 @@ interface LeadData {
   note?: string;
 }
 
-async function createContactFromLead(tenantId: string, lead: LeadData) {
+async function createContactFromLead(tenantId: string, lead: LeadData, campaignId?: string) {
   const existing = await prisma.contact.findFirst({
     where: { tenantId, phone: lead.phone },
   });
+  // Existing contact wins as-is — a resubmitted form shouldn't silently move an
+  // already-tracked lead into a different campaign.
   if (existing) return existing;
 
   return prisma.contact.create({
@@ -27,6 +29,7 @@ async function createContactFromLead(tenantId: string, lead: LeadData) {
       company: lead.company,
       source: lead.source,
       status: 'LEAD',
+      campaignId,
       customFields: lead.note ? { note: lead.note } : undefined,
     },
   });
@@ -50,6 +53,29 @@ export const indiamart = async (req: Request, res: Response) => {
   };
   if (!lead.phone) return res.status(400).json({ error: 'Missing phone' });
   await createContactFromLead(tenantId, lead);
+  sendSuccess(res, { received: true });
+};
+
+// Campaign lead-capture link: POST /webhooks/integrate/:token/leads
+// The URL token alone identifies which tenant + campaign this lead belongs to —
+// the form never needs to send a campaign/source field of its own.
+export const campaignIntegrate = async (req: Request, res: Response) => {
+  const { token } = req.params;
+  const campaign = await prisma.campaign.findUnique({ where: { leadWebhookToken: token } });
+  if (!campaign) return res.status(404).json({ error: 'Invalid or unknown webhook token' });
+
+  const b = req.body || {};
+  const nameField = b.name || b.fullName || b.full_name || `${b.firstName || ''} ${b.lastName || ''}`;
+  const lead: LeadData = {
+    name: cleanName(nameField),
+    phone: b.phone || b.mobile || b.phoneNumber || b.contact || '',
+    email: b.email || b.emailAddress,
+    company: b.company || b.organization,
+    source: campaign.name,
+    note: b.message || b.note || b.notes,
+  };
+  if (!lead.phone) return res.status(400).json({ error: 'Missing phone' });
+  await createContactFromLead(campaign.tenantId, lead, campaign.id);
   sendSuccess(res, { received: true });
 };
 
