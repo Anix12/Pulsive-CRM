@@ -26,6 +26,12 @@ export const updateWhatsApp = async (req: Request, res: Response, next: NextFunc
   } catch (err) { next(err); }
 };
 
+export const updateVapi = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.updateVapi(req.tenantId!, req.user!.id, req.body));
+  } catch (err) { next(err); }
+};
+
 export const listUsers = async (req: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await service.listUsers(req.tenantId!)); } catch (err) { next(err); }
 };

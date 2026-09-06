@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { LogOut, ArrowLeft } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { BreakToggle } from './BreakToggle';
 
@@ -38,6 +38,8 @@ export function Header() {
   const title =
     pageTitles.find(([path]) => pathname === path || pathname.startsWith(path + '/'))?.[1] ??
     'Dashboard';
+
+  const isHome = pathname === '/dashboard';
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-6 backdrop-blur-xl">

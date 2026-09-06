@@ -20,7 +20,7 @@ export const list = async (tenantId: string, req: Request) => {
   if (status) where.status = status;
   if (direction) where.direction = direction;
 
-  const [calls, total] = await Promise.all([
+  const [calls, total, connected, interested, notInterested, durationAgg, costAgg] = await Promise.all([
     prisma.call.findMany({
       where,
       skip,
@@ -29,12 +29,27 @@ export const list = async (tenantId: string, req: Request) => {
       include: {
         contact: { select: { id: true, name: true } },
         agent: { select: { id: true, firstName: true, lastName: true } },
+        aiAgent: { select: { id: true, name: true } },
       },
     }),
     prisma.call.count({ where }),
+    prisma.call.count({ where: { ...where, status: { in: ['IN_PROGRESS', 'COMPLETED'] } } }),
+    prisma.call.count({ where: { ...where, aiSuccessEvaluation: true } }),
+    prisma.call.count({ where: { ...where, aiSuccessEvaluation: false } }),
+    prisma.call.aggregate({ where, _avg: { duration: true } }),
+    prisma.call.aggregate({ where, _sum: { cost: true } }),
   ]);
 
-  return { calls, meta: paginationMeta(total, page, limit) };
+  const stats = {
+    totalCalls: total,
+    connected,
+    interested,
+    notInterested,
+    avgDuration: Math.round(durationAgg._avg.duration || 0),
+    totalCost: costAgg._sum.cost || 0,
+  };
+
+  return { calls, meta: { ...paginationMeta(total, page, limit), stats } };
 };
 
 export const getById = async (tenantId: string, id: string) => {

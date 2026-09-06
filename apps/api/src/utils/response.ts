@@ -13,6 +13,7 @@ export interface ApiResponse<T = unknown> {
     limit?: number;
     total?: number;
     totalPages?: number;
+    stats?: Record<string, unknown>;
   };
 }
 

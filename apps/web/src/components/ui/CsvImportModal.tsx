@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import { Modal } from './Modal';
 import { Upload, FileText, AlertCircle, CheckCircle2, ChevronRight } from 'lucide-react';
 
@@ -94,20 +95,39 @@ export function CsvImportModal({
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isExcel = (f: File) => /\.(xlsx|xls)$/i.test(f.name);
+
   const handleFile = (f: File) => {
-    if (!f.name.endsWith('.csv')) { setError('Please upload a .csv file'); return; }
+    if (!f.name.endsWith('.csv') && !isExcel(f)) { setError('Please upload a .csv, .xlsx, or .xls file'); return; }
     setError('');
     setFile(f);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const { headers: h, rows } = parsePreview(text);
-      setHeaders(h);
-      setPreviewRows(rows);
-      setMapping(autoMap(h));
-      setStep('map');
-    };
-    reader.readAsText(f);
+
+    if (isExcel(f)) {
+      reader.onload = (e) => {
+        const data = e.target?.result as ArrayBuffer;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+        const h = (rows[0] || []).map((v) => String(v).trim());
+        const previewData = rows.slice(1, 6).map((row) => h.map((_, i) => String(row[i] ?? '')));
+        setHeaders(h);
+        setPreviewRows(previewData);
+        setMapping(autoMap(h));
+        setStep('map');
+      };
+      reader.readAsArrayBuffer(f);
+    } else {
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const { headers: h, rows } = parsePreview(text);
+        setHeaders(h);
+        setPreviewRows(rows);
+        setMapping(autoMap(h));
+        setStep('map');
+      };
+      reader.readAsText(f);
+    }
   };
 
   const onDrop = useCallback((e: React.DragEvent) => {

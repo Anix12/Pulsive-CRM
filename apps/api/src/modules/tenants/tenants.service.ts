@@ -25,6 +25,11 @@ export const UpdateWhatsAppSchema = z.object({
   whatsappPhoneNumberId: z.string().min(1),
 });
 
+export const UpdateVapiSchema = z.object({
+  vapiApiKey: z.string().min(1),
+  vapiPhoneNumberId: z.string().min(1),
+});
+
 export const get = async (tenantId: string) => {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -33,11 +38,12 @@ export const get = async (tenantId: string) => {
   if (!tenant) throw new AppError(404, 'NOT_FOUND', 'Tenant not found');
 
   // Never return secrets
-  const { twilioAuthToken, whatsappAccessToken, ...safe } = tenant as any;
+  const { twilioAuthToken, whatsappAccessToken, vapiApiKey, ...safe } = tenant as any;
   return {
     ...safe,
     twilioConfigured: !!twilioAuthToken,
     whatsappConfigured: !!whatsappAccessToken,
+    vapiConfigured: !!vapiApiKey,
   };
 };
 
@@ -78,6 +84,20 @@ export const updateWhatsApp = async (tenantId: string, data: z.infer<typeof Upda
       whatsappAccessToken: encrypt(data.whatsappAccessToken),
       whatsappPhoneNumberId: data.whatsappPhoneNumberId,
     },
+  });
+  return { configured: true };
+};
+
+export const updateVapi = async (tenantId: string, userId: string, data: z.infer<typeof UpdateVapiSchema>) => {
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: {
+      vapiApiKey: encrypt(data.vapiApiKey),
+      vapiPhoneNumberId: data.vapiPhoneNumberId,
+    },
+  });
+  await prisma.auditLog.create({
+    data: { tenantId, userId, action: AUDIT_ACTIONS.UPDATE, resource: 'tenant_vapi', resourceId: tenantId },
   });
   return { configured: true };
 };
