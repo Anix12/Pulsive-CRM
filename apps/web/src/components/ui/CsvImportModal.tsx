@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import { Modal } from './Modal';
 import { Upload, FileText, AlertCircle, CheckCircle2, ChevronRight } from 'lucide-react';
 
@@ -94,20 +95,39 @@ export function CsvImportModal({
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isExcel = (f: File) => /\.(xlsx|xls)$/i.test(f.name);
+
   const handleFile = (f: File) => {
-    if (!f.name.endsWith('.csv')) { setError('Please upload a .csv file'); return; }
+    if (!f.name.endsWith('.csv') && !isExcel(f)) { setError('Please upload a .csv, .xlsx, or .xls file'); return; }
     setError('');
     setFile(f);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const { headers: h, rows } = parsePreview(text);
-      setHeaders(h);
-      setPreviewRows(rows);
-      setMapping(autoMap(h));
-      setStep('map');
-    };
-    reader.readAsText(f);
+
+    if (isExcel(f)) {
+      reader.onload = (e) => {
+        const data = e.target?.result as ArrayBuffer;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+        const h = (rows[0] || []).map((v) => String(v).trim());
+        const previewData = rows.slice(1, 6).map((row) => h.map((_, i) => String(row[i] ?? '')));
+        setHeaders(h);
+        setPreviewRows(previewData);
+        setMapping(autoMap(h));
+        setStep('map');
+      };
+      reader.readAsArrayBuffer(f);
+    } else {
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const { headers: h, rows } = parsePreview(text);
+        setHeaders(h);
+        setPreviewRows(rows);
+        setMapping(autoMap(h));
+        setStep('map');
+      };
+      reader.readAsText(f);
+    }
   };
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -188,9 +208,9 @@ export function CsvImportModal({
             className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 transition-colors ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'}`}
           >
             <Upload className="mb-3 h-8 w-8 text-gray-300" />
-            <p className="text-sm font-medium text-gray-700">Drop a CSV file here or click to browse</p>
-            <p className="mt-1 text-xs text-gray-400">Max 5 MB · UTF-8 encoded</p>
-            <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            <p className="text-sm font-medium text-gray-700">Drop a CSV or Excel file here or click to browse</p>
+            <p className="mt-1 text-xs text-gray-400">Max 5 MB · .csv, .xlsx, .xls</p>
+            <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           </div>
 
           <div className="rounded-lg bg-gray-50 p-4">

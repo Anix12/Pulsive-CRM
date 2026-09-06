@@ -111,7 +111,7 @@ export const navSections: NavSection[] = [
     description: 'Outbound calling and call intelligence.',
     items: [
       { href: '/dashboard/ai-calling/lead-lists', label: 'Lead Lists', icon: ListChecks, description: 'Organize leads into dialing lists.', comingSoon: true },
-      { href: '/dashboard/ai-calling/call-logs', label: 'Call Logs', icon: PhoneCall, description: 'Full history of inbound and outbound calls.', comingSoon: true },
+      { href: '/dashboard/ai-calling/call-logs', label: 'Call Report', icon: PhoneCall, description: 'Filterable report of AI call history, outcomes, and cost.' },
       { href: '/dashboard/ai-calling/analytics', label: 'Analytics', icon: BarChart3, description: 'Call volume, connect rate, and performance.', comingSoon: true },
       { href: '/dashboard/ai-calling/call-report', label: 'AI Call Report', icon: Sparkles, description: 'AI-generated transcripts and sentiment.', comingSoon: true },
     ],

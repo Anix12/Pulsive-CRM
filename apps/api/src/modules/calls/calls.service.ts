@@ -12,16 +12,37 @@ import { env } from '@/config/env';
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { agentId, contactId, status, direction, campaignId } = req.query as Record<string, string>;
+  const {
+    agentId, contactId, status, direction, campaignId, isAiInitiated,
+    aiAgentId, outcome, listId, search, dateFrom, dateTo,
+  } = req.query as Record<string, string>;
 
   const where: any = { tenantId };
   if (agentId) where.agentId = agentId;
   if (contactId) where.contactId = contactId;
   if (status) where.status = status;
   if (direction) where.direction = direction;
-  if (campaignId) where.contact = { campaignId };
+  if (campaignId) where.contact = { ...where.contact, campaignId };
+  if (isAiInitiated !== undefined) where.isAiInitiated = isAiInitiated === 'true';
+  if (aiAgentId) where.aiAgentId = aiAgentId;
+  if (outcome === 'interested') where.aiSuccessEvaluation = true;
+  else if (outcome === 'not_interested') where.aiSuccessEvaluation = false;
+  else if (outcome === 'unknown') where.aiSuccessEvaluation = null;
+  if (listId) where.contact = { ...where.contact, leadListMemberships: { some: { listId } } };
+  if (search) {
+    where.OR = [
+      { contact: { name: { contains: search, mode: 'insensitive' } } },
+      { toNumber: { contains: search } },
+    ];
+  }
+  if (dateFrom || dateTo) {
+    where.createdAt = {
+      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+      ...(dateTo ? { lte: new Date(dateTo) } : {}),
+    };
+  }
 
-  const [calls, total] = await Promise.all([
+  const [calls, total, connected, interested, notInterested, durationAgg, costAgg] = await Promise.all([
     prisma.call.findMany({
       where,
       skip,
@@ -30,12 +51,27 @@ export const list = async (tenantId: string, req: Request) => {
       include: {
         contact: { select: { id: true, name: true } },
         agent: { select: { id: true, firstName: true, lastName: true } },
+        aiAgent: { select: { id: true, name: true } },
       },
     }),
     prisma.call.count({ where }),
+    prisma.call.count({ where: { ...where, status: { in: ['IN_PROGRESS', 'COMPLETED'] } } }),
+    prisma.call.count({ where: { ...where, aiSuccessEvaluation: true } }),
+    prisma.call.count({ where: { ...where, aiSuccessEvaluation: false } }),
+    prisma.call.aggregate({ where, _avg: { duration: true } }),
+    prisma.call.aggregate({ where, _sum: { cost: true } }),
   ]);
 
-  return { calls, meta: paginationMeta(total, page, limit) };
+  const stats = {
+    totalCalls: total,
+    connected,
+    interested,
+    notInterested,
+    avgDuration: Math.round(durationAgg._avg.duration || 0),
+    totalCost: costAgg._sum.cost || 0,
+  };
+
+  return { calls, meta: { ...paginationMeta(total, page, limit), stats } };
 };
 
 export const getById = async (tenantId: string, id: string) => {

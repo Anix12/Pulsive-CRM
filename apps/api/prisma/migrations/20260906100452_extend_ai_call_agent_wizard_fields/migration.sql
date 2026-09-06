@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "AiCallAgent" ADD COLUMN     "behavioralRules" TEXT,
+ADD COLUMN     "callDirection" "CallDirection" NOT NULL DEFAULT 'OUTBOUND',
+ADD COLUMN     "closingMessage" TEXT,
+ADD COLUMN     "customHangupLogic" TEXT,
+ADD COLUMN     "dailyCallLimit" INTEGER DEFAULT 100,
+ADD COLUMN     "description" TEXT,
+ADD COLUMN     "escalationRules" TEXT,
+ADD COLUMN     "faqs" JSONB,
+ADD COLUMN     "forbiddenTopics" TEXT,
+ADD COLUMN     "knowledgeBase" JSONB,
+ADD COLUMN     "maxCallDurationSec" INTEGER DEFAULT 300,
+ADD COLUMN     "notInterestedResponse" TEXT,
+ADD COLUMN     "pricingResponse" TEXT,
+ADD COLUMN     "scriptSteps" JSONB;
