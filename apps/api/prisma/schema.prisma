@@ -76,6 +76,11 @@ model Tenant {
   broadcasts         Broadcast[]
   aiCallAgents       AiCallAgent[]
   leadLists          LeadList[]
+  reProjects            Project[]
+  reUnits               Unit[]
+  reSiteVisits          SiteVisit[]
+  reBookings            Booking[]
+  rePropertyPreferences PropertyPreference[]
 }
 
 enum TenantPlan {
@@ -120,6 +125,8 @@ model User {
   agentPresence    AgentPresence?
   breakLogs        AgentBreakLog[]
   broadcastsCreated Broadcast[]
+  reSiteVisitsAsAgent SiteVisit[] @relation("SiteVisitAgent")
+  reBookingsAsAgent   Booking[]   @relation("BookingAgent")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -206,6 +213,9 @@ model Contact {
   applications    Application[]
   listMemberships MarketingListMember[]
   leadListMemberships LeadListMember[]
+  reSiteVisits          SiteVisit[]
+  reBookings            Booking[]
+  rePropertyPreference  PropertyPreference?
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1135,6 +1145,182 @@ enum ApplicationStatus {
   OFFERED
   ENROLLED
   REJECTED
+}
+
+// ─── Real Estate ──────────────────────────────────────────────────────────────
+
+model Project {
+  id              String        @id @default(cuid())
+  tenantId        String
+  name            String
+  developer       String?
+  location        String?
+  city            String?
+  status          ProjectStatus @default(UPCOMING)
+  description     String?
+  totalUnits      Int?
+  latitude        Decimal?      @db.Decimal(10, 7)
+  longitude       Decimal?      @db.Decimal(10, 7)
+  geofenceMeters  Int?          @default(200)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units      Unit[]
+  siteVisits SiteVisit[]
+  bookings   Booking[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+enum ProjectStatus {
+  UPCOMING
+  UNDER_CONSTRUCTION
+  READY
+  COMPLETED
+}
+
+model Unit {
+  id         String     @id @default(cuid())
+  tenantId   String
+  projectId  String
+  unitNumber String
+  tower      String?
+  floor      Int?
+  type       String? // e.g. "2BHK", "3BHK", "Villa"
+  areaSqft   Decimal?   @db.Decimal(10, 2)
+  price      Decimal?   @db.Decimal(15, 2)
+  status     UnitStatus @default(AVAILABLE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  siteVisits SiteVisit[]
+  bookings   Booking[]
+
+  @@unique([projectId, unitNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([projectId])
+}
+
+enum UnitStatus {
+  AVAILABLE
+  HOLD
+  BOOKED
+  SOLD
+}
+
+model SiteVisit {
+  id            String          @id @default(cuid())
+  tenantId      String
+  contactId     String
+  projectId     String
+  unitId        String?
+  agentId       String?
+  scheduledAt   DateTime
+  status        SiteVisitStatus @default(SCHEDULED)
+  statusAt      DateTime        @default(now())
+  travelMinutes Int?
+  visitMinutes  Int?
+  interestLevel InterestLevel?
+  rating        Int?
+  feedback      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact  @relation(fields: [contactId], references: [id])
+  project Project  @relation(fields: [projectId], references: [id])
+  unit    Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  agent   User?    @relation("SiteVisitAgent", fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, agentId])
+  @@index([tenantId, contactId])
+  @@index([tenantId, projectId])
+}
+
+enum SiteVisitStatus {
+  SCHEDULED
+  ON_THE_WAY
+  AT_SITE
+  VISITING
+  VISIT_DONE
+  RETURNING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum InterestLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  tenantId           String
+  contactId          String
+  projectId          String
+  unitId             String
+  agentId            String?
+  bookingAmount      Decimal?      @db.Decimal(15, 2)
+  totalAmount        Decimal?      @db.Decimal(15, 2)
+  status             BookingStatus @default(TOKEN_RECEIVED)
+  brokeragePercent   Decimal?      @db.Decimal(5, 2)
+  brokerageAmount    Decimal?      @db.Decimal(15, 2)
+  brokerageReceived  Decimal       @default(0) @db.Decimal(15, 2)
+  bookingDate        DateTime      @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+  unit    Unit    @relation(fields: [unitId], references: [id])
+  agent   User?   @relation("BookingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, agentId])
+  @@index([tenantId, contactId])
+  @@index([tenantId, projectId])
+}
+
+enum BookingStatus {
+  TOKEN_RECEIVED
+  BOOKED
+  AGREEMENT_DONE
+  REGISTERED
+  CANCELLED
+}
+
+model PropertyPreference {
+  id             String   @id @default(cuid())
+  tenantId       String
+  contactId      String   @unique
+  preferredCity  String?
+  preferredType  String? // e.g. "2BHK", "3BHK", "Villa"
+  budgetMin      Decimal? @db.Decimal(15, 2)
+  budgetMax      Decimal? @db.Decimal(15, 2)
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // ─── Roles & Permissions ────────────────────────────────────────────────────
