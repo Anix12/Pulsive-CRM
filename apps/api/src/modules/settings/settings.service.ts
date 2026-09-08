@@ -221,7 +221,7 @@ export const deleteBreakWindow = async (tenantId: string, id: string) => {
 
 export const DEFAULT_PERMISSION_MODULES = [
   'leads', 'campaigns', 'workflows', 'tasks', 'templates', 'marketing',
-  'whatsappInbox', 'reports', 'applications', 'usersAndRoles', 'integrations', 'settings',
+  'whatsappInbox', 'reports', 'applications', 'realEstate', 'usersAndRoles', 'integrations', 'settings',
 ] as const;
 
 const defaultPermissionsForRole = (role: string) => {

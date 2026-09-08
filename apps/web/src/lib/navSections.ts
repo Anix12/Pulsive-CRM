@@ -96,11 +96,11 @@ export const navSections: NavSection[] = [
     href: '/dashboard/real-estate',
     description: 'Manage projects, visits, and bookings.',
     items: [
-      { href: '/dashboard/real-estate/projects', label: 'Projects', icon: Building2, description: 'Manage real estate projects and unit inventory.', comingSoon: true },
-      { href: '/dashboard/real-estate/site-visits', label: 'Site Visits', icon: MapPin, description: 'Schedule and track prospect site visits.', comingSoon: true },
-      { href: '/dashboard/real-estate/property-match', label: 'Property Match', icon: Sparkles, description: 'AI-powered matching of leads to listings.', comingSoon: true },
-      { href: '/dashboard/real-estate/bookings', label: 'Bookings', icon: CalendarCheck, description: 'Track unit bookings and payment milestones.', comingSoon: true },
-      { href: '/dashboard/real-estate/agent-tracker', label: 'Agent Tracker', icon: Radar, description: 'Monitor field agent activity and performance.', comingSoon: true },
+      { href: '/dashboard/real-estate/projects', label: 'Projects', icon: Building2, description: 'Manage real estate projects and unit inventory.' },
+      { href: '/dashboard/real-estate/site-visits', label: 'Site Visits', icon: MapPin, description: 'Schedule and track prospect site visits.' },
+      { href: '/dashboard/real-estate/property-match', label: 'Property Match', icon: Sparkles, description: 'Match leads to available inventory based on their preferences.' },
+      { href: '/dashboard/real-estate/bookings', label: 'Bookings', icon: CalendarCheck, description: 'Track unit bookings and payment milestones.' },
+      { href: '/dashboard/real-estate/agent-tracker', label: 'Agent Tracker', icon: Radar, description: 'Monitor field agent activity and performance.' },
     ],
   },
   {
