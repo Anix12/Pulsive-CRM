@@ -870,7 +870,7 @@ function PipelinesPanel() {
 const MODULE_LABELS: Record<string, string> = {
   leads: 'Leads', campaigns: 'Campaigns', workflows: 'Workflows', tasks: 'Tasks',
   templates: 'Templates', marketing: 'Marketing', whatsappInbox: 'WhatsApp Inbox',
-  reports: 'Reports', applications: 'Applications', usersAndRoles: 'Users & Roles',
+  reports: 'Reports', applications: 'Applications', realEstate: 'Real Estate', usersAndRoles: 'Users & Roles',
   integrations: 'Integrations', settings: 'Settings',
 };
 
