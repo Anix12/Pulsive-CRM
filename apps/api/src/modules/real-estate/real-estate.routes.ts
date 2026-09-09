@@ -5,6 +5,7 @@ import * as siteVisits from './site-visits.controller';
 import * as bookings from './bookings.controller';
 import * as propertyMatch from './property-match.controller';
 import * as agentTracker from './agent-tracker.controller';
+import * as realEstateStage from './real-estate-stage.controller';
 import { validate } from '@/middleware/validate';
 import { authenticate } from '@/middleware/auth';
 import { requireActiveTenant } from '@/middleware/tenant';
@@ -60,5 +61,8 @@ router.get('/property-match/:contactId', propertyMatch.matchesForContact);
 // Agent Tracker
 router.get('/agent-tracker', agentTracker.overview);
 router.get('/agent-tracker/performance', agentTracker.performance);
+
+// Lead Stage Funnel
+router.get('/leads/:contactId/stage', realEstateStage.getStage);
 
 export default router;

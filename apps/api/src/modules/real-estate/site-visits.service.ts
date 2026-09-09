@@ -5,6 +5,7 @@ import { paginationMeta } from '@/utils/response';
 import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateSiteVisitInput, UpdateSiteVisitInput } from './real-estate.types';
+import * as stageService from './real-estate-stage.service';
 
 const includeRelations = {
   contact: { select: { id: true, name: true, phone: true } },
@@ -134,6 +135,8 @@ export const create = async (tenantId: string, userId: string, input: CreateSite
     data: { tenantId, userId, action: AUDIT_ACTIONS.CREATE, resource: 're_site_visits', resourceId: siteVisit.id, after: siteVisit as any },
   });
 
+  await stageService.advanceStage(tenantId, siteVisit.contactId, 'VISIT_SCHEDULED', 'SITE_VISIT_CREATED');
+
   return siteVisit;
 };
 
@@ -152,6 +155,10 @@ export const update = async (tenantId: string, userId: string, id: string, input
   await prisma.auditLog.create({
     data: { tenantId, userId, action: AUDIT_ACTIONS.UPDATE, resource: 're_site_visits', resourceId: id, before: existing as any, after: updated as any },
   });
+
+  if (input.status === 'VISIT_DONE' && existing.status !== 'VISIT_DONE') {
+    await stageService.advanceStage(tenantId, existing.contactId, 'VISIT_DONE', 'SITE_VISIT_VISIT_DONE');
+  }
 
   return updated;
 };

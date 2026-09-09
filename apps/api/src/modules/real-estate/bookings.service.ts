@@ -5,6 +5,7 @@ import { paginationMeta } from '@/utils/response';
 import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateBookingInput, UpdateBookingInput } from './real-estate.types';
+import * as stageService from './real-estate-stage.service';
 
 const includeRelations = {
   contact: { select: { id: true, name: true, phone: true } },
@@ -96,6 +97,8 @@ export const create = async (tenantId: string, userId: string, input: CreateBook
     data: { tenantId, userId, action: AUDIT_ACTIONS.CREATE, resource: 're_bookings', resourceId: booking.id, after: booking as any },
   });
 
+  await stageService.advanceStage(tenantId, booking.contactId, 'BOOKING', 'BOOKING_CREATED');
+
   return booking;
 };
 
@@ -118,8 +121,11 @@ export const update = async (tenantId: string, userId: string, id: string, input
 
   if (input.status === 'CANCELLED' && existing.status !== 'CANCELLED') {
     await prisma.unit.update({ where: { id: existing.unitId }, data: { status: 'AVAILABLE' } });
+    // Intentionally no stage change here — a cancelled booking doesn't always mean a
+    // lost lead (e.g. they may rebook a different unit), so a human decides that call.
   } else if (input.status === 'REGISTERED' && existing.status !== 'REGISTERED') {
     await prisma.unit.update({ where: { id: existing.unitId }, data: { status: 'SOLD' } });
+    await stageService.advanceStage(tenantId, existing.contactId, 'CLOSED_WON', 'BOOKING_REGISTERED');
   }
 
   await prisma.auditLog.create({
