@@ -191,6 +191,8 @@ model Contact {
   assignedToId String?
   campaignId   String?
   score        Int                 @default(0)
+  sourceUniqueId String? // dedup key from the source platform (e.g. IndiaMART's UNIQUE_QUERY_ID)
+  sourceMetadata Json? // raw payload from the source platform's webhook, for audit/debugging
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -214,6 +216,7 @@ model Contact {
   @@index([tenantId, campaignId])
   @@index([tenantId, score])
   @@index([tenantId, assignedToId])
+  @@unique([tenantId, sourceUniqueId])
 }
 
 enum ContactStatus {
