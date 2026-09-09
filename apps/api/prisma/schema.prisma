@@ -1170,6 +1170,7 @@ model Project {
   latitude        Decimal?      @db.Decimal(10, 7)
   longitude       Decimal?      @db.Decimal(10, 7)
   geofenceMeters  Int?          @default(200)
+  amenities       Json? // string[], e.g. ["Gym", "Swimming Pool", "Clubhouse"] — used by property-match scoring
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1200,6 +1201,7 @@ model Unit {
   type       String? // e.g. "2BHK", "3BHK", "Villa"
   areaSqft   Decimal?   @db.Decimal(10, 2)
   price      Decimal?   @db.Decimal(15, 2)
+  facing     String? // e.g. "North", "East" — used by property-match scoring
   status     UnitStatus @default(AVAILABLE)
 
   createdAt DateTime @default(now())
@@ -1320,6 +1322,10 @@ model PropertyPreference {
   preferredType  String? // e.g. "2BHK", "3BHK", "Villa"
   budgetMin      Decimal? @db.Decimal(15, 2)
   budgetMax      Decimal? @db.Decimal(15, 2)
+  preferredFloor Int?
+  facing         String? // e.g. "North", "East"
+  amenities      Json? // string[], desired amenities — scored against Project.amenities
+  commutePreference String? // free text for now, e.g. "near metro"
   notes          String?
 
   createdAt DateTime @default(now())
