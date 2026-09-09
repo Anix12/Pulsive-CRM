@@ -101,6 +101,7 @@ export const navSections: NavSection[] = [
       { href: '/dashboard/real-estate/property-match', label: 'Property Match', icon: Sparkles, description: 'Match leads to available inventory based on their preferences.' },
       { href: '/dashboard/real-estate/bookings', label: 'Bookings', icon: CalendarCheck, description: 'Track unit bookings and payment milestones.' },
       { href: '/dashboard/real-estate/agent-tracker', label: 'Agent Tracker', icon: Radar, description: 'Monitor field agent activity and performance.' },
+      { href: '/dashboard/real-estate/partners', label: 'Partners', icon: UsersRound, description: 'External brokers and channel partners who source or co-sell leads.' },
     ],
   },
   {
