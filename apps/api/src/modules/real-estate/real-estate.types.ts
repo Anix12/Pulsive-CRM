@@ -15,6 +15,7 @@ export const CreateProjectSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   geofenceMeters: z.number().int().positive().optional(),
+  amenities: z.array(z.string().max(50)).max(50).optional(),
 });
 
 export const UpdateProjectSchema = CreateProjectSchema.partial();
@@ -31,6 +32,7 @@ export const CreateUnitSchema = z.object({
   type: z.string().max(50).optional(),
   areaSqft: z.number().positive().optional(),
   price: z.number().positive().optional(),
+  facing: z.string().max(20).optional(),
   status: z.enum(['AVAILABLE', 'HOLD', 'BOOKED', 'SOLD']).optional(),
 });
 
@@ -50,6 +52,7 @@ export const CreateSiteVisitSchema = z.object({
   projectId: z.string().min(1),
   unitId: z.string().optional().nullable(),
   agentId: z.string().optional().nullable(),
+  partnerId: z.string().optional().nullable(),
   scheduledAt: z.string().min(1),
   status: z.enum(SITE_VISIT_STATUSES).optional(),
   travelMinutes: z.number().int().nonnegative().optional(),
@@ -77,6 +80,7 @@ export const CreateBookingSchema = z.object({
   projectId: z.string().min(1),
   unitId: z.string().min(1),
   agentId: z.string().optional().nullable(),
+  partnerId: z.string().optional().nullable(),
   bookingAmount: z.number().positive().optional(),
   totalAmount: z.number().positive().optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
@@ -99,7 +103,48 @@ export const UpsertPropertyPreferenceSchema = z.object({
   preferredType: z.string().max(50).optional(),
   budgetMin: z.number().positive().optional(),
   budgetMax: z.number().positive().optional(),
+  preferredFloor: z.number().int().optional(),
+  facing: z.string().max(20).optional(),
+  amenities: z.array(z.string().max(50)).max(50).optional(),
+  commutePreference: z.string().max(200).optional(),
   notes: z.string().max(2000).optional(),
 });
 
 export type UpsertPropertyPreferenceInput = z.infer<typeof UpsertPropertyPreferenceSchema>;
+
+// ─── Partners ─────────────────────────────────────────────────────────────────
+
+export const PARTNER_KYC_STATUSES = ['PENDING', 'VERIFIED', 'REJECTED'] as const;
+
+export const CreatePartnerSchema = z.object({
+  name: z.string().min(1).max(200),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().max(200).optional(),
+  kycStatus: z.enum(PARTNER_KYC_STATUSES).optional(),
+  commissionPercent: z.number().min(0).max(100).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const UpdatePartnerSchema = CreatePartnerSchema.partial();
+
+export type CreatePartnerInput = z.infer<typeof CreatePartnerSchema>;
+export type UpdatePartnerInput = z.infer<typeof UpdatePartnerSchema>;
+
+// A Unit scored against a contact's PropertyPreference, returned by matchesForContact.
+export interface ScoredUnitMatch {
+  id: string;
+  fitScore: number;
+  fitReasons: string[];
+  [key: string]: unknown;
+}
+
+// ─── Lead Stage Funnel ──────────────────────────────────────────────────────────
+
+// Order matters: index in this array is the funnel's "rank", used to prevent a
+// contact's stage from ever moving backwards (see real-estate-stage.service.ts).
+export const REAL_ESTATE_LEAD_STAGES = [
+  'NEW', 'CONTACTED', 'QUALIFIED', 'PROPERTY_SHARED', 'VISIT_SCHEDULED',
+  'VISIT_DONE', 'NEGOTIATION', 'BOOKING', 'CLOSED_WON', 'CLOSED_LOST',
+] as const;
+
+export type RealEstateLeadStageValue = (typeof REAL_ESTATE_LEAD_STAGES)[number];

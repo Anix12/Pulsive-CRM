@@ -40,6 +40,7 @@ const unitSchema = z.object({
   type: z.string().optional(),
   areaSqft: z.union([z.string(), z.number()]).optional(),
   price: z.union([z.string(), z.number()]).optional(),
+  facing: z.string().optional(),
   status: z.enum(UNIT_STATUS_OPTIONS).default('AVAILABLE'),
 });
 type UnitForm = z.infer<typeof unitSchema>;
@@ -51,7 +52,7 @@ function UnitFormModal({ open, onClose, projectId, unit }: { open: boolean; onCl
   const { register, handleSubmit, reset, formState: { errors } } = useForm<UnitForm>({
     resolver: zodResolver(unitSchema),
     defaultValues: unit
-      ? { unitNumber: unit.unitNumber, tower: unit.tower ?? '', floor: unit.floor ?? '', type: unit.type ?? '', areaSqft: unit.areaSqft ?? '', price: unit.price ?? '', status: unit.status }
+      ? { unitNumber: unit.unitNumber, tower: unit.tower ?? '', floor: unit.floor ?? '', type: unit.type ?? '', areaSqft: unit.areaSqft ?? '', price: unit.price ?? '', facing: unit.facing ?? '', status: unit.status }
       : { status: 'AVAILABLE' },
   });
 
@@ -101,6 +102,9 @@ function UnitFormModal({ open, onClose, projectId, unit }: { open: boolean; onCl
             <input {...register('price')} type="number" className={inputCls} />
           </Field>
         </div>
+        <Field label="Facing">
+          <input {...register('facing')} className={inputCls} placeholder="e.g. North" />
+        </Field>
         <Field label="Status">
           <select {...register('status')} className={inputCls}>
             {UNIT_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}

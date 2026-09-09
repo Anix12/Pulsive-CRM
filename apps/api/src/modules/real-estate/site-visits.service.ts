@@ -5,12 +5,14 @@ import { paginationMeta } from '@/utils/response';
 import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateSiteVisitInput, UpdateSiteVisitInput } from './real-estate.types';
+import * as stageService from './real-estate-stage.service';
 
 const includeRelations = {
   contact: { select: { id: true, name: true, phone: true } },
   project: { select: { id: true, name: true, latitude: true, longitude: true, geofenceMeters: true } },
   unit: { select: { id: true, unitNumber: true } },
   agent: { select: { id: true, firstName: true, lastName: true } },
+  partner: { select: { id: true, name: true } },
 };
 
 const ACTIVE_STATUSES = ['ON_THE_WAY', 'AT_SITE', 'VISITING', 'RETURNING'] as const;
@@ -119,6 +121,7 @@ export const create = async (tenantId: string, userId: string, input: CreateSite
       projectId: input.projectId,
       unitId: input.unitId || undefined,
       agentId: input.agentId || undefined,
+      partnerId: input.partnerId || undefined,
       scheduledAt: new Date(input.scheduledAt),
       status: input.status,
       travelMinutes: input.travelMinutes,
@@ -134,6 +137,8 @@ export const create = async (tenantId: string, userId: string, input: CreateSite
     data: { tenantId, userId, action: AUDIT_ACTIONS.CREATE, resource: 're_site_visits', resourceId: siteVisit.id, after: siteVisit as any },
   });
 
+  await stageService.advanceStage(tenantId, siteVisit.contactId, 'VISIT_SCHEDULED', 'SITE_VISIT_CREATED');
+
   return siteVisit;
 };
 
@@ -145,6 +150,7 @@ export const update = async (tenantId: string, userId: string, id: string, input
   if (input.scheduledAt) data.scheduledAt = new Date(input.scheduledAt);
   if ('unitId' in data && !data.unitId) data.unitId = null;
   if ('agentId' in data && !data.agentId) data.agentId = null;
+  if ('partnerId' in data && !data.partnerId) data.partnerId = null;
   if (input.status && input.status !== existing.status) data.statusAt = new Date();
 
   const updated = await prisma.siteVisit.update({ where: { id }, data, include: includeRelations });
@@ -152,6 +158,10 @@ export const update = async (tenantId: string, userId: string, id: string, input
   await prisma.auditLog.create({
     data: { tenantId, userId, action: AUDIT_ACTIONS.UPDATE, resource: 're_site_visits', resourceId: id, before: existing as any, after: updated as any },
   });
+
+  if (input.status === 'VISIT_DONE' && existing.status !== 'VISIT_DONE') {
+    await stageService.advanceStage(tenantId, existing.contactId, 'VISIT_DONE', 'SITE_VISIT_VISIT_DONE');
+  }
 
   return updated;
 };

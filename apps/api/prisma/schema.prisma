@@ -81,6 +81,8 @@ model Tenant {
   reSiteVisits          SiteVisit[]
   reBookings            Booking[]
   rePropertyPreferences PropertyPreference[]
+  reStageHistories      RealEstateStageHistory[]
+  rePartners            Partner[]
 }
 
 enum TenantPlan {
@@ -199,6 +201,11 @@ model Contact {
   campaignId   String?
   score        Int                 @default(0)
 
+  // Real Estate vertical: nullable so contacts outside this vertical are unaffected.
+  // Lives directly on Contact (not a join table) — it's a single current value per
+  // contact, same pattern as campaignId/score, not a many-relation that needs its own table.
+  realEstateStage RealEstateLeadStage?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -216,6 +223,7 @@ model Contact {
   reSiteVisits          SiteVisit[]
   reBookings            Booking[]
   rePropertyPreference  PropertyPreference?
+  reStageHistory        RealEstateStageHistory[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -224,6 +232,7 @@ model Contact {
   @@index([tenantId, campaignId])
   @@index([tenantId, score])
   @@index([tenantId, assignedToId])
+  @@index([tenantId, realEstateStage])
 }
 
 enum ContactStatus {
@@ -1162,6 +1171,7 @@ model Project {
   latitude        Decimal?      @db.Decimal(10, 7)
   longitude       Decimal?      @db.Decimal(10, 7)
   geofenceMeters  Int?          @default(200)
+  amenities       Json? // string[], e.g. ["Gym", "Swimming Pool", "Clubhouse"] — used by property-match scoring
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1192,6 +1202,7 @@ model Unit {
   type       String? // e.g. "2BHK", "3BHK", "Villa"
   areaSqft   Decimal?   @db.Decimal(10, 2)
   price      Decimal?   @db.Decimal(15, 2)
+  facing     String? // e.g. "North", "East" — used by property-match scoring
   status     UnitStatus @default(AVAILABLE)
 
   createdAt DateTime @default(now())
@@ -1222,6 +1233,7 @@ model SiteVisit {
   projectId     String
   unitId        String?
   agentId       String?
+  partnerId     String?
   scheduledAt   DateTime
   status        SiteVisitStatus @default(SCHEDULED)
   statusAt      DateTime        @default(now())
@@ -1239,10 +1251,12 @@ model SiteVisit {
   project Project  @relation(fields: [projectId], references: [id])
   unit    Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
   agent   User?    @relation("SiteVisitAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  partner Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, agentId])
+  @@index([tenantId, partnerId])
   @@index([tenantId, contactId])
   @@index([tenantId, projectId])
 }
@@ -1272,6 +1286,7 @@ model Booking {
   projectId          String
   unitId             String
   agentId            String?
+  partnerId          String?
   bookingAmount      Decimal?      @db.Decimal(15, 2)
   totalAmount        Decimal?      @db.Decimal(15, 2)
   status             BookingStatus @default(TOKEN_RECEIVED)
@@ -1283,15 +1298,17 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contact Contact @relation(fields: [contactId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
-  unit    Unit    @relation(fields: [unitId], references: [id])
-  agent   User?   @relation("BookingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact  @relation(fields: [contactId], references: [id])
+  project Project  @relation(fields: [projectId], references: [id])
+  unit    Unit     @relation(fields: [unitId], references: [id])
+  agent   User?    @relation("BookingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  partner Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, agentId])
+  @@index([tenantId, partnerId])
   @@index([tenantId, contactId])
   @@index([tenantId, projectId])
 }
@@ -1312,6 +1329,10 @@ model PropertyPreference {
   preferredType  String? // e.g. "2BHK", "3BHK", "Villa"
   budgetMin      Decimal? @db.Decimal(15, 2)
   budgetMax      Decimal? @db.Decimal(15, 2)
+  preferredFloor Int?
+  facing         String? // e.g. "North", "East"
+  amenities      Json? // string[], desired amenities — scored against Project.amenities
+  commutePreference String? // free text for now, e.g. "near metro"
   notes          String?
 
   createdAt DateTime @default(now())
@@ -1321,6 +1342,69 @@ model PropertyPreference {
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// Real-estate-specific lead funnel. Kept separate from the CRM-generic Contact.status
+// (LEAD/PROSPECT/CUSTOMER/...) and from Deal.stageId (a tenant-configurable pipeline) —
+// this is a fixed funnel meaningful only to the real estate vertical.
+enum RealEstateLeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPERTY_SHARED
+  VISIT_SCHEDULED
+  VISIT_DONE
+  NEGOTIATION
+  BOOKING
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+// Audit trail of realEstateStage changes, mirroring AuditLog's before/after style
+// but scoped to just this one funnel so it's cheap to query per-contact.
+model RealEstateStageHistory {
+  id          String               @id @default(cuid())
+  tenantId    String
+  contactId   String
+  fromStage   RealEstateLeadStage?
+  toStage     RealEstateLeadStage
+  changedAt   DateTime             @default(now())
+  triggeredBy String // e.g. "SITE_VISIT_CREATED", "BOOKING_REGISTERED", or a userId for manual changes
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, contactId])
+}
+
+// External channel partner / broker who sources or co-sells leads — distinct from
+// `agentId` (an internal CRM User) on SiteVisit/Booking. A visit or booking may come
+// from an internal agent, an external partner, both, or neither.
+model Partner {
+  id                String            @id @default(cuid())
+  tenantId          String
+  name              String
+  phone             String?
+  email             String?
+  kycStatus         PartnerKycStatus  @default(PENDING)
+  commissionPercent Decimal?          @db.Decimal(5, 2)
+  isActive          Boolean           @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  siteVisits SiteVisit[]
+  bookings   Booking[]
+
+  @@index([tenantId])
+}
+
+enum PartnerKycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
 }
 
 // ─── Roles & Permissions ────────────────────────────────────────────────────
