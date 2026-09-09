@@ -52,6 +52,7 @@ const projectSchema = z.object({
   description: z.string().optional(),
   latitude: z.union([z.string(), z.number()]).optional(),
   longitude: z.union([z.string(), z.number()]).optional(),
+  amenities: z.string().optional(), // comma-separated in the UI, split into an array on save
 });
 type ProjectForm = z.infer<typeof projectSchema>;
 
@@ -72,6 +73,7 @@ function ProjectFormModal({ open, onClose, project }: { open: boolean; onClose: 
           description: project.description ?? '',
           latitude: project.latitude ?? '',
           longitude: project.longitude ?? '',
+          amenities: Array.isArray(project.amenities) ? project.amenities.join(', ') : '',
         }
       : { status: 'UPCOMING' },
   });
@@ -83,6 +85,7 @@ function ProjectFormModal({ open, onClose, project }: { open: boolean; onClose: 
         totalUnits: data.totalUnits ? Number(data.totalUnits) : undefined,
         latitude: data.latitude !== '' && data.latitude !== undefined ? Number(data.latitude) : undefined,
         longitude: data.longitude !== '' && data.longitude !== undefined ? Number(data.longitude) : undefined,
+        amenities: data.amenities ? data.amenities.split(',').map((a) => a.trim()).filter(Boolean) : undefined,
       };
       return isEdit
         ? api.patch(`/api/v1/real-estate/projects/${project.id}`, payload)
@@ -124,6 +127,9 @@ function ProjectFormModal({ open, onClose, project }: { open: boolean; onClose: 
         </div>
         <Field label="Description">
           <textarea {...register('description')} rows={3} className={inputCls} />
+        </Field>
+        <Field label="Amenities (comma separated)">
+          <input {...register('amenities')} className={inputCls} placeholder="e.g. Gym, Swimming Pool, Clubhouse" />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Latitude (for map)">

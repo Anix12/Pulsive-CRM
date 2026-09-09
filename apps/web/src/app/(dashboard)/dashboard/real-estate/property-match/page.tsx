@@ -192,6 +192,10 @@ function PerContactMatchTool() {
     preferredType: z.string().optional(),
     budgetMin: z.union([z.string(), z.number()]).optional(),
     budgetMax: z.union([z.string(), z.number()]).optional(),
+    preferredFloor: z.union([z.string(), z.number()]).optional(),
+    facing: z.string().optional(),
+    amenities: z.string().optional(), // comma-separated in the UI, split into an array on save
+    commutePreference: z.string().optional(),
     notes: z.string().optional(),
   });
   type PreferenceForm = z.infer<typeof preferenceSchema>;
@@ -204,9 +208,13 @@ function PerContactMatchTool() {
           preferredType: preference.preferredType ?? '',
           budgetMin: preference.budgetMin ?? '',
           budgetMax: preference.budgetMax ?? '',
+          preferredFloor: preference.preferredFloor ?? '',
+          facing: preference.facing ?? '',
+          amenities: Array.isArray(preference.amenities) ? preference.amenities.join(', ') : '',
+          commutePreference: preference.commutePreference ?? '',
           notes: preference.notes ?? '',
         }
-      : { preferredCity: '', preferredType: '', budgetMin: '', budgetMax: '', notes: '' },
+      : { preferredCity: '', preferredType: '', budgetMin: '', budgetMax: '', preferredFloor: '', facing: '', amenities: '', commutePreference: '', notes: '' },
   });
 
   const savePreference = useMutation({
@@ -216,6 +224,8 @@ function PerContactMatchTool() {
         ...data,
         budgetMin: data.budgetMin ? Number(data.budgetMin) : undefined,
         budgetMax: data.budgetMax ? Number(data.budgetMax) : undefined,
+        preferredFloor: data.preferredFloor !== '' && data.preferredFloor !== undefined ? Number(data.preferredFloor) : undefined,
+        amenities: data.amenities ? data.amenities.split(',').map((a) => a.trim()).filter(Boolean) : undefined,
       };
       return api.post('/api/v1/real-estate/property-match/preferences', payload);
     },
@@ -292,6 +302,22 @@ function PerContactMatchTool() {
               <Field label="Budget Max">
                 <input {...register('budgetMax')} type="number" className={inputCls} />
               </Field>
+              <Field label="Preferred Floor">
+                <input {...register('preferredFloor')} type="number" className={inputCls} />
+              </Field>
+              <Field label="Facing">
+                <input {...register('facing')} className={inputCls} placeholder="e.g. North" />
+              </Field>
+              <div className="col-span-2">
+                <Field label="Amenities (comma separated)">
+                  <input {...register('amenities')} className={inputCls} placeholder="e.g. Gym, Swimming Pool, Clubhouse" />
+                </Field>
+              </div>
+              <div className="col-span-2">
+                <Field label="Commute Preference">
+                  <input {...register('commutePreference')} className={inputCls} placeholder="e.g. near metro" />
+                </Field>
+              </div>
               <div className="col-span-2">
                 <Field label="Notes">
                   <textarea {...register('notes')} rows={2} className={inputCls} />
@@ -330,21 +356,35 @@ function PerContactMatchTool() {
               <table className="min-w-full divide-y divide-gray-50">
                 <thead className="bg-gray-50/60">
                   <tr>
-                    {['Project', 'Unit', 'Type', 'Area (sqft)', 'Price'].map((h) => (
+                    {['Fit', 'Project', 'Unit', 'Type', 'Price', 'Why it matches'].map((h) => (
                       <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {matchResult.matches.map((u: any) => (
-                    <tr key={u.id} className="hover:bg-slate-50/50">
-                      <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{u.project?.name}</td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{u.unitNumber}</td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{u.type || '—'}</td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{u.areaSqft ?? '—'}</td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{u.price ? `₹${Number(u.price).toLocaleString()}` : '—'}</td>
-                    </tr>
-                  ))}
+                  {matchResult.matches.map((u: any) => {
+                    const tone = u.fitScore >= 70 ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : u.fitScore >= 40 ? 'bg-amber-50 text-amber-700 ring-amber-100' : 'bg-gray-100 text-gray-500 ring-gray-200';
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50/50">
+                        <td className="px-5 py-3.5">
+                          <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1', tone)}>{u.fitScore}%</span>
+                        </td>
+                        <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{u.project?.name}</td>
+                        <td className="px-5 py-3.5 text-sm text-gray-600">{u.unitNumber}</td>
+                        <td className="px-5 py-3.5 text-sm text-gray-600">{u.type || '—'}</td>
+                        <td className="px-5 py-3.5 text-sm text-gray-600">{u.price ? `₹${Number(u.price).toLocaleString()}` : '—'}</td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex flex-wrap gap-1">
+                            {(u.fitReasons ?? []).map((r: string, i: number) => (
+                              <span key={i} className="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-indigo-100">
+                                {r}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

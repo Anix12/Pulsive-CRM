@@ -15,6 +15,7 @@ export const CreateProjectSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   geofenceMeters: z.number().int().positive().optional(),
+  amenities: z.array(z.string().max(50)).max(50).optional(),
 });
 
 export const UpdateProjectSchema = CreateProjectSchema.partial();
@@ -31,6 +32,7 @@ export const CreateUnitSchema = z.object({
   type: z.string().max(50).optional(),
   areaSqft: z.number().positive().optional(),
   price: z.number().positive().optional(),
+  facing: z.string().max(20).optional(),
   status: z.enum(['AVAILABLE', 'HOLD', 'BOOKED', 'SOLD']).optional(),
 });
 
@@ -99,10 +101,22 @@ export const UpsertPropertyPreferenceSchema = z.object({
   preferredType: z.string().max(50).optional(),
   budgetMin: z.number().positive().optional(),
   budgetMax: z.number().positive().optional(),
+  preferredFloor: z.number().int().optional(),
+  facing: z.string().max(20).optional(),
+  amenities: z.array(z.string().max(50)).max(50).optional(),
+  commutePreference: z.string().max(200).optional(),
   notes: z.string().max(2000).optional(),
 });
 
 export type UpsertPropertyPreferenceInput = z.infer<typeof UpsertPropertyPreferenceSchema>;
+
+// A Unit scored against a contact's PropertyPreference, returned by matchesForContact.
+export interface ScoredUnitMatch {
+  id: string;
+  fitScore: number;
+  fitReasons: string[];
+  [key: string]: unknown;
+}
 
 // ─── Lead Stage Funnel ──────────────────────────────────────────────────────────
 
