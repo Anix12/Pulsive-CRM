@@ -200,6 +200,8 @@ model Contact {
   assignedToId String?
   campaignId   String?
   score        Int                 @default(0)
+  sourceUniqueId String? // dedup key from the source platform (e.g. IndiaMART's UNIQUE_QUERY_ID)
+  sourceMetadata Json? // raw payload from the source platform's webhook, for audit/debugging
 
   // Real Estate vertical: nullable so contacts outside this vertical are unaffected.
   // Lives directly on Contact (not a join table) — it's a single current value per
@@ -232,6 +234,7 @@ model Contact {
   @@index([tenantId, campaignId])
   @@index([tenantId, score])
   @@index([tenantId, assignedToId])
+  @@unique([tenantId, sourceUniqueId])
   @@index([tenantId, realEstateStage])
 }
 

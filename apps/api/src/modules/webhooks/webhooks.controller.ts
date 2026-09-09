@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '@/db/client';
 import { sendSuccess } from '@/utils/response';
+import { logger } from '@/utils/logger';
 
 interface LeadData {
   name: string;
@@ -40,20 +41,54 @@ function cleanName(full: string): string {
 }
 
 // IndiaMART: POST /webhooks/indiamart/:tenantId
+// IndiaMART requires the literal {"CODE":200,"STATUS":"..."} response shape below (not the app's
+// standard {success,data} envelope) and expects HTTP 200 on every call — it deactivates the push
+// integration after 48h of non-200 responses, so failures are logged, never thrown as 4xx/5xx.
 export const indiamart = async (req: Request, res: Response) => {
-  const { tenantId } = req.params;
-  const b = req.body;
-  const lead: LeadData = {
-    name: cleanName(b.SENDER_NAME || b.name || ''),
-    phone: b.SENDER_MOBILE || b.mobile || '',
-    email: b.SENDER_EMAIL || b.email,
-    company: b.SENDER_COMPANY || b.company,
-    source: 'IndiaMART',
-    note: b.QUERY_MESSAGE || b.message,
-  };
-  if (!lead.phone) return res.status(400).json({ error: 'Missing phone' });
-  await createContactFromLead(tenantId, lead);
-  sendSuccess(res, { received: true });
+  const tenantId = req.params.tenantId as string;
+
+  try {
+    const integration = await prisma.integration.findUnique({
+      where: { tenantId_type: { tenantId, type: 'INDIAMART' } },
+    });
+    if (!integration || !integration.isActive) {
+      logger.warn('IndiaMART webhook received for inactive/unknown integration', { tenantId });
+      return res.status(200).json({ CODE: 200, STATUS: 'IGNORED' });
+    }
+
+    // IndiaMART nests the lead fields under a top-level RESPONSE object.
+    const r = req.body?.RESPONSE || req.body || {};
+
+    const uniqueQueryId: string | undefined = r.UNIQUE_QUERY_ID;
+    if (uniqueQueryId) {
+      const existing = await prisma.contact.findUnique({
+        where: { tenantId_sourceUniqueId: { tenantId, sourceUniqueId: uniqueQueryId } },
+      });
+      if (existing) return res.status(200).json({ CODE: 200, STATUS: 'DUPLICATE_IGNORED' });
+    }
+
+    await prisma.contact.create({
+      data: {
+        tenantId,
+        name: cleanName(r.SENDER_NAME) !== 'Unknown' ? cleanName(r.SENDER_NAME) : 'IndiaMART Buyer',
+        phone: r.SENDER_MOBILE || '',
+        email: r.SENDER_EMAIL || undefined,
+        company: r.SENDER_COMPANY || undefined,
+        source: 'IndiaMART',
+        status: 'LEAD',
+        sourceUniqueId: uniqueQueryId,
+        sourceMetadata: req.body,
+        customFields: r.QUERY_MESSAGE ? { note: r.QUERY_MESSAGE } : undefined,
+      },
+    });
+
+    return res.status(200).json({ CODE: 200, STATUS: 'SUCCESS' });
+  } catch (err: any) {
+    // Duplicate race (two retries landing concurrently) — still a success from IndiaMART's view.
+    if (err?.code === 'P2002') return res.status(200).json({ CODE: 200, STATUS: 'DUPLICATE_IGNORED' });
+    logger.error('IndiaMART webhook failed', { tenantId, error: err?.message });
+    return res.status(200).json({ CODE: 200, STATUS: 'SUCCESS' });
+  }
 };
 
 // Campaign lead-capture link: POST /webhooks/integrate/:token/leads
