@@ -81,6 +81,7 @@ model Tenant {
   reSiteVisits          SiteVisit[]
   reBookings            Booking[]
   rePropertyPreferences PropertyPreference[]
+  reStageHistories      RealEstateStageHistory[]
 }
 
 enum TenantPlan {
@@ -199,6 +200,11 @@ model Contact {
   campaignId   String?
   score        Int                 @default(0)
 
+  // Real Estate vertical: nullable so contacts outside this vertical are unaffected.
+  // Lives directly on Contact (not a join table) — it's a single current value per
+  // contact, same pattern as campaignId/score, not a many-relation that needs its own table.
+  realEstateStage RealEstateLeadStage?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -216,6 +222,7 @@ model Contact {
   reSiteVisits          SiteVisit[]
   reBookings            Booking[]
   rePropertyPreference  PropertyPreference?
+  reStageHistory        RealEstateStageHistory[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -224,6 +231,7 @@ model Contact {
   @@index([tenantId, campaignId])
   @@index([tenantId, score])
   @@index([tenantId, assignedToId])
+  @@index([tenantId, realEstateStage])
 }
 
 enum ContactStatus {
@@ -1321,6 +1329,40 @@ model PropertyPreference {
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// Real-estate-specific lead funnel. Kept separate from the CRM-generic Contact.status
+// (LEAD/PROSPECT/CUSTOMER/...) and from Deal.stageId (a tenant-configurable pipeline) —
+// this is a fixed funnel meaningful only to the real estate vertical.
+enum RealEstateLeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPERTY_SHARED
+  VISIT_SCHEDULED
+  VISIT_DONE
+  NEGOTIATION
+  BOOKING
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+// Audit trail of realEstateStage changes, mirroring AuditLog's before/after style
+// but scoped to just this one funnel so it's cheap to query per-contact.
+model RealEstateStageHistory {
+  id          String               @id @default(cuid())
+  tenantId    String
+  contactId   String
+  fromStage   RealEstateLeadStage?
+  toStage     RealEstateLeadStage
+  changedAt   DateTime             @default(now())
+  triggeredBy String // e.g. "SITE_VISIT_CREATED", "BOOKING_REGISTERED", or a userId for manual changes
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, contactId])
 }
 
 // ─── Roles & Permissions ────────────────────────────────────────────────────

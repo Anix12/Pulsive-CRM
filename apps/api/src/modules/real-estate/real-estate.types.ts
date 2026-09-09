@@ -103,3 +103,14 @@ export const UpsertPropertyPreferenceSchema = z.object({
 });
 
 export type UpsertPropertyPreferenceInput = z.infer<typeof UpsertPropertyPreferenceSchema>;
+
+// ─── Lead Stage Funnel ──────────────────────────────────────────────────────────
+
+// Order matters: index in this array is the funnel's "rank", used to prevent a
+// contact's stage from ever moving backwards (see real-estate-stage.service.ts).
+export const REAL_ESTATE_LEAD_STAGES = [
+  'NEW', 'CONTACTED', 'QUALIFIED', 'PROPERTY_SHARED', 'VISIT_SCHEDULED',
+  'VISIT_DONE', 'NEGOTIATION', 'BOOKING', 'CLOSED_WON', 'CLOSED_LOST',
+] as const;
+
+export type RealEstateLeadStageValue = (typeof REAL_ESTATE_LEAD_STAGES)[number];
