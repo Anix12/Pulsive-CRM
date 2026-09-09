@@ -12,6 +12,7 @@ const includeRelations = {
   project: { select: { id: true, name: true } },
   unit: { select: { id: true, unitNumber: true, price: true } },
   agent: { select: { id: true, firstName: true, lastName: true } },
+  partner: { select: { id: true, name: true } },
 };
 
 export const list = async (tenantId: string, req: Request) => {
@@ -80,6 +81,7 @@ export const create = async (tenantId: string, userId: string, input: CreateBook
         projectId: input.projectId,
         unitId: input.unitId,
         agentId: input.agentId || undefined,
+        partnerId: input.partnerId || undefined,
         bookingAmount: input.bookingAmount,
         totalAmount: input.totalAmount,
         status: input.status,
@@ -109,6 +111,7 @@ export const update = async (tenantId: string, userId: string, id: string, input
   const data: any = { ...input };
   if (input.bookingDate) data.bookingDate = new Date(input.bookingDate);
   if ('agentId' in data && !data.agentId) data.agentId = null;
+  if ('partnerId' in data && !data.partnerId) data.partnerId = null;
 
   const totalAmount = input.totalAmount ?? Number(existing.totalAmount ?? 0);
   const brokeragePercent = input.brokeragePercent ?? (existing.brokeragePercent != null ? Number(existing.brokeragePercent) : undefined);

@@ -52,6 +52,7 @@ export const CreateSiteVisitSchema = z.object({
   projectId: z.string().min(1),
   unitId: z.string().optional().nullable(),
   agentId: z.string().optional().nullable(),
+  partnerId: z.string().optional().nullable(),
   scheduledAt: z.string().min(1),
   status: z.enum(SITE_VISIT_STATUSES).optional(),
   travelMinutes: z.number().int().nonnegative().optional(),
@@ -79,6 +80,7 @@ export const CreateBookingSchema = z.object({
   projectId: z.string().min(1),
   unitId: z.string().min(1),
   agentId: z.string().optional().nullable(),
+  partnerId: z.string().optional().nullable(),
   bookingAmount: z.number().positive().optional(),
   totalAmount: z.number().positive().optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
@@ -109,6 +111,24 @@ export const UpsertPropertyPreferenceSchema = z.object({
 });
 
 export type UpsertPropertyPreferenceInput = z.infer<typeof UpsertPropertyPreferenceSchema>;
+
+// ─── Partners ─────────────────────────────────────────────────────────────────
+
+export const PARTNER_KYC_STATUSES = ['PENDING', 'VERIFIED', 'REJECTED'] as const;
+
+export const CreatePartnerSchema = z.object({
+  name: z.string().min(1).max(200),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().max(200).optional(),
+  kycStatus: z.enum(PARTNER_KYC_STATUSES).optional(),
+  commissionPercent: z.number().min(0).max(100).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const UpdatePartnerSchema = CreatePartnerSchema.partial();
+
+export type CreatePartnerInput = z.infer<typeof CreatePartnerSchema>;
+export type UpdatePartnerInput = z.infer<typeof UpdatePartnerSchema>;
 
 // A Unit scored against a contact's PropertyPreference, returned by matchesForContact.
 export interface ScoredUnitMatch {

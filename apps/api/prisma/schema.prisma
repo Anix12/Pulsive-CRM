@@ -82,6 +82,7 @@ model Tenant {
   reBookings            Booking[]
   rePropertyPreferences PropertyPreference[]
   reStageHistories      RealEstateStageHistory[]
+  rePartners            Partner[]
 }
 
 enum TenantPlan {
@@ -1232,6 +1233,7 @@ model SiteVisit {
   projectId     String
   unitId        String?
   agentId       String?
+  partnerId     String?
   scheduledAt   DateTime
   status        SiteVisitStatus @default(SCHEDULED)
   statusAt      DateTime        @default(now())
@@ -1249,10 +1251,12 @@ model SiteVisit {
   project Project  @relation(fields: [projectId], references: [id])
   unit    Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
   agent   User?    @relation("SiteVisitAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  partner Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, agentId])
+  @@index([tenantId, partnerId])
   @@index([tenantId, contactId])
   @@index([tenantId, projectId])
 }
@@ -1282,6 +1286,7 @@ model Booking {
   projectId          String
   unitId             String
   agentId            String?
+  partnerId          String?
   bookingAmount      Decimal?      @db.Decimal(15, 2)
   totalAmount        Decimal?      @db.Decimal(15, 2)
   status             BookingStatus @default(TOKEN_RECEIVED)
@@ -1293,15 +1298,17 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contact Contact @relation(fields: [contactId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
-  unit    Unit    @relation(fields: [unitId], references: [id])
-  agent   User?   @relation("BookingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact  @relation(fields: [contactId], references: [id])
+  project Project  @relation(fields: [projectId], references: [id])
+  unit    Unit     @relation(fields: [unitId], references: [id])
+  agent   User?    @relation("BookingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  partner Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, agentId])
+  @@index([tenantId, partnerId])
   @@index([tenantId, contactId])
   @@index([tenantId, projectId])
 }
@@ -1369,6 +1376,35 @@ model RealEstateStageHistory {
 
   @@index([tenantId])
   @@index([tenantId, contactId])
+}
+
+// External channel partner / broker who sources or co-sells leads — distinct from
+// `agentId` (an internal CRM User) on SiteVisit/Booking. A visit or booking may come
+// from an internal agent, an external partner, both, or neither.
+model Partner {
+  id                String            @id @default(cuid())
+  tenantId          String
+  name              String
+  phone             String?
+  email             String?
+  kycStatus         PartnerKycStatus  @default(PENDING)
+  commissionPercent Decimal?          @db.Decimal(5, 2)
+  isActive          Boolean           @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  siteVisits SiteVisit[]
+  bookings   Booking[]
+
+  @@index([tenantId])
+}
+
+enum PartnerKycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
 }
 
 // ─── Roles & Permissions ────────────────────────────────────────────────────
