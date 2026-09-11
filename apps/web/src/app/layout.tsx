@@ -6,7 +6,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'CRM Platform',
+  title: 'Pulsive',
   description: 'AI-powered CRM for Indian SMEs',
 };
 
