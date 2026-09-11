@@ -1,14 +1,11 @@
 const COMPANIES = [
-  'Northwind',
-  'Lumen Labs',
-  'Vertex',
-  'Bright AI',
-  'Orbit',
-  'Quanta',
-  'Helix',
-  'Nimbus',
-  'Foundry',
-  'Cobalt',
+  'IndiaMART',
+  'Tradeindia',
+  'Sulekha',
+  '99acres',
+  'Justdial',
+  'Housing.com',
+  'Magicbricks'
 ]
 
 export function Marquee() {
