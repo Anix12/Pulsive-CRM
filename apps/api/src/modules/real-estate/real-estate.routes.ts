@@ -5,6 +5,8 @@ import * as siteVisits from './site-visits.controller';
 import * as bookings from './bookings.controller';
 import * as propertyMatch from './property-match.controller';
 import * as agentTracker from './agent-tracker.controller';
+import * as realEstateStage from './real-estate-stage.controller';
+import * as partners from './partners.controller';
 import { validate } from '@/middleware/validate';
 import { authenticate } from '@/middleware/auth';
 import { requireActiveTenant } from '@/middleware/tenant';
@@ -14,6 +16,7 @@ import {
   CreateSiteVisitSchema, UpdateSiteVisitSchema, UpdateSiteVisitStatusSchema,
   CreateBookingSchema, UpdateBookingSchema,
   UpsertPropertyPreferenceSchema,
+  CreatePartnerSchema, UpdatePartnerSchema,
 } from './real-estate.types';
 
 const router = Router();
@@ -60,5 +63,15 @@ router.get('/property-match/:contactId', propertyMatch.matchesForContact);
 // Agent Tracker
 router.get('/agent-tracker', agentTracker.overview);
 router.get('/agent-tracker/performance', agentTracker.performance);
+
+// Lead Stage Funnel
+router.get('/leads/:contactId/stage', realEstateStage.getStage);
+
+// Partners (external channel partners / brokers)
+router.get('/partners', partners.list);
+router.post('/partners', validate(CreatePartnerSchema), partners.create);
+router.get('/partners/:id', partners.getById);
+router.patch('/partners/:id', validate(UpdatePartnerSchema), partners.update);
+router.delete('/partners/:id', partners.remove);
 
 export default router;

@@ -5,12 +5,14 @@ import { paginationMeta } from '@/utils/response';
 import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateBookingInput, UpdateBookingInput } from './real-estate.types';
+import * as stageService from './real-estate-stage.service';
 
 const includeRelations = {
   contact: { select: { id: true, name: true, phone: true } },
   project: { select: { id: true, name: true } },
   unit: { select: { id: true, unitNumber: true, price: true } },
   agent: { select: { id: true, firstName: true, lastName: true } },
+  partner: { select: { id: true, name: true } },
 };
 
 export const list = async (tenantId: string, req: Request) => {
@@ -79,6 +81,7 @@ export const create = async (tenantId: string, userId: string, input: CreateBook
         projectId: input.projectId,
         unitId: input.unitId,
         agentId: input.agentId || undefined,
+        partnerId: input.partnerId || undefined,
         bookingAmount: input.bookingAmount,
         totalAmount: input.totalAmount,
         status: input.status,
@@ -96,6 +99,8 @@ export const create = async (tenantId: string, userId: string, input: CreateBook
     data: { tenantId, userId, action: AUDIT_ACTIONS.CREATE, resource: 're_bookings', resourceId: booking.id, after: booking as any },
   });
 
+  await stageService.advanceStage(tenantId, booking.contactId, 'BOOKING', 'BOOKING_CREATED');
+
   return booking;
 };
 
@@ -106,6 +111,7 @@ export const update = async (tenantId: string, userId: string, id: string, input
   const data: any = { ...input };
   if (input.bookingDate) data.bookingDate = new Date(input.bookingDate);
   if ('agentId' in data && !data.agentId) data.agentId = null;
+  if ('partnerId' in data && !data.partnerId) data.partnerId = null;
 
   const totalAmount = input.totalAmount ?? Number(existing.totalAmount ?? 0);
   const brokeragePercent = input.brokeragePercent ?? (existing.brokeragePercent != null ? Number(existing.brokeragePercent) : undefined);
@@ -118,8 +124,11 @@ export const update = async (tenantId: string, userId: string, id: string, input
 
   if (input.status === 'CANCELLED' && existing.status !== 'CANCELLED') {
     await prisma.unit.update({ where: { id: existing.unitId }, data: { status: 'AVAILABLE' } });
+    // Intentionally no stage change here — a cancelled booking doesn't always mean a
+    // lost lead (e.g. they may rebook a different unit), so a human decides that call.
   } else if (input.status === 'REGISTERED' && existing.status !== 'REGISTERED') {
     await prisma.unit.update({ where: { id: existing.unitId }, data: { status: 'SOLD' } });
+    await stageService.advanceStage(tenantId, existing.contactId, 'CLOSED_WON', 'BOOKING_REGISTERED');
   }
 
   await prisma.auditLog.create({
