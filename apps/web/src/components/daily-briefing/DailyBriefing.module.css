@@ -1,0 +1,483 @@
+/* Full-viewport overlay that sits on top of the real dashboard (already
+   rendered behind it in the DOM) and blurs it via backdropFilter — there is
+   no mock dashboard here, unlike the v0 sample this was ported from. */
+.briefingShell {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  isolation: isolate;
+  background: transparent;
+}
+.briefingShell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 48%, transparent 30%, rgba(91, 120, 177, 0.08) 100%);
+}
+
+.briefingBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(135deg, rgba(247, 250, 255, 0.98), rgba(239, 245, 255, 0.96) 52%, rgba(248, 246, 255, 0.98));
+  backdrop-filter: saturate(0.9) brightness(1.05) blur(7px);
+  -webkit-backdrop-filter: saturate(0.9) brightness(1.05) blur(7px);
+}
+
+.ambient {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 50%;
+}
+.ambientOne {
+  top: 3%;
+  right: 8%;
+  width: 45vw;
+  height: 70vh;
+  background: radial-gradient(ellipse at 72% 28%, #a9ceff8c 0%, #d9e8ff55 32%, transparent 68%);
+  filter: blur(48px);
+}
+.ambientTwo {
+  bottom: -25%;
+  left: 5%;
+  width: 60vw;
+  height: 55vh;
+  background: radial-gradient(ellipse at 20% 82%, #c9b7ff7a 0%, #e5ddff45 34%, transparent 70%);
+  filter: blur(52px);
+}
+
+.briefingContent {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  height: 100%;
+  padding: 8vh 7vw 5vh;
+}
+
+.agentWrap {
+  position: absolute;
+  right: 4%;
+  bottom: -5%;
+  width: min(45vw, 690px);
+  height: 95%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.agentGlow {
+  position: absolute;
+  inset: 16% 2% 4%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #6da8ff52 0%, #a88bff24 36%, transparent 70%);
+  filter: blur(42px);
+}
+.agentImage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 0 26px #5488dd35);
+}
+
+.briefingNav {
+  position: absolute;
+  z-index: 5;
+  right: 7vw;
+  bottom: 34px;
+  left: 7vw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #b7c5d8;
+  padding-top: 20px;
+  color: #53627d;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+.navControl, .skipControl, .nextControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.navControl {
+  padding: 10px 14px;
+  color: #315fae;
+  font-weight: 600;
+  background: #edf3fc;
+  border: 1px solid #c8d8ee;
+  border-radius: 999px;
+  box-shadow: 0 5px 14px #315fae12;
+}
+.navControl:disabled {
+  cursor: not-allowed;
+  color: #9aa8bd;
+  opacity: 1;
+  background: #f1f4f8;
+  border-color: #d9e1ec;
+  box-shadow: none;
+}
+.progressWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #315fae;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+}
+.progressTrack {
+  width: 110px;
+  height: 2px;
+  background: #d8e1ef;
+}
+.progressTrack i {
+  display: block;
+  width: 16.66%;
+  height: 100%;
+  background: #86adff;
+  box-shadow: 0 0 8px #86adff;
+}
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 27px;
+}
+.skipControl {
+  color: #53627d;
+  font-weight: 600;
+  background: #edf3fc;
+  border: 1px solid #c8d8ee;
+  border-radius: 999px;
+  padding: 10px 14px;
+  box-shadow: 0 5px 14px #315fae12;
+}
+.nextControl {
+  padding: 12px 18px;
+  color: #fff;
+  border: 1px solid #5e8df1;
+  border-radius: 7px;
+  background: #3c6fd2;
+  box-shadow: 0 5px 22px #245ac250;
+}
+.nextControl:hover {
+  background: #4b7de0;
+}
+.nextControl:focus-visible, .skipControl:focus-visible, .navControl:focus-visible {
+  outline: 2px solid #8cb5ff;
+  outline-offset: 5px;
+}
+
+.sceneLayer {
+  position: relative;
+  z-index: 2;
+  width: 58%;
+  align-self: center;
+  padding-bottom: 4vh;
+}
+.sceneCopy {
+  width: 100%;
+}
+.sceneOne h1 {
+  margin: 0;
+  color: #17213a;
+  font-size: clamp(58px, 6.8vw, 112px);
+  font-weight: 650;
+  letter-spacing: -0.075em;
+  line-height: 0.98;
+}
+.sceneOne h1 span {
+  color: #315fae;
+}
+.sceneOne .briefingKicker, .sceneOne .briefingSubtitle {
+  color: #53627d;
+}
+.briefingKicker {
+  margin: 0 0 25px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.briefingKicker span {
+  padding: 0 8px;
+  color: #7890ba;
+}
+.briefingSubtitle {
+  margin: 31px 0 0;
+  font-size: clamp(17px, 1.55vw, 25px);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+.briefingMeta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 57px;
+  color: #627493;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.metaDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #71abff;
+  box-shadow: 0 0 12px #71abff;
+}
+.metaLine {
+  display: block;
+  width: 43px;
+  height: 1px;
+  margin-left: 5px;
+  background: #3d588a;
+}
+
+.sceneDetail h1 {
+  max-width: 720px;
+  margin: 18px 0 34px;
+  color: #17213a;
+  font-size: clamp(42px, 5.2vw, 78px);
+  font-weight: 500;
+  letter-spacing: -0.07em;
+  line-height: 1.02;
+}
+.sceneDetail h1 em {
+  color: #315fae;
+  font-style: normal;
+}
+.sceneLabel {
+  margin: 0;
+  color: #536b9b;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.sceneLabel span {
+  margin-left: 13px;
+  color: #7890ba;
+}
+
+.leadFlow {
+  display: flex;
+  align-items: center;
+  max-width: 730px;
+  margin-top: 34px;
+}
+.flowStep {
+  position: relative;
+  display: flex;
+  min-width: 106px;
+  flex-direction: column;
+  gap: 7px;
+}
+.flowStep strong {
+  color: #17213a;
+  font-size: 29px;
+  font-weight: 500;
+  letter-spacing: -0.05em;
+}
+.flowStep span {
+  color: #6d7e9c;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.flowStep i {
+  width: 42px;
+  height: 1px;
+  margin: 0 16px;
+  background: linear-gradient(90deg, #78a8ff, #4d6b9e);
+  box-shadow: 0 0 10px #6196ff;
+}
+.scenePositive {
+  color: #75cfb2;
+  font-size: 13px;
+}
+.scenePositive span {
+  margin-left: 7px;
+  color: #647492;
+}
+
+.conversationHero {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 26px 0 25px;
+}
+.conversationHero strong {
+  color: #17213a;
+  font-size: 64px;
+  font-weight: 500;
+  letter-spacing: -0.08em;
+}
+.conversationHero span {
+  color: #6d7e9c;
+  font-size: 14px;
+}
+.typing {
+  position: absolute;
+  bottom: -3px;
+  left: 5px;
+  display: flex;
+  gap: 4px;
+}
+.typing i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #76aaff;
+  animation: typing 1.2s infinite ease-in-out;
+}
+.typing i:nth-child(2) { animation-delay: 0.16s; }
+.typing i:nth-child(3) { animation-delay: 0.32s; }
+.metricRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 27px;
+  color: #6d7e9c;
+  font-size: 11px;
+}
+.metricRow b {
+  display: block;
+  margin-bottom: 6px;
+  color: #17213a;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+.attentionNote {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 30px;
+  color: #647492;
+  font-size: 12px;
+}
+.pulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8bb9ff;
+  box-shadow: 0 0 0 5px #78aaff20, 0 0 15px #78aaff;
+}
+
+.campaignFeature {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 660px;
+  margin: 26px 0 28px;
+  padding: 20px 24px;
+  border-radius: 12px;
+  border: 1px solid #c4d5ef;
+  background: linear-gradient(110deg, #edf4ff, #f7f9fd);
+}
+.campaignFeature span, .campaignFeature small {
+  display: block;
+  color: #6d7e9c;
+  font-size: 11px;
+}
+.campaignFeature strong {
+  display: block;
+  margin: 8px 0;
+  color: #17213a;
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+.campaignBars {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  height: 72px;
+}
+.campaignBars i {
+  display: block;
+  width: 12px;
+  border-radius: 4px 4px 1px 1px;
+  background: linear-gradient(#8bb7ff, #4267bd);
+  box-shadow: 0 0 12px #699cff55;
+  animation: bar-rise 0.8s ease-out both;
+}
+.campaignBars i:nth-child(2) { animation-delay: 0.1s; }
+.campaignBars i:nth-child(3) { animation-delay: 0.2s; }
+.campaignBars i:nth-child(4) { animation-delay: 0.3s; }
+
+.priorityList {
+  display: grid;
+  gap: 11px;
+  max-width: 670px;
+}
+.priorityItem {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 17px 19px;
+  border-left: 1px solid #527dc9;
+  background: linear-gradient(90deg, #edf3fc, transparent);
+}
+.priorityItem span {
+  color: #6e92d4;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.priorityItem strong {
+  color: #33415e;
+  font-size: 14px;
+  font-weight: 400;
+}
+.priority1, .priority2 {
+  opacity: 0.62;
+  transform: scale(0.98);
+  transform-origin: left center;
+}
+.handoffText {
+  color: #647492;
+  font-size: 18px;
+}
+
+.briefingClosed .briefingContent,
+.briefingClosed .briefingBackdrop {
+  pointer-events: none;
+}
+
+@keyframes typing {
+  0%, 70%, 100% { opacity: 0.3; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+@keyframes bar-rise {
+  from { transform: scaleY(0); transform-origin: bottom; }
+  to { transform: scaleY(1); transform-origin: bottom; }
+}
+
+@media (max-width: 900px) {
+  .sceneLayer { width: 65%; }
+  .agentWrap { right: -9%; width: 50vw; opacity: 0.78; }
+  .briefingNav { right: 8vw; left: 8vw; }
+}
+@media (max-width: 620px) {
+  .briefingContent { padding: 13vh 25px 145px; }
+  .sceneLayer { width: 100%; z-index: 3; padding-bottom: 0; }
+  .sceneDetail h1 { font-size: clamp(39px, 11vw, 58px); margin-bottom: 25px; }
+  .leadFlow { flex-wrap: wrap; gap: 20px 0; }
+  .flowStep { min-width: 50%; }
+  .flowStep i { display: none; }
+  .metricRow { gap: 18px; }
+  .campaignFeature { padding: 16px; }
+  .campaignBars { transform: scale(0.8); transform-origin: right center; }
+  .handoffText { max-width: 280px; line-height: 1.4; }
+  .agentWrap { right: -18%; bottom: 9%; width: 78vw; height: 64%; opacity: 0.42; }
+  .briefingNav { right: 25px; bottom: 23px; left: 25px; flex-wrap: wrap; gap: 17px; }
+  .progressWrap { order: 3; width: 100%; justify-content: center; }
+  .navRight { gap: 14px; }
+}
