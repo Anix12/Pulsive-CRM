@@ -593,6 +593,10 @@ model Integration {
   type     String
   isActive Boolean @default(false)
   config   Json    @default("{}")
+  // External identifier for provider push events that don't carry a tenantId
+  // (e.g. a Facebook Page ID) — lets a single global webhook route the event
+  // back to the right tenant instead of needing a per-tenant callback URL.
+  externalId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -601,6 +605,7 @@ model Integration {
 
   @@unique([tenantId, type])
   @@index([tenantId])
+  @@index([type, externalId])
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
