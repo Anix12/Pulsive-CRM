@@ -23,6 +23,7 @@ import reportRoutes from '@/modules/reports/reports.routes';
 import adminRoutes from '@/modules/admin/admin.routes';
 import apiKeyRoutes from '@/modules/api-keys/api-keys.routes';
 import integrationRoutes from '@/modules/integrations/integrations.routes';
+import facebookOAuthRoutes from '@/modules/integrations/facebook-oauth.routes';
 import webhookRoutes from '@/modules/webhooks/webhooks.routes';
 import settingsRoutes from '@/modules/settings/settings.routes';
 import presenceRoutes from '@/modules/presence/presence.routes';
@@ -80,6 +81,7 @@ export const createApp = () => {
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/api-keys', apiKeyRoutes);
   app.use('/api/v1/admin', adminRoutes);
+  app.use('/api/v1/integrations/facebook', facebookOAuthRoutes);
   app.use('/api/v1/integrations', integrationRoutes);
   app.use('/api/v1/webhooks', webhookRoutes);
   app.use('/api/v1/settings', settingsRoutes);

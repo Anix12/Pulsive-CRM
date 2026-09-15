@@ -43,3 +43,20 @@ export const signSuperAdminToken = (adminId: string): string => {
 export const verifySuperAdminToken = (token: string): SuperAdminJwtPayload => {
   return jwt.verify(token, env.SUPER_ADMIN_JWT_SECRET) as SuperAdminJwtPayload;
 };
+
+export interface FacebookOAuthState {
+  tenantId: string;
+  type: 'fb_oauth_state';
+}
+
+// Short-lived, tamper-proof CSRF state for the Facebook OAuth redirect —
+// the callback is a public GET hit directly by Facebook, so there's no
+// Authorization header to identify the tenant from; this ties the callback
+// back to the tenant that initiated it.
+export const signFacebookOAuthState = (tenantId: string): string => {
+  return jwt.sign({ tenantId, type: 'fb_oauth_state' }, env.JWT_ACCESS_SECRET, { expiresIn: '10m' });
+};
+
+export const verifyFacebookOAuthState = (state: string): FacebookOAuthState => {
+  return jwt.verify(state, env.JWT_ACCESS_SECRET) as FacebookOAuthState;
+};

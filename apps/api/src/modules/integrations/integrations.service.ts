@@ -64,4 +64,6 @@ export const disconnect = async (tenantId: string, type: string) => {
   });
 };
 
-const hasWebhook = (type: string) => type !== 'EXOTEL' && type !== 'GOOGLE_SHEETS';
+// FACEBOOK_LEADS uses a single global webhook (registered once at the Meta
+// App level) via the OAuth connect flow, not a per-tenant callback URL.
+const hasWebhook = (type: string) => type !== 'EXOTEL' && type !== 'GOOGLE_SHEETS' && type !== 'FACEBOOK_LEADS';

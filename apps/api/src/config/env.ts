@@ -44,6 +44,14 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().optional(),
 
   ANTHROPIC_API_KEY: z.string().optional(),
+
+  // Platform-owned Meta app used for the Facebook Lead Ads "Connect" OAuth
+  // flow and for verifying/subscribing webhooks — one app for all tenants,
+  // so customers never create their own Meta app or paste tokens manually.
+  FACEBOOK_APP_ID: z.string().optional(),
+  FACEBOOK_APP_SECRET: z.string().optional(),
+  FACEBOOK_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+  FACEBOOK_GRAPH_VERSION: z.string().default('v22.0'),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -2,6 +2,10 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '@/db/client';
 import { sendSuccess } from '@/utils/response';
+import { env } from '@/config/env';
+import { decrypt } from '@/utils/crypto';
+import { logger } from '@/utils/logger';
+import { fetchLeadFieldData } from '@/providers/facebook/graph';
 
 interface LeadData {
   name: string;
@@ -200,76 +204,80 @@ export const googleAds = async (req: Request, res: Response) => {
   sendSuccess(res, { received: true });
 };
 
-// Facebook Lead Ads: GET for webhook verification challenge
+// Facebook Lead Ads: GET for webhook verification challenge.
+// Registered once at the Meta App level, so the verify token is a single
+// platform-wide secret (FACEBOOK_WEBHOOK_VERIFY_TOKEN) rather than per tenant.
 export const facebookVerify = async (req: Request, res: Response) => {
-  const { tenantId } = req.params;
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  const integration = await prisma.integration.findUnique({
-    where: { tenantId_type: { tenantId, type: 'FACEBOOK_LEADS' } },
-  });
-  const cfg = (integration?.config as any) || {};
-  if (mode === 'subscribe' && token === cfg.verifyToken) {
+  if (mode === 'subscribe' && env.FACEBOOK_WEBHOOK_VERIFY_TOKEN && token === env.FACEBOOK_WEBHOOK_VERIFY_TOKEN) {
     res.status(200).send(challenge);
   } else {
     res.status(403).send('Forbidden');
   }
 };
 
-// Facebook Lead Ads: POST — Meta sends leadgen_id only; we fetch field_data via Graph API
+// Facebook Lead Ads: POST — Meta sends leadgen_id + the Page ID per entry;
+// we fetch full field data via the Graph API and route to the tenant whose
+// Integration.externalId matches that Page ID.
 export const facebookLeads = async (req: Request, res: Response) => {
-  const { tenantId } = req.params;
-
-  const integration = await prisma.integration.findUnique({
-    where: { tenantId_type: { tenantId, type: 'FACEBOOK_LEADS' } },
-  });
-  const cfg = (integration?.config as any) || {};
-
-  // Verify X-Hub-Signature-256 when app secret is configured
-  if (cfg.appSecret) {
-    const sig = (req.headers['x-hub-signature-256'] as string) || '';
-    const rawBody = (req as any).rawBody as Buffer;
-    const expected = 'sha256=' + crypto.createHmac('sha256', cfg.appSecret).update(rawBody).digest('hex');
-    if (sig !== expected) return res.status(403).json({ error: 'Invalid signature' });
+  // Signature verification is mandatory — this endpoint is public and shared
+  // across every tenant's connected Page, so an unverified request can't be
+  // scoped to "this tenant opted out of verification" the way the old
+  // per-tenant design allowed.
+  if (!env.FACEBOOK_APP_SECRET) {
+    logger.error('Facebook webhook received but FACEBOOK_APP_SECRET is not configured — rejecting');
+    return res.status(503).json({ error: 'Facebook integration not configured' });
+  }
+  const sig = (req.headers['x-hub-signature-256'] as string) || '';
+  const rawBody = (req as any).rawBody as Buffer;
+  const expected = 'sha256=' + crypto.createHmac('sha256', env.FACEBOOK_APP_SECRET).update(rawBody).digest('hex');
+  const sigMatches =
+    sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  if (!sigMatches) {
+    logger.warn('Facebook webhook signature mismatch — rejecting request');
+    return res.status(403).json({ error: 'Invalid signature' });
   }
 
   const entries = req.body?.entry || [];
 
   for (const entry of entries) {
+    const pageId = entry.id;
     for (const change of entry.changes || []) {
       if (change.field !== 'leadgen') continue;
       const leadgenId = change.value?.leadgen_id;
-      if (!leadgenId) continue;
+      if (!leadgenId || !pageId) continue;
 
-      // Meta webhook only sends metadata — fetch actual field data from Graph API
-      const fields: Record<string, string> = {};
-      if (cfg.pageAccessToken) {
-        try {
-          const resp = await fetch(
-            `https://graph.facebook.com/v22.0/${leadgenId}?fields=field_data&access_token=${cfg.pageAccessToken}`
-          );
-          if (resp.ok) {
-            const data = await resp.json() as any;
-            (data.field_data || []).forEach((f: any) => {
-              fields[f.name] = f.values?.[0] || '';
-            });
-          }
-        } catch (_) { /* skip lead if Graph API unreachable */ }
+      try {
+        const integration = await prisma.integration.findFirst({
+          where: { type: 'FACEBOOK_LEADS', externalId: pageId, isActive: true },
+        });
+        if (!integration) {
+          logger.warn(`Facebook lead received for unknown/disconnected Page ${pageId} — skipping`, { leadgenId });
+          continue;
+        }
+
+        const cfg = integration.config as any;
+        const pageAccessToken = decrypt(cfg.pageAccessTokenEnc);
+        const fields = await fetchLeadFieldData(leadgenId, pageAccessToken);
+
+        const name = cleanName(fields['full_name'] || `${fields['first_name'] || ''} ${fields['last_name'] || ''}`);
+        const phone = fields['phone_number'] || fields['phone'] || '';
+        const email = fields['email'] || '';
+        if (!phone && !email) {
+          logger.warn(`Facebook lead ${leadgenId} had no phone or email — skipping`);
+          continue;
+        }
+
+        await createContactFromLead(integration.tenantId, { name, phone, email, source: 'Facebook Leads' });
+      } catch (err) {
+        // Logged, not swallowed — a persistently failing token gets caught
+        // and surfaced to the tenant by the daily token-health check instead
+        // of silently dropping leads forever.
+        logger.error(`Failed to process Facebook lead ${leadgenId} for page ${pageId}`, { err });
       }
-
-      const name = cleanName(fields['full_name'] || `${fields['first_name'] || ''} ${fields['last_name'] || ''}`);
-      const phone = fields['phone_number'] || fields['phone'] || '';
-      const email = fields['email'] || '';
-      if (!phone && !email) continue;
-
-      await createContactFromLead(tenantId, {
-        name,
-        phone,
-        email,
-        source: 'Facebook Leads',
-      });
     }
   }
 
