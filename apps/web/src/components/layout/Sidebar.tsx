@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { singleLinks, navSections, type NavItem } from '@/lib/navSections';
@@ -14,29 +15,33 @@ function NavLink({
   href,
   label,
   icon: Icon,
-  pathname,
-}: Pick<NavItem, 'href' | 'label' | 'icon'> & { pathname: string }) {
-  const active = isActive(href, pathname);
+  active,
+  size = 'default',
+}: Pick<NavItem, 'href' | 'label' | 'icon'> & { active: boolean; size?: 'default' | 'md' }) {
   return (
     <Link
       href={href}
       className={cn(
-        'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-all duration-150',
-        active
-          ? 'bg-blue-50 text-blue-800'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800',
+        'group relative flex items-center gap-2.5 rounded-lg font-medium transition-colors duration-150 active:scale-[0.97]',
+        size === 'md' ? 'px-2.5 py-2 text-[14px]' : 'px-2.5 py-[7px] text-[13px]',
+        active ? 'text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800',
       )}
     >
       {active && (
-        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-blue-500" />
+        <motion.span
+          layoutId="sidebar-active-pill"
+          className="absolute inset-0 rounded-lg bg-blue-600"
+          transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+        />
       )}
       <Icon
         className={cn(
-          'h-[15px] w-[15px] shrink-0 transition-colors',
-          active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600',
+          'relative z-10 shrink-0 transition-colors',
+          size === 'md' ? 'h-4 w-4' : 'h-[15px] w-[15px]',
+          active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600',
         )}
       />
-      {label}
+      <span className="relative z-10">{label}</span>
     </Link>
   );
 }
@@ -63,20 +68,25 @@ export function Sidebar() {
 
       {/* Main nav — one button per area; sub-features live inside each area's page */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
-        <NavLink {...dashboard} pathname={pathname} />
+        <NavLink {...dashboard} active={isActive(dashboard.href, pathname)} size="md" />
         <div className="my-2 border-t border-gray-100" />
-        {navSections.map((section) => (
-          <NavLink
-            key={section.key}
-            href={section.href}
-            label={section.label}
-            icon={section.icon}
-            pathname={pathname}
-          />
-        ))}
+        {navSections.map((section) => {
+          const active =
+            isActive(section.href, pathname) ||
+            section.items.some((item) => isActive(item.href, pathname));
+          return (
+            <NavLink
+              key={section.key}
+              href={section.href}
+              label={section.label}
+              icon={section.icon}
+              active={active}
+            />
+          );
+        })}
         <div className="my-2 border-t border-gray-100" />
         {rest.map((link) => (
-          <NavLink key={link.href} {...link} pathname={pathname} />
+          <NavLink key={link.href} {...link} active={isActive(link.href, pathname)} />
         ))}
       </nav>
 
