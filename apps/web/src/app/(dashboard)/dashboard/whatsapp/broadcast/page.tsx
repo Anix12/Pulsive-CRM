@@ -9,6 +9,7 @@ import {
   LayoutDashboard, History, Plus, Lock, MessageCircle, ArrowRight, ArrowLeft,
   CheckCircle2, XCircle, Clock, Send, FileText, RotateCw,
 } from 'lucide-react';
+import { FunnelChart } from '@/components/ui/FunnelChart';
 
 const inputCls =
   'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
@@ -126,6 +127,29 @@ function OverviewTab() {
         <StatTile label="Replied" value={stats.REPLIED} icon={RotateCw} color="#7c3aed" />
         <StatTile label="Failed" value={stats.FAILED} icon={XCircle} color="#dc2626" />
       </div>
+
+      {(stats.SENT + stats.DELIVERED + stats.READ) > 0 && (
+        <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Message Progression <span className="normal-case text-gray-300">· sent messages reaching each delivery stage</span>
+          </p>
+          {/* Each message's `status` field holds only its latest confirmed stage, so a message
+              currently marked READ is not separately counted under SENT/DELIVERED. To show a
+              genuine funnel (each stage's count includes everything that progressed further),
+              the tiles above are re-summed cumulatively here rather than plotted as-is. */}
+          <FunnelChart
+            data={[
+              { stage: 'Sent', value: stats.SENT + stats.DELIVERED + stats.READ },
+              { stage: 'Delivered', value: stats.DELIVERED + stats.READ },
+              { stage: 'Read', value: stats.READ },
+            ]}
+            nameKey="stage"
+            valueKey="value"
+            colors={['#4f46e5', '#059669', '#0ea5e9']}
+            height={220}
+          />
+        </div>
+      )}
 
       <div className="rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
         <div className="border-b border-gray-100 px-5 py-3">

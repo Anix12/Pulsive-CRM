@@ -8,6 +8,12 @@ export const listByProject = async (req: Request, res: Response, next: NextFunct
   } catch (err) { next(err); }
 };
 
+export const stats = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.stats(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await service.getById(req.tenantId!, req.params.id));

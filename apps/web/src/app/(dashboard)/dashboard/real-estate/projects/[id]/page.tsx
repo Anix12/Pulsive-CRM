@@ -10,6 +10,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, Layers } from 'lucide-react';
 import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
 
 const UNIT_STATUS_OPTIONS = ['AVAILABLE', 'HOLD', 'BOOKED', 'SOLD'] as const;
 
@@ -18,6 +19,10 @@ const unitStatusPill: Record<string, string> = {
   HOLD: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
   BOOKED: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100',
   SOLD: 'bg-gray-100 text-gray-500 ring-1 ring-gray-200',
+};
+
+const UNIT_STATUS_COLORS: Record<string, string> = {
+  AVAILABLE: '#10b981', HOLD: '#f59e0b', BOOKED: '#6366f1', SOLD: '#9ca3af',
 };
 
 const inputCls =
@@ -186,6 +191,37 @@ export default function ProjectDetailPage() {
           <p className="mt-1 text-xl font-bold text-gray-900">{project._count?.bookings ?? 0}</p>
         </div>
       </div>
+
+      {project.units?.length > 0 && (() => {
+        const statusSegments = UNIT_STATUS_OPTIONS
+          .map((s) => ({ label: s, count: project.units.filter((u: any) => u.status === s).length, color: UNIT_STATUS_COLORS[s] }))
+          .filter((s) => s.count > 0);
+        return (
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Inventory Status</p>
+            <div className="flex flex-col items-center gap-4 sm:flex-row">
+              <DonutChart
+                data={statusSegments}
+                nameKey="label"
+                valueKey="count"
+                colors={statusSegments.map((s) => s.color)}
+                height={140}
+                showLegend={false}
+                ariaLabel="Units in this project grouped by status"
+              />
+              <ul className="flex flex-wrap gap-x-5 gap-y-1.5 sm:flex-col">
+                {statusSegments.map((s) => (
+                  <li key={s.label} className="flex items-center gap-1.5 text-sm">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
+                    <span className="text-gray-500">{s.label}</span>
+                    <span className="font-semibold text-gray-800">{s.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         {!project.units?.length ? (

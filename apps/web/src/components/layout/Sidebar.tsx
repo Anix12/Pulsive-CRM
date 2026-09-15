@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { singleLinks, navSections, type NavItem } from '@/lib/navSections';
+import { TAP_SPRING } from '@/lib/motion';
 
 function isActive(href: string, pathname: string) {
   return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
@@ -17,26 +19,38 @@ function NavLink({
   pathname,
 }: Pick<NavItem, 'href' | 'label' | 'icon'> & { pathname: string }) {
   const active = isActive(href, pathname);
+  const reduceMotion = useReducedMotion();
+
   return (
     <Link
       href={href}
       className={cn(
-        'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-all duration-150',
+        'group relative flex items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-[13px] font-medium transition-colors duration-150 ease-out',
         active
-          ? 'bg-blue-50 text-blue-800'
+          ? 'text-white'
           : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800',
       )}
     >
       {active && (
-        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-blue-500" />
+        <motion.span
+          layoutId="sidebar-active-bg"
+          className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/30"
+          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
+        />
       )}
-      <Icon
-        className={cn(
-          'h-[15px] w-[15px] shrink-0 transition-colors',
-          active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600',
-        )}
-      />
-      {label}
+      <motion.span
+        className="relative z-10 flex shrink-0"
+        whileTap={reduceMotion ? undefined : { scale: 1.15 }}
+        transition={reduceMotion ? { duration: 0 } : TAP_SPRING}
+      >
+        <Icon
+          className={cn(
+            'h-[15px] w-[15px] shrink-0 transition-colors duration-150 ease-out',
+            active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600',
+          )}
+        />
+      </motion.span>
+      <span className="relative z-10">{label}</span>
     </Link>
   );
 }
@@ -53,7 +67,7 @@ export function Sidebar() {
     <aside className="flex w-[218px] shrink-0 flex-col border-r border-gray-100 bg-white">
       {/* Brand */}
       <div className="flex h-14 items-center gap-2.5 border-b border-gray-100 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_16px_-4px_rgba(59,130,246,0.6)]">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_16px_-4px_rgba(129,74,246,0.6)]">
           <span className="text-[13px] font-bold tracking-tight text-white">P</span>
         </div>
         <span className="text-[13.5px] font-semibold tracking-tight text-gray-900">

@@ -11,6 +11,9 @@ import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { GoogleMap, type MapMarker } from '@/components/ui/GoogleMap';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 const STATUS_OPTIONS = ['SCHEDULED', 'ON_THE_WAY', 'AT_SITE', 'VISITING', 'VISIT_DONE', 'RETURNING', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 
@@ -357,6 +360,48 @@ export default function SiteVisitsPage() {
         <StatCard label="Avg Travel" value={`${stats?.avgTravelMinutes ?? 0}m`} color="#06b6d4" />
       </div>
 
+      {stats && stats.total > 0 && (
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Visit Status</p>
+              {(() => {
+                const statusSegments = [
+                  { label: 'Scheduled', count: stats.scheduled, color: '#6366f1' },
+                  { label: 'Active', count: stats.active, color: '#f59e0b' },
+                  { label: 'Completed', count: stats.completed, color: '#10b981' },
+                  { label: 'No Show', count: stats.noShow, color: '#ef4444' },
+                  { label: 'Cancelled', count: stats.cancelled, color: '#9ca3af' },
+                ].filter((s) => s.count > 0);
+                return (
+                  <DonutChart
+                    data={statusSegments}
+                    nameKey="label"
+                    valueKey="count"
+                    colors={statusSegments.map((s) => s.color)}
+                    height={150}
+                    ariaLabel="Site visits grouped by status"
+                  />
+                );
+              })()}
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Visits Over Time</p>
+              <LineChart
+                data={stats.visitsOverTime ?? []}
+                xKey="date"
+                series={[{ key: 'count', label: 'Site Visits', color: '#6366f1' }]}
+                variant="area"
+                height={170}
+                formatXLabel={(v) => stats.visitsOverTime?.find((d: any) => d.date === v)?.label ?? String(v)}
+                formatValue={(v) => `${Math.round(v)} visit${Math.round(v) === 1 ? '' : 's'}`}
+                ariaLabel="Site visits scheduled over time"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1 rounded-xl bg-gray-100/80 p-1">
           <button onClick={() => setView('list')} className={cn('flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition', view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
@@ -460,29 +505,47 @@ export default function SiteVisitsPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Agent Performance</h3>
-          <div className="mt-3 space-y-2">
-            {!stats?.agentPerformance?.length ? (
-              <p className="text-sm text-gray-400">No data yet</p>
-            ) : stats.agentPerformance.map((a: any) => (
-              <div key={a.agentId} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">{a.name}</span>
-                <span className="text-gray-400">{a.completed}/{a.total} completed</span>
+          {!stats?.agentPerformance?.length ? (
+            <p className="mt-3 text-sm text-gray-400">No data yet</p>
+          ) : (
+            <div className="mt-3">
+              <SimpleBarChart
+                data={stats.agentPerformance.slice(0, 6).map((a: any) => ({ label: a.name, value: a.completed }))}
+                height={150}
+                formatValue={(n) => `${n} completed`}
+              />
+              <div className="mt-3 space-y-1">
+                {stats.agentPerformance.map((a: any) => (
+                  <div key={a.agentId} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">{a.name}</span>
+                    <span className="text-gray-400">{a.completed}/{a.total} completed</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Project Performance</h3>
-          <div className="mt-3 space-y-2">
-            {!stats?.projectPerformance?.length ? (
-              <p className="text-sm text-gray-400">No data yet</p>
-            ) : stats.projectPerformance.map((p: any) => (
-              <div key={p.projectId} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">{p.name}</span>
-                <span className="text-gray-400">{p.completed}/{p.total} completed</span>
+          {!stats?.projectPerformance?.length ? (
+            <p className="mt-3 text-sm text-gray-400">No data yet</p>
+          ) : (
+            <div className="mt-3">
+              <SimpleBarChart
+                data={stats.projectPerformance.slice(0, 6).map((p: any) => ({ label: p.name, value: p.total }))}
+                height={150}
+                formatValue={(n) => `${n} visit${n === 1 ? '' : 's'}`}
+              />
+              <div className="mt-3 space-y-1">
+                {stats.projectPerformance.map((p: any) => (
+                  <div key={p.projectId} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">{p.name}</span>
+                    <span className="text-gray-400">{p.completed}/{p.total} completed</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

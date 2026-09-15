@@ -6,10 +6,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarCheck, Plus, Pencil, Trash2 } from 'lucide-react';
+import { CalendarCheck, Plus, Pencil, Trash2, BarChart3 } from 'lucide-react';
 import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
+import { FunnelChart } from '@/components/ui/FunnelChart';
 
 const STATUS_OPTIONS = ['TOKEN_RECEIVED', 'BOOKED', 'AGREEMENT_DONE', 'REGISTERED', 'CANCELLED'] as const;
 
@@ -222,11 +226,113 @@ function BookingFormModal({ open, onClose, booking }: { open: boolean; onClose: 
   );
 }
 
+const STATUS_HEX: Record<string, string> = {
+  TOKEN_RECEIVED: '#f59e0b', BOOKED: '#6366f1', AGREEMENT_DONE: '#8b5cf6', REGISTERED: '#10b981', CANCELLED: '#9ca3af',
+};
+
+interface BookingStats {
+  tokenReceived: number; booked: number; agreementDone: number; registered: number; cancelled: number;
+  totalDealValue: number; totalBrokerage: number; brokeragePending: number;
+  statusBreakdown: { status: string; count: number }[];
+  byProject: { projectId: string; name: string; count: number; value: number }[];
+  byAgent: { agentId: string; name: string; count: number; value: number }[];
+  valueOverTime: { period: string; label: string; value: number; count: number }[];
+}
+
+function BookingsAnalytics({ stats }: { stats: BookingStats }) {
+  const statusSegments = stats.statusBreakdown
+    .map((s) => ({ label: STATUS_LABELS[s.status] ?? s.status, count: s.count, color: STATUS_HEX[s.status] ?? '#d1d5db' }))
+    .filter((s) => s.count > 0);
+
+  const funnelData = [
+    { stage: 'Token Received', value: stats.tokenReceived + stats.booked + stats.agreementDone + stats.registered },
+    { stage: 'Booked', value: stats.booked + stats.agreementDone + stats.registered },
+    { stage: 'Agreement Done', value: stats.agreementDone + stats.registered },
+    { stage: 'Registered', value: stats.registered },
+  ];
+  const hasFunnelData = funnelData[0].value > 0;
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Booking Overview</p>
+
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Booking Status</p>
+          <DonutChart
+            data={statusSegments}
+            nameKey="label"
+            valueKey="count"
+            colors={statusSegments.map((s) => s.color)}
+            height={160}
+            ariaLabel="Bookings grouped by status"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Booking Progression <span className="normal-case text-gray-300">· non-cancelled bookings reaching each stage</span>
+          </p>
+          {hasFunnelData ? (
+            <FunnelChart
+              data={funnelData}
+              nameKey="stage"
+              valueKey="value"
+              colors={['#f59e0b', '#6366f1', '#8b5cf6', '#10b981']}
+              height={200}
+            />
+          ) : (
+            <div className="flex h-[200px] items-center justify-center rounded-lg bg-gray-50/50 text-sm text-gray-400">No data yet.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Booking Value · last 6 months</p>
+        <LineChart
+          data={stats.valueOverTime}
+          xKey="label"
+          series={[{ key: 'value', label: 'Booking value', color: '#6366f1' }]}
+          variant="area"
+          height={170}
+          formatValue={(v) => fmtMoney(v)}
+          ariaLabel="Non-cancelled booking value over the last 6 months"
+        />
+      </div>
+
+      {(stats.byProject.length > 0 || stats.byAgent.length > 0) && (
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {stats.byProject.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Bookings by Project</p>
+              <SimpleBarChart
+                data={stats.byProject.slice(0, 6).map((p) => ({ label: p.name, value: p.count }))}
+                height={150}
+                formatValue={(n) => `${n} booking${n === 1 ? '' : 's'}`}
+              />
+            </div>
+          )}
+          {stats.byAgent.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Bookings by Agent</p>
+              <SimpleBarChart
+                data={stats.byAgent.slice(0, 6).map((a) => ({ label: a.name, value: a.value }))}
+                height={150}
+                formatValue={(n) => fmtMoney(n)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BookingsPage() {
   const qc = useQueryClient();
   const [modal, setModal] = useState<{ open: boolean; booking?: any }>({ open: false });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(true);
 
   const { data, isLoading } = useQuery({
     queryKey: ['re-bookings', statusFilter],
@@ -263,12 +369,21 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
           <p className="text-sm text-gray-500">Track deals, payments & brokerage</p>
         </div>
-        <button
-          onClick={() => setModal({ open: true })}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          <Plus className="h-4 w-4" /> New Booking
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setReportOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            {reportOpen ? 'Hide report' : 'Show report'}
+          </button>
+          <button
+            onClick={() => setModal({ open: true })}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            <Plus className="h-4 w-4" /> New Booking
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -302,6 +417,10 @@ export default function BookingsPage() {
           <p className="mt-1 text-lg font-bold text-gray-900">{fmtMoney(stats?.brokeragePending ?? 0)}</p>
         </div>
       </div>
+
+      {reportOpen && stats && (stats.tokenReceived + stats.booked + stats.agreementDone + stats.registered + stats.cancelled > 0) && (
+        <BookingsAnalytics stats={stats} />
+      )}
 
       {statusFilter && (
         <button onClick={() => setStatusFilter(null)} className="text-xs font-medium text-indigo-600 hover:underline">

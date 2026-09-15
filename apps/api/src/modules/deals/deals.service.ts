@@ -92,6 +92,138 @@ export const getStages = async (tenantId: string) => {
   return prisma.dealStage.findMany({ where: { tenantId }, orderBy: { order: 'asc' } });
 };
 
+// ── Analytics ──────────────────────────────────────────────────────────────────
+// All-time, unfiltered by design — the Deals/Pipeline page has no date-range concept
+// today (its Kanban board already fetches every deal, uncapped by date), so scoping
+// this to "this month" (like reports/business-performance defaults to) would silently
+// disagree with what the same page's Kanban board shows. See PHASE_3 report.
+
+const num = (d: unknown) => Number(d ?? 0);
+
+export const analytics = async (tenantId: string) => {
+  const [stages, byStageRaw, byOutcomeRaw, byAgentRaw, wonForAvg] = await Promise.all([
+    prisma.dealStage.findMany({ where: { tenantId }, orderBy: { order: 'asc' } }),
+    prisma.deal.groupBy({ by: ['stageId'], where: { tenantId }, _count: { _all: true }, _sum: { value: true } }),
+    prisma.deal.groupBy({ by: ['isWon'], where: { tenantId }, _count: { _all: true }, _sum: { value: true } }),
+    prisma.deal.groupBy({ by: ['assignedToId'], where: { tenantId, isWon: true }, _count: { _all: true }, _sum: { value: true } }),
+    prisma.deal.aggregate({ where: { tenantId, isWon: true }, _avg: { value: true } }),
+  ]);
+
+  const pipelineByStage = stages.map((stage) => {
+    const g = byStageRaw.find((b) => b.stageId === stage.id);
+    return {
+      stageId: stage.id,
+      stage: stage.name,
+      order: stage.order,
+      color: stage.color,
+      count: g?._count._all ?? 0,
+      value: num(g?._sum.value),
+    };
+  });
+
+  const outcomeOf = (isWon: boolean | null) => {
+    const g = byOutcomeRaw.find((b) => b.isWon === isWon);
+    return { count: g?._count._all ?? 0, value: num(g?._sum.value) };
+  };
+  const outcomes = { won: outcomeOf(true), lost: outcomeOf(false), open: outcomeOf(null) };
+
+  const agentIds = byAgentRaw.map((b) => b.assignedToId).filter((id): id is string => !!id);
+  const agents = agentIds.length
+    ? await prisma.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, firstName: true, lastName: true } })
+    : [];
+  const byAgent = byAgentRaw
+    .filter((b) => b.assignedToId)
+    .map((b) => {
+      const agent = agents.find((a) => a.id === b.assignedToId);
+      return {
+        agentId: b.assignedToId!,
+        name: agent ? `${agent.firstName} ${agent.lastName ?? ''}`.trim() : 'Unknown',
+        count: b._count._all,
+        value: num(b._sum.value),
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  // bySource needs a relation join (Contact.source) that groupBy can't express directly,
+  // so it's the one facet computed from a lightweight, backend-side reduce rather than a
+  // native Prisma aggregate — still never ships raw deal records to the browser.
+  const dealsForSource = await prisma.deal.findMany({
+    where: { tenantId },
+    select: { value: true, contact: { select: { source: true } } },
+  });
+  const sourceMap = new Map<string, { count: number; value: number }>();
+  for (const d of dealsForSource) {
+    const key = d.contact?.source ?? 'Unknown';
+    const entry = sourceMap.get(key) ?? { count: 0, value: 0 };
+    entry.count += 1;
+    entry.value += num(d.value);
+    sourceMap.set(key, entry);
+  }
+  const bySource = Array.from(sourceMap.entries())
+    .map(([source, v]) => ({ source, ...v }))
+    .sort((a, b) => b.value - a.value);
+
+  // Value over time: trailing 6 calendar months of *won* deal value, bucketed by the
+  // month each deal closed in — a month a deal actually closed in has real revenue;
+  // a month with none shows a real zero, not a gap.
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+  const wonDeals = await prisma.deal.findMany({
+    where: { tenantId, isWon: true, closedAt: { gte: sixMonthsAgo } },
+    select: { value: true, closedAt: true },
+  });
+  const monthBuckets: { period: string; label: string; value: number; count: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    monthBuckets.push({
+      period: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'short' }),
+      value: 0,
+      count: 0,
+    });
+  }
+  for (const deal of wonDeals) {
+    if (!deal.closedAt) continue;
+    const period = `${deal.closedAt.getFullYear()}-${String(deal.closedAt.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthBuckets.find((b) => b.period === period);
+    if (bucket) { bucket.value += num(deal.value); bucket.count += 1; }
+  }
+
+  // Aging: open deals only (isWon is null — neither won nor lost yet), bucketed by
+  // days since creation. Buckets are fixed, meaningful ranges, not derived from data.
+  const openDeals = await prisma.deal.findMany({
+    where: { tenantId, isWon: null },
+    select: { createdAt: true },
+  });
+  const now = Date.now();
+  const AGING_BUCKETS = [
+    { bucket: '0-7 days', max: 7 },
+    { bucket: '8-30 days', max: 30 },
+    { bucket: '31-60 days', max: 60 },
+    { bucket: '60+ days', max: Infinity },
+  ];
+  const aging = AGING_BUCKETS.map((b) => ({ bucket: b.bucket, count: 0 }));
+  for (const deal of openDeals) {
+    const ageDays = (now - deal.createdAt.getTime()) / 86_400_000;
+    const idx = AGING_BUCKETS.findIndex((b) => ageDays <= b.max);
+    aging[idx === -1 ? aging.length - 1 : idx].count += 1;
+  }
+
+  return {
+    pipelineByStage,
+    outcomes,
+    avgWonValue: num(wonForAvg._avg.value),
+    byAgent,
+    bySource,
+    valueOverTime: monthBuckets,
+    aging,
+  };
+};
+
 export const getById = async (tenantId: string, id: string) => {
   const deal = await prisma.deal.findFirst({
     where: { id, tenantId },

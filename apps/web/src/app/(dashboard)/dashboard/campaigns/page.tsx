@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Plus, Upload, Megaphone, Pencil, Trash2, Search, Pin,
   Play, Pause, CheckCircle2, PhoneCall, ArrowRight, Layers,
@@ -16,6 +17,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn, categoryColor } from '@/lib/utils';
+import { PILL_SPRING, cardMountProps } from '@/lib/motion';
 
 const STATUS_OPTIONS = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;
 type CampaignStatus = typeof STATUS_OPTIONS[number];
@@ -368,6 +370,7 @@ function CategorySidebar({
 export default function CampaignsPage() {
   const qc = useQueryClient();
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | ''>('');
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -496,11 +499,18 @@ export default function CampaignsPage() {
               key={s || 'all'}
               onClick={() => setStatusFilter(s)}
               className={cn(
-                'rounded-lg px-5 py-1.5 text-sm font-medium transition',
-                statusFilter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                'relative rounded-lg px-5 py-1.5 text-sm font-medium transition-colors duration-150 ease-out',
+                statusFilter === s ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
               )}
             >
-              {s === '' ? 'All' : statusConfig[s].label}
+              {statusFilter === s && (
+                <motion.span
+                  layoutId="campaign-status-pill"
+                  className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                  transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+                />
+              )}
+              <span className="relative z-10">{s === '' ? 'All' : statusConfig[s].label}</span>
             </button>
           ))}
         </div>
@@ -539,11 +549,15 @@ export default function CampaignsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-              {campaigns.map((c) => {
+              {campaigns.map((c, i) => {
                 const stats = c.stats ?? { total: c._count?.contacts ?? 0, new: 0, calls: 0, converted: 0, conversionPct: 0 };
                 const color = categoryColor(c.category);
                 return (
-                  <div key={c.id} className="group flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md">
+                  <motion.div
+                    key={c.id}
+                    {...cardMountProps(i, !!reduceMotion)}
+                    className="group flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md"
+                  >
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
@@ -661,7 +675,7 @@ export default function CampaignsPage() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>

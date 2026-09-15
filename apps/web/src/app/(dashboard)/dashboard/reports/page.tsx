@@ -5,19 +5,22 @@ import api from '@/lib/api';
 import { cn, formatCurrency, formatDuration } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-} from 'recharts';
-import {
   Star, Clock, PhoneCall, MessageSquare, Mail, CalendarClock, LogIn,
   GitBranch, Upload, UserCheck, Megaphone, Radio, Filter as FilterIcon,
   Coffee, ArrowLeft,
 } from 'lucide-react';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { ProgressStat } from '@/components/ui/ProgressStat';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { CHART_COLORS } from '@/lib/chartColors';
 
 type ReportTab = 'business' | 'employees' | 'ai-human';
 type TopTab = 'overview' | 'catalog';
 
-const COLORS = ['#6366f1', '#34d399', '#f59e0b', '#f87171', '#60a5fa', '#a78bfa'];
+const COLORS = CHART_COLORS;
 
 // ── Report Catalog definitions ────────────────────────────────────────────────
 interface ReportDef {
@@ -79,38 +82,68 @@ function ReportDetail({ report }: { report: ReportDef }) {
   if (isLoading) return <div className="flex h-48 items-center justify-center text-gray-400">Loading…</div>;
 
   switch (report.key) {
-    case 'call-disposition':
+    case 'call-disposition': {
+      const dispositions = data?.dispositions ?? [];
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <StatBox label="Total Calls" value={data?.totalCalls ?? 0} />
             <StatBox label="Connected" value={data?.connected ?? 0} />
-            <StatBox label="Dispositions" value={(data?.dispositions ?? []).length} />
+            <StatBox label="Dispositions" value={dispositions.length} />
           </div>
+          {dispositions.length > 0 && (
+            <SimpleBarChart
+              data={dispositions.slice(0, 8).map((d: any) => ({ label: d.name, value: d.count }))}
+              height={150}
+              formatValue={(n) => `${n} call${n === 1 ? '' : 's'}`}
+            />
+          )}
           <SimpleTable
             headers={['Disposition', 'Category', 'Count']}
-            rows={(data?.dispositions ?? []).map((d: any) => [d.name, d.category, d.count])}
+            rows={dispositions.map((d: any) => [d.name, d.category, d.count])}
             empty="No calls logged with a disposition yet."
           />
         </div>
       );
+    }
     case 'sms':
-    case 'email':
+    case 'email': {
+      const channelSegments = [
+        { label: 'Sent', count: data?.sent ?? 0, color: '#6366f1' },
+        { label: 'Delivered', count: data?.delivered ?? 0, color: '#34d399' },
+        { label: 'Failed', count: data?.failed ?? 0, color: '#f87171' },
+      ].filter((s) => s.count > 0);
       return (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatBox label="Total" value={data?.total ?? 0} />
-          <StatBox label="Sent" value={data?.sent ?? 0} />
-          <StatBox label="Delivered" value={data?.delivered ?? 0} />
-          <StatBox label="Failed" value={data?.failed ?? 0} />
-          {report.key === 'email' && (
-            <>
-              <StatBox label="Open Rate" value={`${data?.openRate ?? 0}%`} sub="Provider tracking not connected" />
-              <StatBox label="Click Rate" value={`${data?.clickRate ?? 0}%`} sub="Provider tracking not connected" />
-            </>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatBox label="Total" value={data?.total ?? 0} />
+            <StatBox label="Sent" value={data?.sent ?? 0} />
+            <StatBox label="Delivered" value={data?.delivered ?? 0} />
+            <StatBox label="Failed" value={data?.failed ?? 0} />
+            {report.key === 'email' && (
+              <>
+                <StatBox label="Open Rate" value={`${data?.openRate ?? 0}%`} sub="Provider tracking not connected" />
+                <StatBox label="Click Rate" value={`${data?.clickRate ?? 0}%`} sub="Provider tracking not connected" />
+              </>
+            )}
+          </div>
+          {channelSegments.length > 0 && (
+            <div className="max-w-xs">
+              <DonutChart
+                data={channelSegments}
+                nameKey="label"
+                valueKey="count"
+                colors={channelSegments.map((s) => s.color)}
+                height={160}
+                ariaLabel={`${report.label} messages grouped by delivery status`}
+              />
+            </div>
           )}
         </div>
       );
-    case 'follow-up':
+    }
+    case 'follow-up': {
+      const dailySummary = data?.dailySummary ?? [];
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -119,13 +152,25 @@ function ReportDetail({ report }: { report: ReportDef }) {
             <StatBox label="Overdue" value={data?.overdue ?? 0} tone="red" />
             <StatBox label="Due Today" value={data?.dueToday ?? 0} tone="amber" />
           </div>
+          {dailySummary.length > 0 && (
+            <LineChart
+              data={dailySummary}
+              xKey="date"
+              series={[{ key: 'count', label: 'Tasks Due', color: '#6366f1' }]}
+              variant="area"
+              height={160}
+              formatValue={(v) => `${Math.round(v)} task${Math.round(v) === 1 ? '' : 's'}`}
+              ariaLabel="Tasks due over the last 7 days"
+            />
+          )}
           <SimpleTable
             headers={['Date', 'Tasks Due']}
-            rows={(data?.dailySummary ?? []).map((d: any) => [d.date, d.count])}
+            rows={dailySummary.map((d: any) => [d.date, d.count])}
             empty="No tasks due in the last 7 days."
           />
         </div>
       );
+    }
     case 'login-activity':
       return (
         <SimpleTable
@@ -134,14 +179,31 @@ function ReportDetail({ report }: { report: ReportDef }) {
           empty="No login activity in this period."
         />
       );
-    case 'lead-stage':
+    case 'lead-stage': {
+      const stages = data?.stages ?? [];
+      const stageSegments = stages.map((s: any, i: number) => ({ label: s.stage, count: s.count, color: CHART_COLORS[i % CHART_COLORS.length] }));
       return (
-        <SimpleTable
-          headers={['Stage', 'Leads']}
-          rows={(data?.stages ?? []).map((s: any) => [s.stage, s.count])}
-          empty="No leads yet."
-        />
+        <div className="space-y-4">
+          {stageSegments.length > 0 && (
+            <div className="max-w-xs">
+              <DonutChart
+                data={stageSegments}
+                nameKey="label"
+                valueKey="count"
+                colors={stageSegments.map((s: any) => s.color)}
+                height={180}
+                ariaLabel="Leads grouped by stage"
+              />
+            </div>
+          )}
+          <SimpleTable
+            headers={['Stage', 'Leads']}
+            rows={stages.map((s: any) => [s.stage, s.count])}
+            empty="No leads yet."
+          />
+        </div>
       );
+    }
     case 'import-logs':
       return (
         <SimpleTable
@@ -166,33 +228,55 @@ function ReportDetail({ report }: { report: ReportDef }) {
           empty="No campaigns yet."
         />
       );
-    case 'lead-source':
+    case 'lead-source': {
+      const sources = data?.sources ?? [];
+      const sourceIsDonut = sources.length <= 6;
       return (
-        <SimpleTable
-          headers={['Source', 'Leads']}
-          rows={(data?.sources ?? []).map((s: any) => [s.source, s.count])}
-          empty="No source data yet."
-        />
-      );
-    case 'pipeline-funnel':
-      return (
-        <div className="space-y-2">
-          {(data?.funnel ?? []).map((f: any, i: number) => (
-            <div key={i} className="flex items-center gap-3">
-              <span className="w-32 shrink-0 text-sm text-gray-600">{f.stage}</span>
-              <div className="h-6 flex-1 overflow-hidden rounded bg-gray-100">
-                <div
-                  className="h-full rounded bg-indigo-500"
-                  style={{ width: `${data.funnel[0]?.count ? (f.count / data.funnel[0].count) * 100 : 0}%` }}
+        <div className="space-y-4">
+          {sources.length > 0 && (
+            <div className={sourceIsDonut ? 'max-w-xs' : undefined}>
+              {sourceIsDonut ? (
+                <DonutChart
+                  data={sources.map((s: any, i: number) => ({ source: s.source, count: s.count, color: CHART_COLORS[i % CHART_COLORS.length] }))}
+                  nameKey="source"
+                  valueKey="count"
+                  colors={sources.map((_: any, i: number) => CHART_COLORS[i % CHART_COLORS.length])}
+                  height={180}
+                  ariaLabel="Leads grouped by source"
                 />
-              </div>
-              <span className="w-12 text-right text-sm font-semibold text-gray-900">{f.count}</span>
-              {f.dropOff > 0 && <span className="w-20 text-right text-xs text-red-500">-{f.dropOff} drop-off</span>}
+              ) : (
+                <SimpleBarChart
+                  data={[...sources].sort((a: any, b: any) => b.count - a.count).slice(0, 12).map((s: any) => ({ label: s.source, value: s.count }))}
+                  height={160}
+                  formatValue={(n) => `${n} lead${n === 1 ? '' : 's'}`}
+                />
+              )}
             </div>
-          ))}
-          {(!data?.funnel || data.funnel.length === 0) && <p className="text-sm text-gray-400">No pipeline stages configured.</p>}
+          )}
+          <SimpleTable
+            headers={['Source', 'Leads']}
+            rows={sources.map((s: any) => [s.source, s.count])}
+            empty="No source data yet."
+          />
         </div>
       );
+    }
+    case 'pipeline-funnel': {
+      // Not rendered as a FunnelChart: a deal sits in exactly one stage at a time (current
+      // pipeline position, not a cumulative "reached this stage or beyond" count), so later
+      // stages can legitimately hold more deals than earlier ones — a funnel shape would
+      // misrepresent that. Same reasoning as the Deals page's "Pipeline by Stage" bar chart.
+      const funnel = data?.funnel ?? [];
+      return funnel.length > 0 ? (
+        <SimpleBarChart
+          data={funnel.map((f: any) => ({ label: f.stage, value: f.count }))}
+          height={Math.max(160, 40 * Math.min(funnel.length, 6))}
+          formatValue={(n) => `${n} deal${n === 1 ? '' : 's'}`}
+        />
+      ) : (
+        <p className="text-sm text-gray-400">No pipeline stages configured.</p>
+      );
+    }
     case 'call-report':
       return (
         <div className="space-y-4">
@@ -248,18 +332,19 @@ function ReportDetail({ report }: { report: ReportDef }) {
 
 function StatBox({ label, value, sub, tone }: { label: string; value: string | number; sub?: string; tone?: 'red' | 'amber' }) {
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={cn('mt-1 text-xl font-bold', tone === 'red' ? 'text-red-600' : tone === 'amber' ? 'text-amber-600' : 'text-gray-900')}>{value}</p>
-      {sub && <p className="mt-1 text-[11px] text-gray-400">{sub}</p>}
-    </div>
+    <MetricCard
+      label={label}
+      value={String(value)}
+      sub={sub}
+      valueClassName={tone === 'red' ? 'text-red-600' : tone === 'amber' ? 'text-amber-600' : undefined}
+    />
   );
 }
 
 function SimpleTable({ headers, rows, empty }: { headers: string[]; rows: (string | number)[][]; empty: string }) {
   if (rows.length === 0) return <p className="py-8 text-center text-sm text-gray-400">{empty}</p>;
   return (
-    <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
       <table className="min-w-full divide-y divide-gray-100">
         <thead className="bg-gray-50">
           <tr>
@@ -324,15 +409,19 @@ export default function ReportsPage() {
     : [];
 
   const dealPieData = [
-    { name: 'Won', value: business?.deals?.won || 0 },
-    { name: 'Lost', value: business?.deals?.lost || 0 },
-    { name: 'Open', value: (business?.deals?.total || 0) - (business?.deals?.won || 0) - (business?.deals?.lost || 0) },
+    { name: 'Won', value: business?.deals?.won || 0, color: '#34d399' },
+    { name: 'Lost', value: business?.deals?.lost || 0, color: '#f87171' },
+    { name: 'Open', value: (business?.deals?.total || 0) - (business?.deals?.won || 0) - (business?.deals?.lost || 0), color: '#9ca3af' },
   ].filter((d) => d.value > 0);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+        <p className="mt-0.5 text-sm text-gray-500">Business performance and team analytics.</p>
+      </div>
+
+      <div className="flex items-center justify-end">
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {(['overview', 'catalog'] as const).map((t) => (
             <button
@@ -357,11 +446,15 @@ export default function ReportsPage() {
             </button>
             {(() => {
               const report = REPORT_CATALOG.find((r) => r.key === selectedReport)!;
+              // See MetricCard.tsx's IconComponent comment: pinning to a concrete
+              // ComponentType sidesteps a JSX.LibraryManagedAttributes resolution issue
+              // that appears once @react-three/fiber's global JSX augmentation is loaded.
+              const Icon = report.icon as React.ComponentType<{ className?: string }>;
               return (
                 <>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <report.icon className="h-5 w-5 text-indigo-500" />
+                      <Icon className="h-5 w-5 text-indigo-500" />
                       <h2 className="text-lg font-semibold text-gray-900">{report.label}</h2>
                     </div>
                     <button
@@ -381,7 +474,7 @@ export default function ReportsPage() {
             {(favorites.length > 0 || recent.length > 0) && (
               <div className="grid gap-4 sm:grid-cols-2">
                 {favorites.length > 0 && (
-                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       <Star className="h-3 w-3 fill-current text-amber-500" /> Favorites
                     </p>
@@ -399,7 +492,7 @@ export default function ReportsPage() {
                   </div>
                 )}
                 {recent.length > 0 && (
-                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       <Clock className="h-3 w-3" /> Recently Viewed
                     </p>
@@ -423,7 +516,9 @@ export default function ReportsPage() {
               <div key={cat}>
                 <h3 className="mb-3 text-sm font-semibold text-gray-700">{cat}</h3>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {REPORT_CATALOG.filter((r) => r.category === cat).map((r) => (
+                  {REPORT_CATALOG.filter((r) => r.category === cat).map((r) => {
+                    const Icon = r.icon as React.ComponentType<{ className?: string }>;
+                    return (
                     <button
                       key={r.key}
                       onClick={() => openReport(r.key)}
@@ -431,7 +526,7 @@ export default function ReportsPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                          <r.icon className="h-4 w-4" />
+                          <Icon className="h-4 w-4" />
                         </div>
                         <span className="text-sm font-medium text-gray-800">{r.label}</span>
                       </div>
@@ -440,7 +535,8 @@ export default function ReportsPage() {
                         className={cn('h-4 w-4 shrink-0 transition', favorites.includes(r.key) ? 'fill-current text-amber-500' : 'text-gray-200 group-hover:text-gray-300')}
                       />
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -465,51 +561,76 @@ export default function ReportsPage() {
       {tab === 'business' && (
         loadingBiz ? <div className="flex h-48 items-center justify-center text-gray-500">Loading...</div> : (
           <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { label: 'Total Revenue', value: formatCurrency(business?.revenue?.total || 0), sub: 'Won deals this month' },
-                { label: 'Calls Made', value: business?.calls?.total || 0, sub: `${business?.calls?.completionRate || 0}% completion rate` },
-                { label: 'Messages Sent', value: business?.messages?.total || 0, sub: 'SMS + WhatsApp' },
-                { label: 'Deals Won', value: business?.deals?.won || 0, sub: `${business?.deals?.conversionRate || 0}% conversion` },
-                { label: 'Total Contacts', value: business?.contacts?.total || 0, sub: `${business?.contacts?.new || 0} new this month` },
-                { label: 'Avg Call Duration', value: business?.calls?.avgDuration ? formatDuration(business.calls.avgDuration) : '—', sub: 'Per completed call' },
-              ].map(({ label, value, sub }) => (
-                <div key={label} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-                  <p className="text-sm text-gray-500">{label}</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-                  <p className="mt-1 text-xs text-gray-400">{sub}</p>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard
+                index={0}
+                label="Total Revenue"
+                value={formatCurrency(business?.revenue?.total || 0)}
+                numericValue={business?.revenue?.total || 0}
+                formatValue={formatCurrency}
+                sub="Won deals this month"
+              />
+              <MetricCard
+                index={1}
+                label="Calls Made"
+                value={String(business?.calls?.total || 0)}
+                numericValue={business?.calls?.total || 0}
+                formatValue={(n) => Math.round(n).toLocaleString()}
+                sub={`${business?.calls?.completionRate || 0}% completion rate`}
+              />
+              <MetricCard
+                index={2}
+                label="Messages Sent"
+                value={String(business?.messages?.total || 0)}
+                numericValue={business?.messages?.total || 0}
+                formatValue={(n) => Math.round(n).toLocaleString()}
+                sub="SMS + WhatsApp"
+              />
+              <MetricCard
+                index={3}
+                label="Deals Won"
+                value={String(business?.deals?.won || 0)}
+                numericValue={business?.deals?.won || 0}
+                formatValue={(n) => Math.round(n).toLocaleString()}
+                sub={`${business?.deals?.conversionRate || 0}% conversion`}
+              />
+              <MetricCard
+                index={4}
+                label="Total Contacts"
+                value={String(business?.contacts?.total || 0)}
+                numericValue={business?.contacts?.total || 0}
+                formatValue={(n) => Math.round(n).toLocaleString()}
+                sub={`${business?.contacts?.new || 0} new this month`}
+              />
+              <MetricCard
+                index={5}
+                label="Avg Call Duration"
+                value={business?.calls?.avgDuration ? formatDuration(business.calls.avgDuration) : '—'}
+                sub="Per completed call"
+              />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
               {pipelineChartData.length > 0 && (
-                <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-                  <h3 className="font-semibold text-gray-900 mb-4">Pipeline by Stage</h3>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={pipelineChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v: any, name: string) => name === 'value' ? formatCurrency(v) : v} />
-                      <Bar dataKey="deals" name="Deals" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <SectionCard index={0} title="Pipeline by Stage" subtitle="Deals per stage">
+                  <SimpleBarChart
+                    data={pipelineChartData.map((d) => ({ label: d.name, value: d.deals }))}
+                    formatValue={(n) => `${n} deals`}
+                  />
+                </SectionCard>
               )}
 
               {dealPieData.length > 0 && (
-                <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-                  <h3 className="font-semibold text-gray-900 mb-4">Deal Outcomes</h3>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie data={dealPieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                        {dealPieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                      </Pie>
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <SectionCard index={1} title="Deal Outcomes" subtitle="Won · Lost · Open">
+                  <DonutChart
+                    data={dealPieData}
+                    nameKey="name"
+                    valueKey="value"
+                    colors={dealPieData.map((d) => d.color)}
+                    height={220}
+                    ariaLabel="Deals grouped by outcome"
+                  />
+                </SectionCard>
               )}
             </div>
           </div>
@@ -518,7 +639,7 @@ export default function ReportsPage() {
 
       {tab === 'employees' && (
         loadingEmp ? <div className="flex h-48 items-center justify-center text-gray-500">Loading...</div> : (
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
             {!employees?.length ? (
               <div className="flex h-48 items-center justify-center text-gray-400 text-sm">No employee data available.</div>
             ) : (
@@ -559,21 +680,19 @@ export default function ReportsPage() {
         loadingAI ? <div className="flex h-48 items-center justify-center text-gray-500">Loading...</div> : (
           <div className="grid gap-4 sm:grid-cols-2">
             {[
-              { label: 'AI Initiated Calls', value: aiHuman?.calls?.aiInitiated || 0, total: aiHuman?.calls?.total || 0, color: 'bg-indigo-100 text-indigo-700' },
-              { label: 'Human Calls', value: aiHuman?.calls?.human || 0, total: aiHuman?.calls?.total || 0, color: 'bg-purple-100 text-purple-700' },
-            ].map(({ label, value, total, color }) => (
-              <div key={label} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-                <p className="text-sm text-gray-500">{label}</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-                <div className="mt-3 h-2 rounded-full bg-gray-100">
-                  <div
-                    className={`h-2 rounded-full ${color.split(' ')[0]}`}
-                    style={{ width: `${total ? (value / total) * 100 : 0}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-400">{total ? Math.round((value / total) * 100) : 0}% of total</p>
-              </div>
-            ))}
+              { label: 'AI Initiated Calls', value: aiHuman?.calls?.aiInitiated || 0, total: aiHuman?.calls?.total || 0, color: 'bg-blue-600' },
+              { label: 'Human Calls', value: aiHuman?.calls?.human || 0, total: aiHuman?.calls?.total || 0, color: 'bg-violet-500' },
+            ].map(({ label, value, total, color }, i) => {
+              const pct = total ? Math.round((value / total) * 100) : 0;
+              return (
+                <SectionCard key={label} index={i} title={label} subtitle={`${pct}% of total`}>
+                  <p className="text-3xl font-bold text-gray-900">{value}</p>
+                  <div className="mt-3">
+                    <ProgressStat label="Share of total" count={`${pct}%`} percent={pct} color={color} index={i} />
+                  </div>
+                </SectionCard>
+              );
+            })}
           </div>
         )
       )}

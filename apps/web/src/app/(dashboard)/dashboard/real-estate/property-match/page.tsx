@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Sparkles, Search } from 'lucide-react';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
 
 const inputCls =
   'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
@@ -69,10 +70,33 @@ export default function PropertyMatchPage() {
         <p className="text-sm text-gray-500">Find leads matching your property criteria</p>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <StatCard label="Leads with Requirements" value={overviewStats?.leadsWithRequirements ?? 0} tone="indigo" />
-        <StatCard label="Matching Leads" value={searchResult?.hasCriteria ? searchResult.leads.length : 0} tone="emerald" />
-        <StatCard label="No Requirements Yet" value={overviewStats?.noRequirementsYet ?? 0} tone="gray" />
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+          <StatCard label="Leads with Requirements" value={overviewStats?.leadsWithRequirements ?? 0} tone="indigo" />
+          <StatCard label="Matching Leads" value={searchResult?.hasCriteria ? searchResult.leads.length : 0} tone="emerald" />
+          <StatCard label="No Requirements Yet" value={overviewStats?.noRequirementsYet ?? 0} tone="gray" />
+        </div>
+        {overviewStats && overviewStats.leadsWithRequirements + overviewStats.noRequirementsYet > 0 && (
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm lg:w-64">
+            <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400">Requirement Coverage</p>
+            {(() => {
+              const segments = [
+                { label: 'With Requirements', count: overviewStats.leadsWithRequirements, color: '#6366f1' },
+                { label: 'No Requirements Yet', count: overviewStats.noRequirementsYet, color: '#9ca3af' },
+              ].filter((d) => d.count > 0);
+              return (
+                <DonutChart
+                  data={segments}
+                  nameKey="label"
+                  valueKey="count"
+                  colors={segments.map((s) => s.color)}
+                  height={130}
+                  ariaLabel="Leads grouped by whether they have saved property requirements"
+                />
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
