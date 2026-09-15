@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { CustomCursor } from '@/components/layout/CustomCursor';
+import { DailyBriefingGate } from '@/components/daily-briefing/DailyBriefingGate';
 import api from '@/lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Header />
         <main className="flex-1 overflow-y-auto p-7">{children}</main>
       </div>
+      <DailyBriefingGate />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
@@ -21,6 +22,131 @@
   --color-input: hsl(214 25% 90%);
   --color-ring: hsl(217 91% 60%);
   --radius: 0.75rem;
+
+  /* Extra palette for the marketing landing page (/) only — actual color
+     values are scoped inside .pulsive-landing below, so these utilities
+     (bg-cyan, text-purple, etc.) resolve to nothing outside that page and
+     never touch the dashboard/auth palette above. */
+  --color-cyan: var(--cyan);
+  --color-blue: var(--blue);
+  --color-purple: var(--purple);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 11s ease-in-out infinite;
+  --animate-pulse-glow: pulseGlow 3.5s ease-in-out infinite;
+  --animate-spin-slow: spin 22s linear infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-gradient: gradientMove 8s ease infinite;
+  --animate-marquee: marquee 34s linear infinite;
+  --animate-blink: blink 1.05s step-end infinite;
+}
+
+/* ─── Landing page (v0-generated marketing site) ───────────────────────────
+   Scoped under .pulsive-landing (set on the root <main> of app/page.tsx) so
+   none of this touches the dashboard/login palette or behavior defined
+   above. */
+.pulsive-landing {
+  --cyan: oklch(0.8 0.13 200);
+  --blue: oklch(0.65 0.19 255);
+  --purple: oklch(0.63 0.2 292);
+
+  --chart-1: oklch(0.58 0.2 255);
+  --chart-2: oklch(0.8 0.13 200);
+  --chart-3: oklch(0.63 0.2 292);
+  --chart-4: oklch(0.72 0.16 160);
+  --chart-5: oklch(0.75 0.15 60);
+
+  /* Redeclared here (not just in @theme above) so bg-cyan/text-cyan/from-blue/
+     etc. resolve correctly for every element in this subtree, regardless of
+     how the browser chains var() indirection back through :root. */
+  --color-cyan: var(--cyan);
+  --color-blue: var(--blue);
+  --color-purple: var(--purple);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+html:has(.pulsive-landing) {
+  scroll-behavior: smooth;
+}
+
+.pulsive-landing ::selection {
+  background: oklch(0.65 0.19 255 / 0.32);
+}
+
+@layer utilities {
+  .pulsive-landing .text-gradient {
+    background: linear-gradient(100deg, var(--color-foreground) 0%, var(--cyan) 55%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .pulsive-landing .glass {
+    background: color-mix(in oklch, var(--color-card) 82%, transparent);
+    box-shadow: 0 16px 45px -32px oklch(0.25 0.04 264 / 0.35);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .pulsive-landing .grid-bg {
+    background-image:
+      linear-gradient(to right, oklch(0.3 0.03 264 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.3 0.03 264 / 0.06) 1px, transparent 1px);
+    background-size: 46px 46px;
+  }
+}
+
+/* Scroll-reveal used by the landing page's section components */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.reveal[data-visible='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes gradientMove {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulsive-landing .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @layer base {
