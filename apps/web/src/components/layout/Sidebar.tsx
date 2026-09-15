@@ -88,7 +88,7 @@ function NavLink({
           isActive ? 'text-cyan-400' : 'text-white/30 group-hover:text-white/60',
         )}
       />
-      {label}
+      <span className="relative z-10">{label}</span>
     </Link>
   );
 }
