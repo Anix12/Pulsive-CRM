@@ -9,6 +9,7 @@ import { SOCKET_EVENTS } from '@/config/constants';
 import { Request } from 'express';
 import { InitiateCallInput } from './calls.types';
 import { env } from '@/config/env';
+import { parseDateRange, toPrismaDateFilter } from '@/utils/dateRange';
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
@@ -35,14 +36,13 @@ export const list = async (tenantId: string, req: Request) => {
       { toNumber: { contains: search } },
     ];
   }
-  if (dateFrom || dateTo) {
-    where.createdAt = {
-      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-      ...(dateTo ? { lte: new Date(dateTo) } : {}),
-    };
-  }
+  const createdAtFilter = toPrismaDateFilter(parseDateRange(dateFrom, dateTo));
+  if (createdAtFilter) where.createdAt = createdAtFilter;
 
-  const [calls, total, connected, interested, notInterested, durationAgg, costAgg] = await Promise.all([
+  const [
+    calls, total, connected, interested, notInterested, unknownOutcome,
+    durationAgg, costAgg, statusBreakdownRaw,
+  ] = await Promise.all([
     prisma.call.findMany({
       where,
       skip,
@@ -58,17 +58,61 @@ export const list = async (tenantId: string, req: Request) => {
     prisma.call.count({ where: { ...where, status: { in: ['IN_PROGRESS', 'COMPLETED'] } } }),
     prisma.call.count({ where: { ...where, aiSuccessEvaluation: true } }),
     prisma.call.count({ where: { ...where, aiSuccessEvaluation: false } }),
+    prisma.call.count({ where: { ...where, aiSuccessEvaluation: null } }),
     prisma.call.aggregate({ where, _avg: { duration: true } }),
     prisma.call.aggregate({ where, _sum: { cost: true } }),
+    prisma.call.groupBy({ by: ['status'], where, _count: { _all: true } }),
   ]);
+
+  // Volume-over-time trend: respects the same filters (and date range, if one was
+  // given) as the table above. With no date filter, defaults to a trailing 14-day
+  // window — consistent with the app's other "no filter selected" trend defaults.
+  const trendTo = createdAtFilter?.lte ? new Date(createdAtFilter.lte) : new Date();
+  const trendFrom = createdAtFilter?.gte
+    ? new Date(createdAtFilter.gte)
+    : new Date(trendTo.getTime() - 13 * 86_400_000);
+  const trendDays = Math.max(1, Math.min(90, Math.round((trendTo.getTime() - trendFrom.getTime()) / 86_400_000) + 1));
+
+  const [trendCalls, durationRows] = await Promise.all([
+    prisma.call.findMany({
+      where: { ...where, createdAt: { gte: trendFrom, lte: trendTo } },
+      select: { createdAt: true },
+    }),
+    prisma.call.findMany({ where: { ...where, duration: { not: null } }, select: { duration: true } }),
+  ]);
+
+  const volumeOverTime = Array.from({ length: trendDays }).map((_, i) => {
+    const d = new Date(trendFrom);
+    d.setDate(d.getDate() + i);
+    const dayKey = d.toDateString();
+    const count = trendCalls.filter((c) => c.createdAt.toDateString() === dayKey).length;
+    return { date: d.toISOString().slice(0, 10), label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), count };
+  });
+
+  const DURATION_BUCKETS = [
+    { bucket: '<1 min', max: 60 },
+    { bucket: '1-3 min', max: 180 },
+    { bucket: '3-5 min', max: 300 },
+    { bucket: '5-10 min', max: 600 },
+    { bucket: '10+ min', max: Infinity },
+  ];
+  const durationDistribution = DURATION_BUCKETS.map((b) => ({ bucket: b.bucket, count: 0 }));
+  for (const row of durationRows) {
+    const idx = DURATION_BUCKETS.findIndex((b) => (row.duration ?? 0) <= b.max);
+    durationDistribution[idx === -1 ? durationDistribution.length - 1 : idx].count += 1;
+  }
 
   const stats = {
     totalCalls: total,
     connected,
     interested,
     notInterested,
+    unknownOutcome,
     avgDuration: Math.round(durationAgg._avg.duration || 0),
     totalCost: costAgg._sum.cost || 0,
+    byStatus: statusBreakdownRaw.map((s) => ({ status: s.status, count: s._count._all })),
+    volumeOverTime,
+    durationDistribution,
   };
 
   return { calls, meta: { ...paginationMeta(total, page, limit), stats } };

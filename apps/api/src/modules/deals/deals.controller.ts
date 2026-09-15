@@ -52,6 +52,12 @@ export const getStages = async (req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 };
 
+export const analytics = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.analytics(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await service.getById(req.tenantId!, req.params.id));

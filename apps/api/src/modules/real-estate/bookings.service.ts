@@ -46,14 +46,68 @@ export const stats = async (tenantId: string) => {
   const totalBrokerage = bookings.reduce((s, b) => s + num(b.brokerageAmount), 0);
   const brokerageReceived = bookings.reduce((s, b) => s + num(b.brokerageReceived), 0);
 
+  // Status breakdown (including CANCELLED, which the counts above intentionally exclude)
+  // for a real "Booking Status" chart — a small additive query, doesn't touch the
+  // existing tokenReceived/booked/agreementDone/registered/value logic above.
+  const statusRaw = await prisma.booking.groupBy({ by: ['status'], where: { tenantId }, _count: { _all: true } });
+  const statusBreakdown = statusRaw.map((s) => ({ status: s.status, count: s._count._all }));
+  const cancelled = statusBreakdown.find((s) => s.status === 'CANCELLED')?.count ?? 0;
+
+  const nonCancelled = { tenantId, status: { not: 'CANCELLED' as const } };
+  const [byProjectRaw, byAgentRaw] = await Promise.all([
+    prisma.booking.groupBy({ by: ['projectId'], where: nonCancelled, _count: { _all: true }, _sum: { totalAmount: true } }),
+    prisma.booking.groupBy({ by: ['agentId'], where: { ...nonCancelled, agentId: { not: null } }, _count: { _all: true }, _sum: { totalAmount: true } }),
+  ]);
+  const [projects, agents] = await Promise.all([
+    byProjectRaw.length ? prisma.project.findMany({ where: { id: { in: byProjectRaw.map((b) => b.projectId) } }, select: { id: true, name: true } }) : [],
+    byAgentRaw.length ? prisma.user.findMany({ where: { id: { in: byAgentRaw.map((b) => b.agentId!) } }, select: { id: true, firstName: true, lastName: true } }) : [],
+  ]);
+  const byProject = byProjectRaw
+    .map((b) => ({ projectId: b.projectId, name: projects.find((p) => p.id === b.projectId)?.name ?? 'Unknown', count: b._count._all, value: num(b._sum.totalAmount) }))
+    .sort((a, b) => b.count - a.count);
+  const byAgent = byAgentRaw
+    .map((b) => {
+      const agent = agents.find((a) => a.id === b.agentId);
+      return { agentId: b.agentId!, name: agent ? `${agent.firstName} ${agent.lastName ?? ''}`.trim() : 'Unknown', count: b._count._all, value: num(b._sum.totalAmount) };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  // Booking value over time: trailing 6 calendar months of non-cancelled booking value,
+  // bucketed by bookingDate — same fixed-window convention used for deal value elsewhere.
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+  const recentBookings = await prisma.booking.findMany({
+    where: { ...nonCancelled, bookingDate: { gte: sixMonthsAgo } },
+    select: { totalAmount: true, bookingDate: true },
+  });
+  const monthBuckets: { period: string; label: string; value: number; count: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    monthBuckets.push({ period: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleDateString('en-US', { month: 'short' }), value: 0, count: 0 });
+  }
+  for (const b of recentBookings) {
+    const period = `${b.bookingDate.getFullYear()}-${String(b.bookingDate.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthBuckets.find((m) => m.period === period);
+    if (bucket) { bucket.value += num(b.totalAmount); bucket.count += 1; }
+  }
+
   return {
     tokenReceived: countByStage('TOKEN_RECEIVED'),
     booked: countByStage('BOOKED'),
     agreementDone: countByStage('AGREEMENT_DONE'),
     registered: countByStage('REGISTERED'),
+    cancelled,
     totalDealValue,
     totalBrokerage,
     brokeragePending: Math.max(0, totalBrokerage - brokerageReceived),
+    statusBreakdown,
+    byProject,
+    byAgent,
+    valueOverTime: monthBuckets,
   };
 };
 

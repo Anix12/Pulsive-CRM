@@ -9,6 +9,12 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   } catch (err) { next(err); }
 };
 
+export const stats = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.stats(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const task = await service.getById(req.tenantId!, req.params.id);

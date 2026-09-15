@@ -5,12 +5,17 @@ import api from '@/lib/api';
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Search, Pencil, Trash2, Upload, Users, SlidersHorizontal, Columns3, Flame, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Modal } from '@/components/ui/Modal';
 import { CsvImportModal } from '@/components/ui/CsvImportModal';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn, getInitials } from '@/lib/utils';
+import { PILL_SPRING } from '@/lib/motion';
 
 const STATUS_OPTIONS = ['LEAD', 'PROSPECT', 'CUSTOMER', 'CHURNED', 'BLOCKED'] as const;
 
@@ -410,7 +415,9 @@ function LeadOverview() {
     count: s.count,
     color: SOURCE_PALETTE[i % SOURCE_PALETTE.length],
   }));
-  const maxDaily = Math.max(1, ...data.dailyNewLeads.map((d) => d.count));
+  const SOURCE_DONUT_THRESHOLD = 5;
+  const sourceIsDonut = sourceSegments.length <= SOURCE_DONUT_THRESHOLD;
+  const dailyLabelByDate = Object.fromEntries(data.dailyNewLeads.map((d) => [d.date, d.label]));
 
   return (
     <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
@@ -444,7 +451,15 @@ function LeadOverview() {
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">By Status</p>
-          <SegmentedBar segments={statusSegments} />
+          <DonutChart
+            data={statusSegments}
+            nameKey="label"
+            valueKey="count"
+            colors={statusSegments.map((s) => s.color)}
+            height={140}
+            showLegend={false}
+            ariaLabel="Leads grouped by status"
+          />
           <ul className="mt-2 space-y-1">
             {statusSegments.map((s) => (
               <li key={s.label} className="flex items-center justify-between text-xs">
@@ -460,7 +475,23 @@ function LeadOverview() {
 
         <div>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">By Source</p>
-          <SegmentedBar segments={sourceSegments} />
+          {sourceIsDonut ? (
+            <DonutChart
+              data={sourceSegments}
+              nameKey="label"
+              valueKey="count"
+              colors={sourceSegments.map((s) => s.color)}
+              height={140}
+              showLegend={false}
+              ariaLabel="Leads grouped by source"
+            />
+          ) : (
+            <SimpleBarChart
+              data={sourceSegments.slice(0, 6).map((s) => ({ label: s.label, value: s.count }))}
+              height={140}
+              formatValue={(n) => `${n} leads`}
+            />
+          )}
           <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto pr-1">
             {sourceSegments.slice(0, 6).map((s) => (
               <li key={s.label} className="flex items-center justify-between text-xs">
@@ -475,21 +506,19 @@ function LeadOverview() {
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Daily New Leads</p>
-          <div className="flex h-24 items-end gap-1.5">
-            {data.dailyNewLeads.map((d) => (
-              <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
-                <div className="flex h-16 w-full items-end">
-                  <div
-                    className="w-full rounded-t bg-blue-400"
-                    style={{ height: `${(d.count / maxDaily) * 100}%`, minHeight: d.count > 0 ? '3px' : '0' }}
-                    title={`${d.count} leads`}
-                  />
-                </div>
-                <span className="text-[10px] text-gray-400">{d.label}</span>
-              </div>
-            ))}
-          </div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            New Leads <span className="normal-case text-gray-300">· last 7 days</span>
+          </p>
+          <LineChart
+            data={data.dailyNewLeads}
+            xKey="date"
+            series={[{ key: 'count', label: 'New Leads', color: '#60a5fa' }]}
+            variant="area"
+            height={170}
+            formatXLabel={(value) => dailyLabelByDate[value as string] ?? String(value)}
+            formatValue={(value) => `${Math.round(value)} new lead${Math.round(value) === 1 ? '' : 's'}`}
+            ariaLabel="New leads over the last 7 days"
+          />
         </div>
       </div>
     </div>
@@ -499,6 +528,7 @@ function LeadOverview() {
 // ── Contacts Page ─────────────────────────────────────────────────────────────
 export default function ContactsPage() {
   const qc = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tempFilter, setTempFilter] = useState('');
@@ -643,22 +673,36 @@ export default function ContactsPage() {
         <button
           onClick={() => setStatusFilter('')}
           className={cn(
-            'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-            statusFilter === '' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
+            'relative rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out',
+            statusFilter === '' ? 'border-transparent text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
           )}
         >
-          All
+          {statusFilter === '' && (
+            <motion.span
+              layoutId="lead-status-pill"
+              className="absolute inset-0 rounded-lg border border-blue-200 bg-blue-50"
+              transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+            />
+          )}
+          <span className="relative z-10">All</span>
         </button>
         {STATUS_OPTIONS.map((s) => (
           <button
             key={s}
             onClick={() => setStatusFilter(statusFilter === s ? '' : s)}
             className={cn(
-              'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-              statusFilter === s ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
+              'relative rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out',
+              statusFilter === s ? 'border-transparent text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
             )}
           >
-            {statusConfig[s].label}
+            {statusFilter === s && (
+              <motion.span
+                layoutId="lead-status-pill"
+                className="absolute inset-0 rounded-lg border border-blue-200 bg-blue-50"
+                transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+              />
+            )}
+            <span className="relative z-10">{statusConfig[s].label}</span>
           </button>
         ))}
       </div>
@@ -669,7 +713,7 @@ export default function ContactsPage() {
         <button
           onClick={() => setTempFilter('')}
           className={cn(
-            'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
+            'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out',
             tempFilter === '' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
           )}
         >
@@ -680,7 +724,7 @@ export default function ContactsPage() {
             key={t}
             onClick={() => setTempFilter(tempFilter === t ? '' : t)}
             className={cn(
-              'rounded-lg border px-3 py-1.5 text-xs font-semibold transition',
+              'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out',
               tempFilter === t ? tempConfig[t].chip : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
             )}
           >

@@ -12,6 +12,37 @@ export const listByProject = async (tenantId: string, projectId: string, req: Re
   return prisma.unit.findMany({ where, orderBy: { unitNumber: 'asc' } });
 };
 
+export const stats = async (tenantId: string) => {
+  const [totalUnits, byStatusRaw, byProjectStatusRaw, projects] = await Promise.all([
+    prisma.unit.count({ where: { tenantId } }),
+    prisma.unit.groupBy({ by: ['status'], where: { tenantId }, _count: { _all: true } }),
+    prisma.unit.groupBy({ by: ['projectId', 'status'], where: { tenantId }, _count: { _all: true } }),
+    prisma.project.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+  ]);
+
+  const byStatus = byStatusRaw.map((s) => ({ status: s.status, count: s._count._all }));
+
+  const byProject = projects
+    .map((project) => {
+      const rows = byProjectStatusRaw.filter((r) => r.projectId === project.id);
+      const countOf = (status: string) => rows.find((r) => r.status === status)?._count._all ?? 0;
+      const total = rows.reduce((sum, r) => sum + r._count._all, 0);
+      return {
+        projectId: project.id,
+        name: project.name,
+        total,
+        available: countOf('AVAILABLE'),
+        hold: countOf('HOLD'),
+        booked: countOf('BOOKED'),
+        sold: countOf('SOLD'),
+      };
+    })
+    .filter((p) => p.total > 0)
+    .sort((a, b) => b.total - a.total);
+
+  return { totalUnits, byStatus, byProject };
+};
+
 export const getById = async (tenantId: string, id: string) => {
   const unit = await prisma.unit.findFirst({ where: { id, tenantId }, include: { project: { select: { id: true, name: true } } } });
   if (!unit) throw new AppError(404, 'NOT_FOUND', 'Unit not found');

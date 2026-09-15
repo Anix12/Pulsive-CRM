@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate, requireActiveTenant);
 
 router.get('/pipelines', controller.listPipelines);
+router.get('/analytics', controller.analytics);
 
 // Stage management
 router.get('/stages', controller.getStages);

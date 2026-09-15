@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDuration } from '@/lib/utils';
-import { Phone, PhoneIncoming, PhoneOutgoing } from 'lucide-react';
+import { Phone, PhoneIncoming, PhoneOutgoing, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Modal } from '@/components/ui/Modal';
 import { useState, useEffect } from 'react';
@@ -12,6 +12,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/store/auth.store';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 const statusColors: Record<string, string> = {
   COMPLETED: 'bg-green-50 text-green-700',
@@ -91,8 +94,168 @@ function InitiateCallModal({ open, onClose }: { open: boolean; onClose: () => vo
   );
 }
 
+// ── Call Analytics report ─────────────────────────────────────────────────────
+const STATUS_COLORS: Record<string, string> = {
+  COMPLETED: '#34d399',
+  FAILED: '#f87171',
+  IN_PROGRESS: '#60a5fa',
+  RINGING: '#fbbf24',
+  BUSY: '#fb923c',
+  NO_ANSWER: '#9ca3af',
+  INITIATED: '#818cf8',
+  CANCELLED: '#d1d5db',
+};
+
+function AnalyticsStat({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className="rounded-lg bg-gray-50 p-3.5 text-center">
+      <p className="text-xl font-bold" style={{ color }}>{value}</p>
+      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">{label}</p>
+    </div>
+  );
+}
+
+interface CallStats {
+  totalCalls: number; connected: number; interested: number; notInterested: number; unknownOutcome: number;
+  avgDuration: number; totalCost: number;
+  byStatus: { status: string; count: number }[];
+  volumeOverTime: { date: string; label: string; count: number }[];
+  durationDistribution: { bucket: string; count: number }[];
+}
+
+function CallsAnalytics({ stats, isLoading }: { stats?: CallStats; isLoading: boolean }) {
+  const { data: activity } = useQuery({
+    queryKey: ['reports', 'dashboard-overview'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/reports/dashboard-overview');
+      return data.data as { activityInRange: { calls: number; sms: number; emails: number; tasksDue: number } };
+    },
+  });
+
+  if (isLoading || !stats) {
+    return <div className="h-56 animate-pulse rounded-xl bg-white shadow-sm ring-1 ring-gray-100" />;
+  }
+
+  const statusSegments = stats.byStatus.map((s) => ({
+    label: s.status.replace('_', ' '),
+    count: s.count,
+    color: STATUS_COLORS[s.status] ?? '#d1d5db',
+  }));
+  const outcomeSegments = [
+    { label: 'Interested', count: stats.interested, color: '#34d399' },
+    { label: 'Not Interested', count: stats.notInterested, color: '#f87171' },
+    { label: 'Unknown', count: stats.unknownOutcome, color: '#9ca3af' },
+  ].filter((d) => d.count > 0);
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Call Overview</p>
+
+      <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+        <AnalyticsStat label="Total" value={stats.totalCalls} color="#111827" />
+        <AnalyticsStat label="Connected" value={stats.connected} color="#4f46e5" />
+        <AnalyticsStat label="Interested" value={stats.interested} color="#059669" />
+        <AnalyticsStat label="Not Interested" value={stats.notInterested} color="#dc2626" />
+        <AnalyticsStat label="Avg Duration" value={formatDuration(stats.avgDuration)} color="#7c3aed" />
+        <AnalyticsStat label="Total Cost" value={`₹${stats.totalCost.toFixed(2)}`} color="#d97706" />
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Call Volume Over Time</p>
+        <LineChart
+          data={stats.volumeOverTime}
+          xKey="date"
+          series={[{ key: 'count', label: 'Calls', color: '#4f46e5' }]}
+          variant="area"
+          height={180}
+          formatXLabel={(v) => stats.volumeOverTime.find((d) => d.date === v)?.label ?? String(v)}
+          formatValue={(v) => `${Math.round(v)} call${Math.round(v) === 1 ? '' : 's'}`}
+          ariaLabel="Call volume over time"
+        />
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">By Status</p>
+          <DonutChart
+            data={statusSegments}
+            nameKey="label"
+            valueKey="count"
+            colors={statusSegments.map((s) => s.color)}
+            height={140}
+            showLegend={false}
+            ariaLabel="Calls grouped by status"
+          />
+          <ul className="mt-2 space-y-1">
+            {statusSegments.map((s) => (
+              <li key={s.label} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                  {s.label}
+                </span>
+                <span className="text-gray-700">{s.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Call Outcomes</p>
+          <DonutChart
+            data={outcomeSegments}
+            nameKey="label"
+            valueKey="count"
+            colors={outcomeSegments.map((s) => s.color)}
+            height={140}
+            showLegend={false}
+            ariaLabel="Calls grouped by AI outcome"
+          />
+          <ul className="mt-2 space-y-1">
+            {outcomeSegments.map((s) => (
+              <li key={s.label} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                  {s.label}
+                </span>
+                <span className="text-gray-700">{s.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Duration Distribution</p>
+          <SimpleBarChart
+            data={stats.durationDistribution.map((d) => ({ label: d.bucket, value: d.count }))}
+            height={140}
+            formatValue={(n) => `${n} call${n === 1 ? '' : 's'}`}
+          />
+        </div>
+      </div>
+
+      {activity && (
+        <div className="mt-5">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Activity Volume <span className="normal-case text-gray-300">· this month</span>
+          </p>
+          <SimpleBarChart
+            data={[
+              { label: 'Calls', value: activity.activityInRange.calls },
+              { label: 'SMS', value: activity.activityInRange.sms },
+              { label: 'Emails', value: activity.activityInRange.emails },
+              { label: 'Tasks Due', value: activity.activityInRange.tasksDue },
+            ]}
+            height={140}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CallsPage() {
   const [callModal, setCallModal] = useState(false);
+  const [reportOpen, setReportOpen] = useState(true);
   const qc = useQueryClient();
   const { accessToken } = useAuthStore();
 
@@ -119,13 +282,24 @@ export default function CallsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Calls</h1>
           <p className="text-sm text-gray-500">{data?.meta?.total || 0} total</p>
         </div>
-        <button
-          onClick={() => setCallModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          <Phone className="h-4 w-4" /> Make a Call
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setReportOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            {reportOpen ? 'Hide report' : 'Show report'}
+          </button>
+          <button
+            onClick={() => setCallModal(true)}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            <Phone className="h-4 w-4" /> Make a Call
+          </button>
+        </div>
       </div>
+
+      {reportOpen && <CallsAnalytics stats={data?.meta?.stats} isLoading={isLoading} />}
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
         {isLoading ? (

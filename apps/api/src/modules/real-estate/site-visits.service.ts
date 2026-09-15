@@ -6,6 +6,7 @@ import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateSiteVisitInput, UpdateSiteVisitInput } from './real-estate.types';
 import * as stageService from './real-estate-stage.service';
+import { parseDateRangeFromQuery, toPrismaDateFilter } from '@/utils/dateRange';
 
 const includeRelations = {
   contact: { select: { id: true, name: true, phone: true } },
@@ -17,14 +18,7 @@ const includeRelations = {
 
 const ACTIVE_STATUSES = ['ON_THE_WAY', 'AT_SITE', 'VISITING', 'RETURNING'] as const;
 
-const dateRangeWhere = (req: Request) => {
-  const { from, to } = req.query as Record<string, string>;
-  if (!from && !to) return undefined;
-  const range: any = {};
-  if (from) range.gte = new Date(from);
-  if (to) range.lte = new Date(to);
-  return range;
-};
+const dateRangeWhere = (req: Request) => toPrismaDateFilter(parseDateRangeFromQuery(req));
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
@@ -57,7 +51,7 @@ export const stats = async (tenantId: string, req: Request) => {
   const visits = await prisma.siteVisit.findMany({
     where,
     select: {
-      status: true, travelMinutes: true, visitMinutes: true,
+      status: true, travelMinutes: true, visitMinutes: true, scheduledAt: true,
       agentId: true, agent: { select: { id: true, firstName: true, lastName: true } },
       projectId: true, project: { select: { id: true, name: true } },
       interestLevel: true, rating: true,
@@ -93,6 +87,20 @@ export const stats = async (tenantId: string, req: Request) => {
     if (v.status === 'COMPLETED' || v.status === 'VISIT_DONE') rec.completed += 1;
   }
 
+  // Visits-over-time trend: buckets by day across the same filtered window used above.
+  // With no date filter selected, defaults to a trailing 14-day window (the app's usual
+  // "no filter" fallback elsewhere) rather than bucketing all-time history into one chart.
+  const trendTo = scheduledAt?.lte ? new Date(scheduledAt.lte) : new Date();
+  const trendFrom = scheduledAt?.gte ? new Date(scheduledAt.gte) : new Date(trendTo.getTime() - 13 * 86_400_000);
+  const trendDays = Math.max(1, Math.min(90, Math.round((trendTo.getTime() - trendFrom.getTime()) / 86_400_000) + 1));
+  const visitsOverTime = Array.from({ length: trendDays }).map((_, i) => {
+    const d = new Date(trendFrom);
+    d.setDate(d.getDate() + i);
+    const dayKey = d.toDateString();
+    const count = visits.filter((v) => v.scheduledAt.toDateString() === dayKey).length;
+    return { date: d.toISOString().slice(0, 10), label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), count };
+  });
+
   return {
     total: visits.length,
     scheduled: visits.filter((v) => v.status === 'SCHEDULED').length,
@@ -104,6 +112,7 @@ export const stats = async (tenantId: string, req: Request) => {
     avgVisitMinutes: avg(visitSamples),
     agentPerformance: Array.from(byAgent.values()).sort((a, b) => b.completed - a.completed),
     projectPerformance: Array.from(byProject.values()).sort((a, b) => b.total - a.total),
+    visitsOverTime,
   };
 };
 

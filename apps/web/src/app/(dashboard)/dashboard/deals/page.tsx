@@ -3,13 +3,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, ChevronRight, Briefcase, Settings2, GripVertical, Trash2, Check, X } from 'lucide-react';
+import { Plus, ChevronRight, Briefcase, Settings2, GripVertical, Trash2, Check, X, BarChart3 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Modal } from '@/components/ui/Modal';
 import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
+import { cardMountProps } from '@/lib/motion';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 // ── Color palette for stage picker ────────────────────────────────────────────
 const STAGE_COLORS = [
@@ -449,11 +454,185 @@ const tempConfig = {
   COLD: { label: 'Cold', emoji: '❄️', cls: 'bg-sky-50 text-sky-600 ring-sky-100'         },
 } as const;
 
+// ── Sales Analytics report ────────────────────────────────────────────────────
+interface DealsAnalyticsData {
+  pipelineByStage: { stageId: string; stage: string; order: number; color: string; count: number; value: number }[];
+  outcomes: { won: { count: number; value: number }; lost: { count: number; value: number }; open: { count: number; value: number } };
+  avgWonValue: number;
+  byAgent: { agentId: string; name: string; count: number; value: number }[];
+  bySource: { source: string; count: number; value: number }[];
+  valueOverTime: { period: string; label: string; value: number; count: number }[];
+  aging: { bucket: string; count: number }[];
+}
+
+function AnalyticsStat({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className="rounded-lg bg-gray-50 p-3.5 text-center">
+      <p className="text-xl font-bold" style={{ color }}>{value}</p>
+      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">{label}</p>
+    </div>
+  );
+}
+
+function DealsAnalytics() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['deals-analytics'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/deals/analytics');
+      return data.data as DealsAnalyticsData;
+    },
+  });
+
+  if (isError) return null;
+
+  if (isLoading || !data) {
+    return <div className="h-56 animate-pulse rounded-xl bg-white shadow-sm ring-1 ring-gray-100" />;
+  }
+
+  const { pipelineByStage, outcomes, avgWonValue, byAgent, bySource, valueOverTime, aging } = data;
+  const maxStageCount = Math.max(1, ...pipelineByStage.map((s) => s.count));
+  const outcomeDonutData = [
+    { label: 'Won', count: outcomes.won.count, color: '#34d399' },
+    { label: 'Lost', count: outcomes.lost.count, color: '#f87171' },
+    { label: 'Open', count: outcomes.open.count, color: '#94a3b8' },
+  ].filter((d) => d.count > 0);
+  const SOURCE_PALETTE = ['#10b981', '#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#fb923c'];
+  const sourceIsDonut = bySource.length <= 5;
+  const sourceSegments = bySource.map((s, i) => ({ label: s.source, value: s.value, color: SOURCE_PALETTE[i % SOURCE_PALETTE.length] }));
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sales Overview</p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <AnalyticsStat label="Won value" value={formatCurrency(outcomes.won.value)} color="#059669" />
+        <AnalyticsStat label="Lost value" value={formatCurrency(outcomes.lost.value)} color="#dc2626" />
+        <AnalyticsStat label="Open pipeline" value={formatCurrency(outcomes.open.value)} color="#d97706" />
+        <AnalyticsStat label="Avg. won deal" value={formatCurrency(avgWonValue)} color="#4f46e5" />
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Pipeline by Stage</p>
+          <div className="space-y-2.5">
+            {pipelineByStage.map((s) => (
+              <div key={s.stageId}>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-gray-600">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                    {s.stage}
+                  </span>
+                  <span className="text-gray-400">{s.count} &middot; {formatCurrency(s.value)}</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${(s.count / maxStageCount) * 100}%`, backgroundColor: s.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Won vs Lost</p>
+          <DonutChart
+            data={outcomeDonutData}
+            nameKey="label"
+            valueKey="count"
+            colors={outcomeDonutData.map((d) => d.color)}
+            height={140}
+            showLegend={false}
+            ariaLabel="Deals grouped by outcome"
+          />
+          <ul className="mt-2 space-y-1">
+            {outcomeDonutData.map((d) => (
+              <li key={d.label} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: d.color }} />
+                  {d.label}
+                </span>
+                <span className="text-gray-700">{d.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Deal Value &middot; last 6 months</p>
+          <LineChart
+            data={valueOverTime}
+            xKey="label"
+            series={[{ key: 'value', label: 'Won value', color: '#6366f1' }]}
+            variant="area"
+            height={170}
+            formatValue={(value) => formatCurrency(value)}
+            ariaLabel="Won deal value over the last 6 months"
+          />
+        </div>
+      </div>
+
+      {(byAgent.length > 0 || bySource.length > 0 || aging.some((a) => a.count > 0)) && (
+        <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          {byAgent.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sales by Agent</p>
+              <SimpleBarChart
+                data={byAgent.slice(0, 6).map((a) => ({ label: a.name.split(' ')[0], value: a.value }))}
+                height={140}
+                formatValue={(n) => formatCurrency(n)}
+              />
+            </div>
+          )}
+
+          {bySource.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sales by Source</p>
+              {sourceIsDonut ? (
+                <DonutChart
+                  data={sourceSegments}
+                  nameKey="label"
+                  valueKey="value"
+                  colors={sourceSegments.map((s) => s.color)}
+                  height={140}
+                  showLegend={false}
+                  formatValue={(n) => formatCurrency(n)}
+                  ariaLabel="Deal value grouped by source"
+                />
+              ) : (
+                <SimpleBarChart
+                  data={sourceSegments.slice(0, 6).map((s) => ({ label: s.label, value: s.value }))}
+                  height={140}
+                  formatValue={(n) => formatCurrency(n)}
+                />
+              )}
+            </div>
+          )}
+
+          {aging.some((a) => a.count > 0) && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Open Deal Aging</p>
+              <SimpleBarChart
+                data={aging.map((a) => ({ label: a.bucket.replace(' days', 'd'), value: a.count }))}
+                height={140}
+                formatValue={(n) => `${n} deal${n === 1 ? '' : 's'}`}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DealsPage() {
+  const reduceMotion = useReducedMotion();
   const [createOpen, setCreateOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [movingDeal, setMovingDeal] = useState<any>(null);
+  const [reportOpen, setReportOpen] = useState(true);
 
   const { data: stagesData } = useQuery({
     queryKey: ['deal-stages'],
@@ -490,6 +669,13 @@ export default function DealsPage() {
         </p>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setReportOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            {reportOpen ? 'Hide report' : 'Show report'}
+          </button>
+          <button
             onClick={() => setManageOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
           >
@@ -505,6 +691,8 @@ export default function DealsPage() {
           </button>
         </div>
       </div>
+
+      {reportOpen && <DealsAnalytics />}
 
       {/* Kanban board */}
       {isLoading ? (
@@ -545,13 +733,14 @@ export default function DealsPage() {
 
                 {/* Deal cards */}
                 <div className="space-y-2">
-                  {stageDeals.map((deal: any) => {
+                  {stageDeals.map((deal: any, i: number) => {
                     const temp = deal.contact?.temperature as keyof typeof tempConfig | undefined;
                     return (
-                      <div
+                      <motion.div
                         key={deal.id}
+                        {...cardMountProps(i, !!reduceMotion)}
                         onClick={() => setMovingDeal(deal)}
-                        className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-indigo-100 hover:shadow-md"
+                        className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-indigo-100 hover:shadow-md"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[13px] font-semibold text-gray-900 leading-snug flex-1">
@@ -591,7 +780,7 @@ export default function DealsPage() {
                             </span>
                           )}
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
 

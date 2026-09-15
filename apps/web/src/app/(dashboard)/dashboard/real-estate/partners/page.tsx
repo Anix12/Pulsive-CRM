@@ -9,8 +9,13 @@ import { UsersRound, Plus, Pencil, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
 
 const KYC_STATUSES = ['PENDING', 'VERIFIED', 'REJECTED'] as const;
+
+const KYC_COLORS: Record<string, string> = {
+  PENDING: '#f59e0b', VERIFIED: '#34d399', REJECTED: '#f87171',
+};
 
 const kycPill: Record<string, string> = {
   PENDING: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
@@ -158,6 +163,25 @@ export default function PartnersPage() {
           <Plus className="h-4 w-4" /> Add Partner
         </button>
       </div>
+
+      {!isLoading && partners.length > 0 && (() => {
+        const segments = KYC_STATUSES
+          .map((s) => ({ label: s, count: partners.filter((p) => p.kycStatus === s).length, color: KYC_COLORS[s] }))
+          .filter((s) => s.count > 0);
+        return segments.length > 1 ? (
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:w-72">
+            <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400">KYC Status</p>
+            <DonutChart
+              data={segments}
+              nameKey="label"
+              valueKey="count"
+              colors={segments.map((s) => s.color)}
+              height={140}
+              ariaLabel="Partners grouped by KYC status"
+            />
+          </div>
+        ) : null;
+      })()}
 
       <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         {isLoading ? (
