@@ -73,6 +73,15 @@ model Tenant {
   applications       Application[]
   emailConfig        EmailConfig?
   rolePermissions    RolePermission[]
+  aiCallAgents       AiCallAgent[]
+  leadLists          LeadList[]
+  reProjects            Project[]
+  reUnits               Unit[]
+  reSiteVisits          SiteVisit[]
+  reBookings            Booking[]
+  rePropertyPreferences PropertyPreference[]
+  reStageHistories      RealEstateStageHistory[]
+  rePartners            Partner[]
 }
 
 enum TenantPlan {
@@ -116,6 +125,8 @@ model User {
   notifications    Notification[]
   agentPresence    AgentPresence?
   breakLogs        AgentBreakLog[]
+  reSiteVisitsAsAgent SiteVisit[] @relation("SiteVisitAgent")
+  reBookingsAsAgent   Booking[]   @relation("BookingAgent")
 
   @@unique([tenantId, email])
   @@index([tenantId])
