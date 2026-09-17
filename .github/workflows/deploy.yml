@@ -1,0 +1,74 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_API_REPO: crm-saas-api
+  ECR_WEB_REPO: crm-saas-web
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push API image
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_API_REPO:${{ github.sha }} \
+            -t $ECR_REGISTRY/$ECR_API_REPO:latest \
+            -f apps/api/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_API_REPO:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_API_REPO:latest
+
+      - name: Build & push Web image
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_WEB_REPO:${{ github.sha }} \
+            -t $ECR_REGISTRY/$ECR_WEB_REPO:latest \
+            --build-arg NEXT_PUBLIC_API_URL=${{ secrets.API_URL }} \
+            -f apps/web/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_WEB_REPO:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_WEB_REPO:latest
+
+      - name: Run DB migrations
+        run: |
+          aws ecs run-task \
+            --cluster crm-saas \
+            --task-definition crm-saas-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.SUBNET_ID }}],securityGroups=[${{ secrets.SG_ID }}],assignPublicIp=ENABLED}"
+
+      - name: Deploy API to ECS
+        run: |
+          aws ecs update-service \
+            --cluster crm-saas \
+            --service crm-saas-api \
+            --force-new-deployment
+
+      - name: Deploy Web to ECS
+        run: |
+          aws ecs update-service \
+            --cluster crm-saas \
+            --service crm-saas-web \
+            --force-new-deployment
+
+      - name: Wait for deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster crm-saas \
+            --services crm-saas-api crm-saas-web

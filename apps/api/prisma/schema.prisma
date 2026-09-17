@@ -73,6 +73,7 @@ model Tenant {
   applications       Application[]
   emailConfig        EmailConfig?
   rolePermissions    RolePermission[]
+  broadcasts         Broadcast[]
   aiCallAgents       AiCallAgent[]
   leadLists          LeadList[]
   reProjects            Project[]
@@ -125,6 +126,7 @@ model User {
   notifications    Notification[]
   agentPresence    AgentPresence?
   breakLogs        AgentBreakLog[]
+  broadcastsCreated Broadcast[]
   reSiteVisitsAsAgent SiteVisit[] @relation("SiteVisitAgent")
   reBookingsAsAgent   Booking[]   @relation("BookingAgent")
 
@@ -233,6 +235,7 @@ model Contact {
   @@index([tenantId, score])
   @@index([tenantId, assignedToId])
   @@unique([tenantId, sourceUniqueId])
+  @@index([tenantId, realEstateStage])
 }
 
 enum ContactStatus {
@@ -283,8 +286,9 @@ model Pipeline {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  stages DealStage[]
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stages    DealStage[]
+  campaigns Campaign[]
 
   @@index([tenantId])
 }
@@ -504,6 +508,7 @@ model Message {
   contactId         String?
   agentId           String?
   templateId        String?
+  broadcastId       String?
   channel           MessageChannel
   provider          String
   providerMessageId String?
@@ -522,14 +527,16 @@ model Message {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contact  Contact?         @relation(fields: [contactId], references: [id])
-  template MessageTemplate? @relation(fields: [templateId], references: [id])
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact   Contact?         @relation(fields: [contactId], references: [id])
+  template  MessageTemplate? @relation(fields: [templateId], references: [id])
+  broadcast Broadcast?       @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, channel])
   @@index([tenantId, contactId])
   @@index([tenantId, status])
+  @@index([tenantId, broadcastId])
 }
 
 enum MessageChannel {
@@ -570,8 +577,9 @@ model MessageTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  messages Message[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages   Message[]
+  broadcasts Broadcast[]
 
   @@index([tenantId])
   @@index([tenantId, channel])
@@ -705,10 +713,6 @@ model Integration {
   type     String
   isActive Boolean @default(false)
   config   Json    @default("{}")
-  // External identifier for provider push events that don't carry a tenantId
-  // (e.g. a Facebook Page ID) — lets a single global webhook route the event
-  // back to the right tenant instead of needing a per-tenant callback URL.
-  externalId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -717,7 +721,6 @@ model Integration {
 
   @@unique([tenantId, type])
   @@index([tenantId])
-  @@index([type, externalId])
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
@@ -771,12 +774,17 @@ enum TaskStatus {
 // ─── Campaigns (acquisition) ───────────────────────────────────────────────────
 
 model Campaign {
-  id       String         @id @default(cuid())
-  tenantId String
-  name     String
-  category String?
-  source   String?
-  status   CampaignStatus @default(ACTIVE)
+  id             String                    @id @default(cuid())
+  tenantId       String
+  name           String
+  category       String?
+  source         String?
+  status         CampaignStatus            @default(ACTIVE)
+  priority       CampaignPriority          @default(MEDIUM)
+  duplicateCheck CampaignDuplicateCheck    @default(MOBILE_ONLY)
+  assignmentRule CampaignAssignmentRule    @default(MANUAL)
+  pipelineId     String?
+  isPinned       Boolean                   @default(false)
 
   // Public lead-capture link: POST /api/v1/webhooks/integrate/:leadWebhookToken/leads
   // maps a landing-page form straight to this campaign — no field inside the
@@ -786,8 +794,10 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contacts Contact[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline   Pipeline?   @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  contacts   Contact[]
+  broadcasts Broadcast[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -797,6 +807,68 @@ enum CampaignStatus {
   ACTIVE
   PAUSED
   COMPLETED
+}
+
+enum CampaignPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum CampaignDuplicateCheck {
+  NONE
+  MOBILE_ONLY
+  EMAIL_ONLY
+  BOTH
+}
+
+enum CampaignAssignmentRule {
+  MANUAL
+  ROUND_ROBIN
+}
+
+// ─── WhatsApp Broadcasts ────────────────────────────────────────────────────
+
+model Broadcast {
+  id             String                  @id @default(cuid())
+  tenantId       String
+  name           String
+  templateId     String?
+  audienceSource BroadcastAudienceSource @default(CAMPAIGN)
+  campaignId     String?
+  statusFilter   ContactStatus?
+  audienceCount  Int                     @default(0)
+  status         BroadcastStatus         @default(DRAFT)
+  createdById    String
+  failureReason  String?
+  sentAt         DateTime?
+  completedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template  MessageTemplate? @relation(fields: [templateId], references: [id])
+  campaign  Campaign?        @relation(fields: [campaignId], references: [id])
+  createdBy User             @relation(fields: [createdById], references: [id])
+  messages  Message[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+enum BroadcastAudienceSource {
+  CAMPAIGN
+  STATUS
+  ALL
+}
+
+enum BroadcastStatus {
+  DRAFT
+  QUEUED
+  SENDING
+  COMPLETED
+  FAILED
 }
 
 // ─── Marketing (bulk lists, separate from acquisition Campaigns) ──────────────

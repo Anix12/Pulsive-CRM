@@ -329,7 +329,7 @@ export default function ApplicationsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, mobile, or app number…"
-          className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
         />
       </div>
 

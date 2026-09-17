@@ -7,6 +7,62 @@ import { Request } from 'express';
 import { parse } from 'csv-parse/sync';
 import { CreateContactInput, UpdateContactInput, CreateContactSchema } from './contacts.types';
 
+export const overview = async (tenantId: string, range: string) => {
+  const now = new Date();
+  let rangeStart: Date | null = null;
+  if (range === 'today') {
+    rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (range === 'week') {
+    rangeStart = new Date(now);
+    rangeStart.setDate(now.getDate() - 7);
+  } else if (range === 'month') {
+    rangeStart = new Date(now);
+    rangeStart.setMonth(now.getMonth() - 1);
+  }
+
+  const createdWhere: any = { tenantId };
+  if (rangeStart) createdWhere.createdAt = { gte: rangeStart };
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const [total, converted, byStatusRaw, bySourceRaw, unassigned, overdueTasks, dailyContacts] = await Promise.all([
+    prisma.contact.count({ where: createdWhere }),
+    prisma.contact.count({ where: { ...createdWhere, status: 'CUSTOMER' } }),
+    prisma.contact.groupBy({ by: ['status'], where: createdWhere, _count: { _all: true } }),
+    prisma.contact.groupBy({ by: ['source'], where: createdWhere, _count: { _all: true } }),
+    prisma.contact.count({ where: { tenantId, assignedToId: null } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { lt: now }, contactId: { not: null } } }),
+    prisma.contact.findMany({ where: { tenantId, createdAt: { gte: sevenDaysAgo } }, select: { createdAt: true } }),
+  ]);
+
+  const conversionRate = total > 0 ? Math.round((converted / total) * 1000) / 10 : 0;
+  const sourceCount = bySourceRaw.filter((s) => s.source).length;
+
+  const dailyNewLeads = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(sevenDaysAgo);
+    d.setDate(sevenDaysAgo.getDate() + i);
+    const dayKey = d.toDateString();
+    const count = dailyContacts.filter((c) => new Date(c.createdAt).toDateString() === dayKey).length;
+    return { date: d.toISOString().slice(0, 10), label: d.toLocaleDateString('en-US', { weekday: 'short' }), count };
+  });
+
+  return {
+    total,
+    converted,
+    unassigned,
+    overdueTasks,
+    conversionRate,
+    sourceCount,
+    byStatus: byStatusRaw.map((s) => ({ status: s.status, count: s._count._all })),
+    bySource: bySourceRaw
+      .map((s) => ({ source: s.source ?? 'Unknown', count: s._count._all }))
+      .sort((a, b) => b.count - a.count),
+    dailyNewLeads,
+  };
+};
+
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
   const { search, status, temperature, assignedToId, tag, source, campaignId, minScore } = req.query as Record<string, string>;

@@ -6,6 +6,15 @@ import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { CreateDealInput, UpdateDealInput, CreateStageInput, UpdateStageInput, ReorderStagesInput } from './deals.types';
 
+// ── Pipelines ────────────────────────────────────────────────────────────────
+
+export const listPipelines = async (tenantId: string) => {
+  const pipelines = await prisma.pipeline.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+  if (pipelines.length > 0) return pipelines;
+  const created = await prisma.pipeline.create({ data: { tenantId, name: 'Sales Pipeline', isDefault: true } });
+  return [created];
+};
+
 // ── Stage management ───────────────────────────────────────────────────────────
 
 export const createStage = async (tenantId: string, input: CreateStageInput) => {

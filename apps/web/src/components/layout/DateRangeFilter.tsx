@@ -64,11 +64,11 @@ export function DateRangeFilter({ value, onChange }: { value: DateRange; onChang
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm font-medium text-white/75 transition hover:bg-white/[0.08]"
+        className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
       >
-        <Calendar className="h-3.5 w-3.5 text-cyan-300" />
+        <Calendar className="h-3.5 w-3.5 text-blue-600" />
         {displayLabel}
-        <ChevronDown className={cn('h-3.5 w-3.5 text-white/35 transition-transform', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-3.5 w-3.5 text-gray-400 transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
@@ -83,7 +83,7 @@ export function DateRangeFilter({ value, onChange }: { value: DateRange; onChang
                     onClick={() => { onChange(r); setOpen(false); }}
                     className={cn(
                       'flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-sm transition',
-                      isActive ? 'bg-cyan-400/10 text-cyan-300' : 'text-white/70 hover:bg-white/[0.06]',
+                      isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50',
                     )}
                   >
                     {p.label}
@@ -94,23 +94,23 @@ export function DateRangeFilter({ value, onChange }: { value: DateRange; onChang
             })}
           </ul>
 
-          <div className="mt-2 border-t border-white/[0.06] pt-2.5">
-            <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-white/30">Custom range</p>
+          <div className="mt-2 border-t border-gray-100 pt-2.5">
+            <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Custom range</p>
             <div className="flex items-center gap-1.5 px-1">
               <input
                 type="date"
                 value={customFrom}
                 max={customTo}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-white/80 focus:border-cyan-400/50 focus:outline-none"
+                className="w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-blue-500 focus:outline-none"
               />
-              <span className="text-white/25">–</span>
+              <span className="text-gray-300">–</span>
               <input
                 type="date"
                 value={customTo}
                 min={customFrom}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-white/80 focus:border-cyan-400/50 focus:outline-none"
+                className="w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-blue-500 focus:outline-none"
               />
             </div>
             <button

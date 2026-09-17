@@ -30,7 +30,7 @@ const dealSchema = z.object({
 type DealForm = z.infer<typeof dealSchema>;
 
 const inputCls =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
+  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
 
 // ── Manage Stages Modal ───────────────────────────────────────────────────────
 function ManageStagesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -180,7 +180,7 @@ function ManageStagesModal({ open, onClose }: { open: boolean; onClose: () => vo
                       if (e.key === 'Enter') commitEdit(stage);
                       if (e.key === 'Escape') setEditingId(null);
                     }}
-                    className="flex-1 rounded-lg border border-indigo-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="flex-1 rounded-lg border border-indigo-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 ) : (
                   <button
@@ -258,7 +258,7 @@ function ManageStagesModal({ open, onClose }: { open: boolean; onClose: () => vo
                 if (e.key === 'Escape') { setAddingNew(false); setNewName(''); }
               }}
               placeholder="Stage name…"
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
             <div>
               <p className="mb-1.5 text-[11px] font-medium text-gray-500">Pick a color</p>

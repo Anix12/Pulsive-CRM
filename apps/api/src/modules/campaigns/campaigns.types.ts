@@ -5,9 +5,15 @@ export const CreateCampaignSchema = z.object({
   category: z.string().max(100).optional(),
   source: z.string().max(100).optional(),
   status: z.enum(['ACTIVE', 'PAUSED', 'COMPLETED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  duplicateCheck: z.enum(['NONE', 'MOBILE_ONLY', 'EMAIL_ONLY', 'BOTH']).optional(),
+  assignmentRule: z.enum(['MANUAL', 'ROUND_ROBIN']).optional(),
+  pipelineId: z.string().optional().nullable(),
 });
 
-export const UpdateCampaignSchema = CreateCampaignSchema.partial();
+export const UpdateCampaignSchema = CreateCampaignSchema.partial().extend({
+  isPinned: z.boolean().optional(),
+});
 
 export const CampaignQuerySchema = z.object({
   page: z.string().optional(),

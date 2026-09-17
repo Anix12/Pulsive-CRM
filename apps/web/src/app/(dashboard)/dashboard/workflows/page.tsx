@@ -76,18 +76,18 @@ function WorkflowFormModal({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700">Workflow Name *</label>
-            <input {...register('name')} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            <input {...register('name')} className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
             {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
           </div>
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700">Description</label>
-            <input {...register('description')} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            <input {...register('description')} className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
           </div>
         </div>
 
         <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 mb-2">Trigger</p>
-          <select {...register('triggerType')} className="block w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
+          <select {...register('triggerType')} className="block w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none">
             <option value="">Select trigger...</option>
             {TRIGGER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
@@ -119,7 +119,7 @@ function WorkflowFormModal({ open, onClose }: { open: boolean; onClose: () => vo
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600">Action</label>
-                  <select {...register(`steps.${i}.type`)} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none">
+                  <select {...register(`steps.${i}.type`)} className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none">
                     {STEP_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
@@ -131,7 +131,7 @@ function WorkflowFormModal({ open, onClose }: { open: boolean; onClose: () => vo
                       {...register(`steps.${i}.config.message`)}
                       rows={2}
                       placeholder="Hi {{name}}, ..."
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
                 )}
@@ -139,21 +139,21 @@ function WorkflowFormModal({ open, onClose }: { open: boolean; onClose: () => vo
                 {steps[i]?.type === 'WEBHOOK' && (
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Webhook URL</label>
-                    <input {...register(`steps.${i}.config.url`)} placeholder="https://..." className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+                    <input {...register(`steps.${i}.config.url`)} placeholder="https://..." className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none" />
                   </div>
                 )}
 
                 {steps[i]?.type === 'WAIT' && (
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Delay (minutes)</label>
-                    <input {...register(`steps.${i}.config.delayMinutes`)} type="number" placeholder="60" className="mt-1 block w-32 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+                    <input {...register(`steps.${i}.config.delayMinutes`)} type="number" placeholder="60" className="mt-1 block w-32 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none" />
                   </div>
                 )}
 
                 {steps[i]?.type === 'CREATE_TASK' && (
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Task Subject</label>
-                    <input {...register(`steps.${i}.config.subject`)} placeholder="Follow up with contact" className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+                    <input {...register(`steps.${i}.config.subject`)} placeholder="Follow up with contact" className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none" />
                   </div>
                 )}
               </div>

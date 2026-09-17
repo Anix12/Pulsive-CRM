@@ -49,6 +49,18 @@ export const intelligence = async (req: Request, res: Response, next: NextFuncti
   } catch (err) { next(err); }
 };
 
+export const categories = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.categories(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
+export const togglePin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.togglePin(req.tenantId!, req.params.id));
+  } catch (err) { next(err); }
+};
+
 export const importCsv = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {

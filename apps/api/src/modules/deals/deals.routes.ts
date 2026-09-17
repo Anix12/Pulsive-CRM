@@ -8,6 +8,8 @@ import { CreateDealSchema, UpdateDealSchema, CreateStageSchema, UpdateStageSchem
 const router = Router();
 router.use(authenticate, requireActiveTenant);
 
+router.get('/pipelines', controller.listPipelines);
+
 // Stage management
 router.get('/stages', controller.getStages);
 router.post('/stages', validate(CreateStageSchema), controller.createStage);

@@ -64,8 +64,8 @@ export const create = async (tenantId: string, userId: string, input: CreateTask
       tenantId,
       title: input.title,
       description: input.description,
-      contactId: input.contactId,
-      dealId: input.dealId,
+      contactId: input.contactId || undefined,
+      dealId: input.dealId || undefined,
       assignedToId: input.assignedToId,
       dueDate: new Date(input.dueDate),
     },
@@ -105,6 +105,8 @@ export const update = async (
 
   const data: any = { ...input };
   if (input.dueDate) data.dueDate = new Date(input.dueDate);
+  if ('contactId' in data && !data.contactId) data.contactId = null;
+  if ('dealId' in data && !data.dealId) data.dealId = null;
 
   const updated = await prisma.task.update({ where: { id }, data, include: includeRelations });
 

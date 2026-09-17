@@ -60,7 +60,7 @@ function InitiateCallModal({ open, onClose }: { open: boolean; onClose: () => vo
       <form onSubmit={handleSubmit((d) => initiate.mutate(d))} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Select Contact *</label>
-          <select {...register('contactId')} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
+          <select {...register('contactId')} className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none">
             <option value="">Choose a contact...</option>
             {(contactsData || []).map((c: any) => (
               <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>

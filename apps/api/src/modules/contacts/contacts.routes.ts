@@ -22,6 +22,7 @@ const router = Router();
 router.use(authenticate, requireActiveTenant);
 
 router.get('/', controller.list);
+router.get('/overview', controller.overview);
 router.get('/:id', controller.getById);
 router.post('/', validate(CreateContactSchema), controller.create);
 router.post('/import', upload.single('file'), controller.importCsv);

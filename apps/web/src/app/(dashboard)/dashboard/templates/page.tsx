@@ -38,7 +38,7 @@ const templateSchema = z.object({
 type TemplateForm = z.infer<typeof templateSchema>;
 
 const inputCls =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
+  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
@@ -360,7 +360,7 @@ export default function TemplatesPage() {
                   value={aiTopic}
                   onChange={(e) => setAiTopic(e.target.value)}
                   placeholder="What's this email about? e.g. MBA admissions open for Fall intake"
-                  className="flex-1 rounded-md border border-fuchsia-200 bg-white px-2.5 py-1.5 text-sm focus:border-fuchsia-400 focus:outline-none"
+                  className="flex-1 rounded-md border border-fuchsia-200 bg-white px-2.5 py-1.5 text-sm text-gray-900 focus:border-fuchsia-400 focus:outline-none"
                 />
                 <button
                   type="button"

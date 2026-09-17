@@ -76,7 +76,7 @@ export default function MessagesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search contacts..."
-              className="w-full rounded-lg border border-gray-200 py-1.5 pl-8 pr-3 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none"
             />
           </div>
           <div className="relative mt-2">
@@ -216,7 +216,7 @@ export default function MessagesPage() {
             <input
               {...register('body', { required: true })}
               placeholder={`Send ${channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'} message...`}
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <button
               type="submit"

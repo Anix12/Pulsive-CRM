@@ -27,7 +27,6 @@ export const QUEUE_NAMES = {
   WORKFLOWS: 'workflows',
   EMAIL: 'email',
   GOOGLE_SHEETS_SYNC: 'google-sheets-sync',
-  FACEBOOK_TOKEN_CHECK: 'facebook-token-check',
 } as const;
 
 export const SOCKET_EVENTS = {

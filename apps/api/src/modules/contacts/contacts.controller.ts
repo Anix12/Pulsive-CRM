@@ -9,6 +9,13 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   } catch (err) { next(err); }
 };
 
+export const overview = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const range = (req.query.range as string) || 'all';
+    sendSuccess(res, await service.overview(req.tenantId!, range));
+  } catch (err) { next(err); }
+};
+
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const contact = await service.getById(req.tenantId!, req.params.id);

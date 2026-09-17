@@ -2,10 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { Copy, Check, CheckCircle2, Plug, Facebook, AlertTriangle } from 'lucide-react';
+import { Copy, Check, CheckCircle2, Plug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface IntegrationDef {
@@ -19,9 +18,6 @@ interface IntegrationDef {
   webhookBased: boolean;
   webhookInstructions?: (webhookUrl: string) => React.ReactNode;
   comingSoon?: boolean;
-  // True for providers connected via a one-click OAuth flow instead of the
-  // generic "paste your credentials" modal below — see FacebookConnect.
-  oauthBased?: boolean;
 }
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -162,12 +158,61 @@ function onFormSubmit(e) {
     type: 'FACEBOOK_LEADS',
     label: 'Facebook Lead Ads',
     category: 'Advertising',
-    description: 'Capture Facebook & Instagram Lead Ad form submissions instantly — one click, no Meta developer setup required.',
+    description: 'Capture Facebook & Instagram Lead Ad form submissions instantly.',
     color: '#1877F2',
     domain: 'facebook.com',
-    fields: [],
-    webhookBased: false,
-    oauthBased: true,
+    fields: [
+      { key: 'pageAccessToken', label: 'Page Access Token', placeholder: 'EAAxxxxxxx…', secret: true },
+      { key: 'appSecret', label: 'App Secret', placeholder: 'From App Dashboard → App Secret', secret: true },
+      { key: 'verifyToken', label: 'Webhook Verify Token', placeholder: 'Any secret string you choose (e.g. mycrm-fb-2024)' },
+    ],
+    webhookBased: true,
+    webhookInstructions: (webhookUrl: string) => (
+      <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <p className="text-xs font-semibold text-blue-800">How to connect Facebook Lead Ads</p>
+        <ol className="space-y-2 text-xs text-blue-700">
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">1.</span>
+            <span>Go to <strong>developers.facebook.com</strong> → <strong>My Apps</strong> → create or select your app (type: <em>Business</em>)</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">2.</span>
+            <span>In your app dashboard: <strong>Settings → Basic</strong> → copy the <strong>App Secret</strong> and paste it above</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">3.</span>
+            <span>Go to your Facebook Page → <strong>Settings → Professional dashboard</strong> → <strong>Leads Access</strong> → generate a <strong>Page Access Token</strong> and paste it above</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">4.</span>
+            <span>Choose any <strong>Verify Token</strong> string (e.g. <code className="rounded bg-blue-100 px-1">mycrm-fb-2024</code>) and paste it above — you&apos;ll enter the same string in Meta&apos;s webhook form</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">5.</span>
+            <span>Click <strong>Save &amp; Enable</strong> here first, then come back to this guide</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">6.</span>
+            <span>In your Facebook App → <strong>Add Product → Webhooks</strong> → Object type: <strong>Page</strong> → click <strong>Subscribe to this object</strong></span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">7.</span>
+            <span>Enter: Callback URL = <code className="break-all rounded bg-blue-100 px-1">{webhookUrl}</code>, Verify Token = the string you chose → click <strong>Verify and Save</strong></span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">8.</span>
+            <span>After verification, find <strong>leadgen</strong> in the subscriptions list and click <strong>Subscribe</strong></span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold shrink-0">9.</span>
+            <span>Submit a test lead from your Facebook Lead Ad — it should appear in your Contacts within seconds</span>
+          </li>
+        </ol>
+        <p className="text-[11px] text-blue-600">
+          <strong>Note:</strong> The Page Access Token must be a <em>long-lived</em> token (valid ~60 days). Renew it before expiry from Meta Business Suite → Integrations.
+        </p>
+      </div>
+    ),
   },
   {
     type: 'GOOGLE_SHEETS',
@@ -298,33 +343,12 @@ function IntegrationLogo({
 }
 
 const inputCls =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
+  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
 
 export default function IntegrationsPage() {
-  return (
-    <Suspense fallback={null}>
-      <IntegrationsPageInner />
-    </Suspense>
-  );
-}
-
-function IntegrationsPageInner() {
   const qc = useQueryClient();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [active, setActive] = useState<IntegrationDef | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
-
-  const [fbPending, setFbPending] = useState<{ selectionId: string; pages: { id: string; name: string }[] } | null>(null);
-  const [fbError, setFbError] = useState<string | null>(null);
-  const fbErrorRef = useRef<HTMLDivElement>(null);
-
-  // The page-level banner below can render off-screen if you're scrolled down
-  // to the Facebook card (it lives further down the page) — bring it into
-  // view instead of relying on the reader to notice it appeared up top.
-  useEffect(() => {
-    if (fbError) fbErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [fbError]);
 
   const { data: integrations = [] } = useQuery({
     queryKey: ['integrations'],
@@ -336,56 +360,6 @@ function IntegrationsPageInner() {
 
   const statusMap = Object.fromEntries((integrations).map((i: any) => [i.type, i]));
 
-  // After the Facebook OAuth redirect lands back here, fetch the tenant's
-  // Page list (fbConnect=<opaque selectionId>, tokens never touch the browser)
-  // or surface a friendly error (fbError=<reason>), then clean the URL.
-  useEffect(() => {
-    const fbConnect = searchParams.get('fbConnect');
-    const err = searchParams.get('fbError');
-
-    if (fbConnect) {
-      api.get(`/api/v1/integrations/facebook/pending/${fbConnect}`)
-        .then(({ data }) => setFbPending({ selectionId: fbConnect, pages: data.data.pages }))
-        .catch(() => setFbError('This connection has expired — please try connecting again.'));
-      router.replace('/dashboard/integrations');
-    } else if (err) {
-      setFbError(err);
-      router.replace('/dashboard/integrations');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  const extractErrorMessage = (err: unknown, fallback: string): string =>
-    (err as any)?.response?.data?.error?.message ?? (err as any)?.message ?? fallback;
-
-  const connectFacebook = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.get('/api/v1/integrations/facebook/connect');
-      return data.data.authUrl as string;
-    },
-    onSuccess: (authUrl) => { window.location.href = authUrl; },
-    onError: (err) => setFbError(extractErrorMessage(err, 'Could not start the Facebook connection. Please try again.')),
-  });
-
-  const selectFacebookPage = useMutation({
-    mutationFn: (pageId: string) =>
-      api.post('/api/v1/integrations/facebook/select-page', { selectionId: fbPending!.selectionId, pageId }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['integrations'] });
-      setFbPending(null);
-    },
-    onError: (err) => {
-      setFbPending(null);
-      setFbError(extractErrorMessage(err, 'Could not connect that Page. Please try again.'));
-    },
-  });
-
-  const disconnectFacebook = useMutation({
-    mutationFn: () => api.post('/api/v1/integrations/facebook/disconnect'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['integrations'] }),
-    onError: (err) => setFbError(extractErrorMessage(err, 'Could not disconnect Facebook. Please try again.')),
-  });
-
   const save = useMutation({
     mutationFn: () => api.post(`/api/v1/integrations/${active!.type}`, form),
     onSuccess: () => {
@@ -396,7 +370,7 @@ function IntegrationsPageInner() {
   });
 
   const saveError: string | null = save.isError
-    ? extractErrorMessage(save.error, 'Failed to save. Please try again.')
+    ? ((save.error as any)?.response?.data?.message ?? (save.error as any)?.message ?? 'Failed to save. Please try again.')
     : null;
 
   const disconnect = useMutation({
@@ -422,18 +396,6 @@ function IntegrationsPageInner() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      {fbError && (
-        <div ref={fbErrorRef} className="flex items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            <p className="text-sm text-amber-800">{fbError}</p>
-          </div>
-          <button onClick={() => setFbError(null)} className="text-xs font-semibold text-amber-700 hover:underline">
-            Dismiss
-          </button>
-        </div>
-      )}
-
       {/* Summary */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-400">
@@ -491,69 +453,24 @@ function IntegrationsPageInner() {
                     </div>
                   </div>
 
-                  {def.oauthBased ? (
-                    <>
-                      {connected && status?.config?.pageName && (
-                        <p className="mt-3 text-[11px] text-gray-400">
-                          Connected as <span className="font-medium text-gray-600">{status.config.pageName}</span>
-                          {status.config.tokenStatus === 'invalid' && (
-                            <span className="ml-1.5 inline-flex items-center gap-1 font-semibold text-amber-600">
-                              <AlertTriangle className="h-3 w-3" /> needs reconnect
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      <div className="mt-4 flex gap-2">
-                        <button
-                          onClick={() => connectFacebook.mutate()}
-                          disabled={connectFacebook.isPending}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#1877F2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#1467d6] disabled:opacity-50"
-                        >
-                          <Facebook className="h-3.5 w-3.5" />
-                          {connectFacebook.isPending ? 'Redirecting…' : connected ? 'Reconnect' : 'Connect with Facebook'}
-                        </button>
-                        {connected && (
-                          <button
-                            onClick={() => disconnectFacebook.mutate()}
-                            disabled={disconnectFacebook.isPending}
-                            className="rounded-lg border border-red-100 px-3 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            Disconnect
-                          </button>
-                        )}
-                      </div>
-                      {/* Shown right here, not just in the page-level banner —
-                          this card can be scrolled well below the fold. */}
-                      {(connectFacebook.isError || disconnectFacebook.isError) && (
-                        <p className="mt-2 flex items-start gap-1.5 text-[11px] text-red-600">
-                          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                          {extractErrorMessage(
-                            connectFacebook.error ?? disconnectFacebook.error,
-                            'Something went wrong. Please try again.',
-                          )}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => openConfigure(def)}
+                      disabled={def.comingSoon}
+                      className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+                    >
+                      {connected ? 'Reconfigure' : 'Configure'}
+                    </button>
+                    {connected && (
                       <button
-                        onClick={() => openConfigure(def)}
-                        disabled={def.comingSoon}
-                        className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+                        onClick={() => disconnect.mutate(def.type)}
+                        disabled={disconnect.isPending}
+                        className="rounded-lg border border-red-100 px-3 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
                       >
-                        {connected ? 'Reconfigure' : 'Configure'}
+                        Disconnect
                       </button>
-                      {connected && (
-                        <button
-                          onClick={() => disconnect.mutate(def.type)}
-                          disabled={disconnect.isPending}
-                          className="rounded-lg border border-red-100 px-3 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
-                        >
-                          Disconnect
-                        </button>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -679,29 +596,6 @@ function IntegrationsPageInner() {
             </div>
           </div>
         )}
-      </Modal>
-
-      {/* Facebook Page picker — shown once after the OAuth redirect returns */}
-      <Modal
-        open={!!fbPending}
-        size="sm"
-        onClose={() => setFbPending(null)}
-        title="Choose a Facebook Page"
-        description="Leads submitted to this Page's Lead Ads will be captured as contacts automatically."
-      >
-        <div className="space-y-2">
-          {fbPending?.pages.map((page) => (
-            <button
-              key={page.id}
-              onClick={() => selectFacebookPage.mutate(page.id)}
-              disabled={selectFacebookPage.isPending}
-              className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50"
-            >
-              {page.name}
-              {selectFacebookPage.isPending && <span className="text-xs text-gray-400">Connecting…</span>}
-            </button>
-          ))}
-        </div>
       </Modal>
     </div>
   );

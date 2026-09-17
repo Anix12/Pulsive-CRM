@@ -22,7 +22,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         <Dialog.Overlay className="fixed inset-0 z-40 bg-[#03050c]/70 backdrop-blur-[3px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
           className={cn(
-            'glass-panel fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-[#0b1120] p-6 focus:outline-none',
+            'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5 focus:outline-none',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -35,17 +35,17 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <Dialog.Title asChild>
-                <div className="text-[15px] font-semibold text-white/90">{title}</div>
+                <div className="text-[15px] font-semibold text-gray-900">{title}</div>
               </Dialog.Title>
               {description && (
-                <Dialog.Description className="mt-1 text-sm text-white/45">
+                <Dialog.Description className="mt-1 text-sm text-gray-500">
                   {description}
                 </Dialog.Description>
               )}
             </div>
             <button
               onClick={onClose}
-              className="shrink-0 rounded-lg p-1.5 text-white/35 transition hover:bg-white/[0.08] hover:text-white/70"
+              className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
             >
               <X className="h-4 w-4" />
             </button>

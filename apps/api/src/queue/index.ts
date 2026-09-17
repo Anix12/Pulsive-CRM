@@ -5,7 +5,6 @@ import { QUEUE_NAMES } from '@/config/constants';
 import { logger } from '@/utils/logger';
 import { processWorkflow } from './processors/workflow.processor';
 import { syncGoogleSheets } from './processors/googleSheets.processor';
-import { checkFacebookTokens } from './processors/facebookTokenCheck.processor';
 
 // BullMQ requires maxRetriesPerRequest: null
 const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
@@ -14,7 +13,6 @@ const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 export const workflowQueue = new Queue(QUEUE_NAMES.WORKFLOWS, { connection });
 export const emailQueue = new Queue(QUEUE_NAMES.EMAIL, { connection });
 export const googleSheetsSyncQueue = new Queue(QUEUE_NAMES.GOOGLE_SHEETS_SYNC, { connection });
-export const facebookTokenCheckQueue = new Queue(QUEUE_NAMES.FACEBOOK_TOKEN_CHECK, { connection });
 
 export const initializeQueues = (): void => {
   const workflowWorker = new Worker(
@@ -42,18 +40,6 @@ export const initializeQueues = (): void => {
   });
 
   googleSheetsSyncQueue.add('sync', {}, { repeat: { every: 5 * 60 * 1000 }, removeOnComplete: 10, removeOnFail: 10 });
-
-  const facebookTokenCheckWorker = new Worker(
-    QUEUE_NAMES.FACEBOOK_TOKEN_CHECK,
-    async () => checkFacebookTokens(),
-    { connection, concurrency: 1 },
-  );
-
-  facebookTokenCheckWorker.on('failed', (job, err) => {
-    logger.error(`Facebook token check job ${job?.id} failed`, { err });
-  });
-
-  facebookTokenCheckQueue.add('check', {}, { repeat: { every: 24 * 60 * 60 * 1000 }, removeOnComplete: 5, removeOnFail: 5 });
 
   logger.info('Queue workers initialized');
 };

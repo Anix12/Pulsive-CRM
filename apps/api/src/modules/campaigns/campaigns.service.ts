@@ -24,13 +24,75 @@ export const list = async (tenantId: string, req: Request) => {
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { contacts: true } } },
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      include: { _count: { select: { contacts: true } }, pipeline: { select: { id: true, name: true } } },
     }),
     prisma.campaign.count({ where }),
   ]);
 
-  return { campaigns, meta: paginationMeta(total, page, limit) };
+  const campaignIds = campaigns.map((c) => c.id);
+  const contacts = campaignIds.length
+    ? await prisma.contact.findMany({
+        where: { tenantId, campaignId: { in: campaignIds } },
+        select: {
+          campaignId: true,
+          status: true,
+          assignedTo: { select: { id: true, firstName: true, lastName: true } },
+          _count: { select: { calls: true } },
+        },
+      })
+    : [];
+
+  const statsByCampaign = new Map<
+    string,
+    { newCount: number; converted: number; calls: number; assignees: Map<string, { id: string; firstName: string; lastName: string | null }> }
+  >();
+  for (const id of campaignIds) {
+    statsByCampaign.set(id, { newCount: 0, converted: 0, calls: 0, assignees: new Map() });
+  }
+  for (const contact of contacts) {
+    if (!contact.campaignId) continue;
+    const stat = statsByCampaign.get(contact.campaignId);
+    if (!stat) continue;
+    if (contact.status === 'LEAD') stat.newCount += 1;
+    if (contact.status === 'CUSTOMER') stat.converted += 1;
+    stat.calls += contact._count.calls;
+    if (contact.assignedTo) stat.assignees.set(contact.assignedTo.id, contact.assignedTo);
+  }
+
+  const enriched = campaigns.map((c) => {
+    const stat = statsByCampaign.get(c.id)!;
+    return {
+      ...c,
+      stats: {
+        total: c._count.contacts,
+        new: stat.newCount,
+        calls: stat.calls,
+        converted: stat.converted,
+        conversionPct: c._count.contacts > 0 ? Math.round((stat.converted / c._count.contacts) * 100) : 0,
+      },
+      assignees: Array.from(stat.assignees.values()).slice(0, 4),
+    };
+  });
+
+  return { campaigns: enriched, meta: paginationMeta(total, page, limit) };
+};
+
+export const categories = async (tenantId: string) => {
+  const grouped = await prisma.campaign.groupBy({
+    by: ['category'],
+    where: { tenantId },
+    _count: { _all: true },
+  });
+  return grouped
+    .map((g) => ({ category: g.category ?? 'Uncategorized', count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+};
+
+export const togglePin = async (tenantId: string, id: string) => {
+  const existing = await prisma.campaign.findFirst({ where: { id, tenantId } });
+  if (!existing) throw new AppError(404, 'NOT_FOUND', 'Campaign not found');
+  return prisma.campaign.update({ where: { id }, data: { isPinned: !existing.isPinned } });
 };
 
 // (Re)generates the public lead-capture link for this campaign. Calling it again
@@ -53,9 +115,10 @@ export const getById = async (tenantId: string, id: string) => {
     where: { id, tenantId },
     include: {
       _count: { select: { contacts: true } },
+      pipeline: { select: { id: true, name: true } },
       contacts: {
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        take: 50,
         select: {
           id: true,
           name: true,
@@ -65,12 +128,28 @@ export const getById = async (tenantId: string, id: string) => {
           temperature: true,
           score: true,
           createdAt: true,
+          assignedTo: { select: { id: true, firstName: true, lastName: true } },
+          _count: { select: { calls: true } },
         },
       },
     },
   });
   if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campaign not found');
-  return campaign;
+
+  const newCount = campaign.contacts.filter((c) => c.status === 'LEAD').length;
+  const converted = campaign.contacts.filter((c) => c.status === 'CUSTOMER').length;
+  const calls = campaign.contacts.reduce((s, c) => s + c._count.calls, 0);
+
+  return {
+    ...campaign,
+    stats: {
+      total: campaign._count.contacts,
+      new: newCount,
+      calls,
+      converted,
+      conversionPct: campaign._count.contacts > 0 ? Math.round((converted / campaign._count.contacts) * 100) : 0,
+    },
+  };
 };
 
 export const create = async (tenantId: string, userId: string, input: CreateCampaignInput) => {

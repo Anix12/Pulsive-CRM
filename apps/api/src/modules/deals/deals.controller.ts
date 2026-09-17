@@ -2,6 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import * as service from './deals.service';
 import { sendSuccess } from '@/utils/response';
 
+// ── Pipelines ────────────────────────────────────────────────────────────────
+
+export const listPipelines = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.listPipelines(req.tenantId!));
+  } catch (err) { next(err); }
+};
+
 // ── Stage management ───────────────────────────────────────────────────────────
 
 export const createStage = async (req: Request, res: Response, next: NextFunction) => {
