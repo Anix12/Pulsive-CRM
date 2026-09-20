@@ -2,13 +2,20 @@ import { z } from 'zod';
 
 const WorkflowStepSchema = z.object({
   id: z.string(),
-  type: z.enum(['SEND_SMS', 'SEND_WHATSAPP', 'SCHEDULE_CALL', 'CREATE_TASK', 'WEBHOOK', 'WAIT']),
+  type: z.enum([
+    'SEND_EMAIL', 'SEND_SMS', 'SEND_WHATSAPP', 'WAIT', 'CONDITION', 'ASSIGN_AGENT',
+    'CHANGE_STAGE', 'CREATE_TASK', 'ADD_NOTE', 'CHANGE_CAMPAIGN', 'DUPLICATE_LEAD',
+    'WEBHOOK', 'SCHEDULE_CALL',
+  ]),
   config: z.record(z.unknown()),
   nextStepId: z.string().nullable(),
 });
 
 const WorkflowTriggerSchema = z.object({
-  type: z.enum(['INCOMING_CALL', 'MESSAGE_RECEIVED', 'DEAL_STAGE_CHANGED', 'CONTACT_CREATED', 'SCHEDULE']),
+  type: z.enum([
+    'CONTACT_CREATED', 'DEAL_STAGE_CHANGED', 'LEAD_ASSIGNED', 'LEAD_IMPORTED', 'FOLLOWUP_DUE',
+    'INCOMING_CALL', 'MESSAGE_RECEIVED', 'SCHEDULE',
+  ]),
   config: z.record(z.unknown()).optional().default({}),
 });
 

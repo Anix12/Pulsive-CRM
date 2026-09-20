@@ -4,8 +4,7 @@ import {
   Zap, TrendingUp, Plug, Settings, GraduationCap, FileText,
   Megaphone, Send, CheckSquare, LineChart, Brain,
   MessageCircle, Workflow, BarChart3, Wallet, Settings2,
-  Building2, MapPin, Sparkles, CalendarCheck, Radar,
-  ListChecks, PhoneCall, Package, Truck, UsersRound, Shield,
+  Sparkles, ListChecks, PhoneCall, Package, Truck, UsersRound, Shield, Bot,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -28,12 +27,25 @@ export interface NavSection {
 /** Standalone links that don't need a hub page — they're a single destination already. */
 export const singleLinks: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Your daily overview' },
-  { href: '/dashboard/applications', label: 'Applications', icon: GraduationCap, description: 'Admissions applications' },
+  // { href: '/dashboard/applications', label: 'Applications', icon: GraduationCap, description: 'Admissions applications' },
   { href: '/admin', label: 'Platform Admin', icon: Shield, description: 'Super-admin panel' },
 ];
 
 /** Grouped sections — one button in the sidebar, sub-features shown as cards inside. */
 export const navSections: NavSection[] = [
+  {
+    key: 'ai-sales-coach',
+    label: 'AI Sales Coach',
+    icon: Bot,
+    href: '/dashboard/ai-sales-coach',
+    description: 'Live team performance, real-time call insights, and AI-driven guidance.',
+    items: [
+      { href: '/dashboard/ai-sales-coach/live-calls', label: 'Live Calls Monitor', icon: Phone, description: 'Every call in progress across your team, right now.' },
+      { href: '/dashboard/ai-sales-coach/team-performance', label: 'Team/Agent Performance', icon: UsersRound, description: 'Calls, connect rate, and deals won per agent.' },
+      { href: '/dashboard/ai-sales-coach/activity', label: 'Live Activity', icon: Zap, description: 'A running feed of calls, stage changes, and other lead activity.' },
+      { href: '/dashboard/ai-sales-coach/call-insights', label: 'Call Insights', icon: BarChart3, description: 'Call outcomes and disposition breakdown.' },
+    ],
+  },
   {
     key: 'sales',
     label: 'Sales',
@@ -87,21 +99,6 @@ export const navSections: NavSection[] = [
       { href: '/dashboard/whatsapp/analytics', label: 'Analytics', icon: BarChart3, description: 'Delivery, read, and reply rates.', comingSoon: true },
       { href: '/dashboard/whatsapp/wallet', label: 'WA Wallet', icon: Wallet, description: 'Track your messaging credit balance and top-ups.', comingSoon: true },
       { href: '/dashboard/whatsapp/settings', label: 'WA Settings', icon: Settings2, description: 'Configure your WhatsApp Business API connection.' },
-    ],
-  },
-  {
-    key: 'real-estate',
-    label: 'Real Estate',
-    icon: Building2,
-    href: '/dashboard/real-estate',
-    description: 'Manage projects, visits, and bookings.',
-    items: [
-      { href: '/dashboard/real-estate/projects', label: 'Projects', icon: Building2, description: 'Manage real estate projects and unit inventory.' },
-      { href: '/dashboard/real-estate/site-visits', label: 'Site Visits', icon: MapPin, description: 'Schedule and track prospect site visits.' },
-      { href: '/dashboard/real-estate/property-match', label: 'Property Match', icon: Sparkles, description: 'Match leads to available inventory based on their preferences.' },
-      { href: '/dashboard/real-estate/bookings', label: 'Bookings', icon: CalendarCheck, description: 'Track unit bookings and payment milestones.' },
-      { href: '/dashboard/real-estate/agent-tracker', label: 'Agent Tracker', icon: Radar, description: 'Monitor field agent activity and performance.' },
-      { href: '/dashboard/real-estate/partners', label: 'Partners', icon: UsersRound, description: 'External brokers and channel partners who source or co-sell leads.' },
     ],
   },
   {
