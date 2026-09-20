@@ -56,6 +56,7 @@ async function main() {
     { email: 'manager@demo.com', password: 'Demo@123',    firstName: 'Vikram',  lastName: 'Nair',      role: 'MANAGER' as const },
     { email: 'agent1@demo.com',  password: 'Demo@123',    firstName: 'Anjali',  lastName: 'Patel',     role: 'AGENT'   as const },
     { email: 'agent2@demo.com',  password: 'Demo@123',    firstName: 'Suresh',  lastName: 'Kumar',     role: 'AGENT'   as const },
+    { email: 'user@gmail.com',   password: 'user123',     firstName: 'Demo',    lastName: 'User',      role: 'AGENT'   as const },
   ];
 
   const userMap: Record<string, string> = {};
@@ -213,6 +214,7 @@ async function main() {
   console.log('  Manager: manager@demo.com / Demo@123');
   console.log('  Agent 1: agent1@demo.com  / Demo@123');
   console.log('  Agent 2: agent2@demo.com  / Demo@123');
+  console.log('  Demo user (agent dashboard): user@gmail.com / user123');
   console.log('────────────────────────────────────────────');
 }
 

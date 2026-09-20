@@ -8,6 +8,11 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'Pulsive',
   description: 'AI-powered CRM for Indian SMEs',
+  icons: {
+    icon: '/pulsive-logo.png?v=2',
+    shortcut: '/pulsive-logo.png?v=2',
+    apple: '/pulsive-logo.png?v=2',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

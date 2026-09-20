@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Pro — User Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F7FB; --surface:#FFFFFF; --surface-sunken:#F2F3F8; --border:#E7E8EF; --border-strong:#D8DAE5;
+  --text:#14151A; --text-dim:#6B6E7B; --text-faint:#9497A3;
+  --primary:#4F46E5; --primary-dark:#4338CA; --primary-soft:#EEEDFD; --on-primary:#FFFFFF;
+  --connected:#16A34A; --connected-soft:#DCFCE7;
+  --live:#D97706; --live-soft:#FEF3C7;
+  --danger:#DC2626; --danger-soft:#FEE2E2;
+  --blue-soft:#E0E7FF; --blue:#4F46E5;
+  --shadow:0 1px 2px rgba(20,20,30,.04), 0 8px 24px -12px rgba(20,20,30,.12);
+  --radius-s:8px; --radius-m:12px; --radius-l:16px;
+  --font-body:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+button,input{font-family:inherit;}
+h1,h2,h3{margin:0;}
+#app{min-height:100vh;}
+
+/* ---------------- LOGIN (matches the existing CRM Pro screen) ---------------- */
+.login-wrap{display:flex;min-height:100vh;}
+.login-left{width:44%;background:#0B0B10;color:#fff;padding:40px;display:flex;flex-direction:column;justify-content:space-between;}
+.login-brand{display:flex;align-items:center;gap:10px;}
+.login-brand .mark{width:34px;height:34px;border-radius:9px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
+.login-brand .name{font-weight:700;font-size:16px;}
+.login-quote{max-width:380px;}
+.login-quote blockquote{font-size:26px;font-weight:700;line-height:1.35;margin:0 0 18px 0;}
+.login-quote .who{font-weight:700;font-size:14px;}
+.login-quote .role{color:#9497A3;font-size:12.5px;margin-top:2px;}
+.login-foot{display:flex;gap:18px;color:#6B6E7B;font-size:12px;}
+.login-right{flex:1;display:flex;align-items:center;justify-content:center;padding:40px;}
+.login-form{width:100%;max-width:400px;}
+.login-form h1{font-size:26px;font-weight:800;margin-bottom:4px;}
+.login-form .sub{color:var(--text-dim);font-size:14px;margin-bottom:30px;}
+.field-label{font-size:13px;font-weight:600;margin-bottom:7px;display:flex;justify-content:space-between;}
+.field-label a{color:var(--primary);font-size:12.5px;font-weight:600;text-decoration:none;}
+.field{width:100%;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-sunken);color:var(--text);font-size:14px;outline:none;margin-bottom:18px;}
+.field:focus{border-color:var(--primary);background:var(--surface);}
+.btn-signin{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14.5px;cursor:pointer;}
+.btn-signin:hover{background:var(--primary-dark);}
+.login-error{background:var(--danger-soft);color:var(--danger);padding:10px 13px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.login-bottom{text-align:center;font-size:13.5px;color:var(--text-dim);margin-top:22px;}
+.login-bottom a{color:var(--primary);font-weight:600;text-decoration:none;}
+.demo-creds{background:var(--blue-soft);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#3730A3;margin-top:22px;line-height:1.7;}
+.demo-creds b{font-family:var(--font-mono);}
+
+/* ---------------- APP SHELL (shared) ---------------- */
+.app-shell{display:flex;min-height:100vh;}
+.sidebar{width:224px;flex:0 0 224px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:18px 14px;}
+.sb-brand{display:flex;align-items:center;gap:9px;padding:0 6px 22px 6px;}
+.sb-brand .mark{width:28px;height:28px;border-radius:8px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;}
+.sb-brand .name{font-weight:700;font-size:15.5px;}
+.sb-nav{display:flex;flex-direction:column;gap:2px;}
+.sb-item{display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:8px;color:var(--text-dim);font-weight:600;font-size:13.5px;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;}
+.sb-item svg{width:17px;height:17px;stroke:currentColor;flex:0 0 17px;}
+.sb-item:hover{background:var(--surface-sunken);color:var(--text);}
+.sb-item.active{background:var(--primary);color:#fff;}
+.sb-item.expanded-parent{background:var(--surface-sunken);color:var(--text);}
+.sb-sub{display:flex;flex-direction:column;gap:1px;margin:2px 0 6px 26px;border-left:1px solid var(--border-strong);padding-left:10px;}
+.sb-sub button{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:12px;color:var(--text-dim);border:none;background:transparent;cursor:pointer;width:100%;text-align:left;}
+.sb-sub button:hover{background:var(--surface-sunken);color:var(--text);}
+.sb-sub button.active{background:var(--primary-soft);color:var(--primary);font-weight:700;}
+.sb-sub button svg{width:14px;height:14px;stroke:currentColor;flex:0 0 14px;}
+.sb-footer{margin-top:auto;border-top:1px solid var(--border);padding-top:14px;}
+.sb-user{display:flex;align-items:center;gap:9px;padding:8px 6px;}
+.sb-user .av{width:30px;height:30px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:0 0 30px;}
+.sb-user .meta{flex:1;overflow:hidden;}
+.sb-user .nm{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user .rl{font-size:11px;color:var(--text-faint);}
+.sb-user button{border:none;background:transparent;color:var(--text-faint);cursor:pointer;padding:4px;}
+.sb-user button:hover{color:var(--danger);}
+
+.main{flex:1;min-width:0;}
+.topbar{height:60px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 26px;gap:14px;}
+.topbar h2{font-size:17px;font-weight:700;}
+.content{padding:26px;max-width:1180px;}
+
+/* ---------------- CARDS / STATS (matches the icon-badge card style) ---------------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);}
+.hi{font-size:24px;font-weight:800;}
+.hi-sub{color:var(--text-dim);font-size:14px;margin-top:2px;margin-bottom:22px;}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.stat-card{padding:18px;position:relative;}
+.stat-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.stat-icon svg{width:17px;height:17px;}
+.stat-num{font-size:24px;font-weight:800;}
+.stat-label{color:var(--text-dim);font-size:12.5px;margin-top:2px;}
+.stat-badge{position:absolute;top:16px;right:16px;font-size:11px;font-weight:700;color:var(--connected);background:var(--connected-soft);padding:2px 8px;border-radius:20px;}
+.section-title{font-size:15px;font-weight:700;margin-bottom:12px;}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.pill-connected{background:var(--connected-soft);color:var(--connected);}
+.pill-live{background:var(--live-soft);color:var(--live);}
+.pill-danger{background:var(--danger-soft);color:var(--danger);}
+.pill-neutral{background:var(--surface-sunken);color:var(--text-dim);}
+.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex:none;}
+.mono{font-family:var(--font-mono);}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer;}
+.btn:hover{background:var(--surface-sunken);}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-connect{background:var(--connected);border-color:var(--connected);color:#fff;}
+.btn-sm{padding:6px 11px;font-size:12px;}
+.lead-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border);}
+.lead-row:last-child{border-bottom:none;}
+.lead-meta{flex:1;min-width:0;}
+.lead-name{font-weight:600;font-size:13.5px;}
+.lead-sub{font-size:11.5px;color:var(--text-faint);}
+.score-badge{font-family:var(--font-mono);font-weight:700;font-size:11px;padding:2px 8px;border-radius:20px;}
+.icon-btn{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-strong);background:var(--surface);cursor:pointer;}
+.icon-btn.call{background:var(--connected);border-color:var(--connected);color:#fff;}
+.task-row{display:flex;align-items:flex-start;gap:11px;padding:13px 16px;border-bottom:1px solid var(--border);}
+.task-row:last-child{border-bottom:none;}
+.task-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border-strong);cursor:pointer;flex:0 0 20px;display:flex;align-items:center;justify-content:center;}
+.task-check.done{background:var(--connected);border-color:var(--connected);}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,15,25,.4);display:flex;align-items:center;justify-content:center;z-index:200;}
+.modal{background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:var(--shadow);}
+.field2{width:100%;padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;margin-bottom:10px;font-size:13px;}
+.reports-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chart-wrap{height:200px;margin-top:10px;}
+.badge-note{background:var(--live-soft);color:var(--live);font-size:11.5px;font-weight:600;padding:8px 12px;border-radius:8px;margin-bottom:16px;display:inline-flex;gap:7px;align-items:center;}
+
+/* ---------------- AI COACH WORKSPACE ---------------- */
+.ac-lead-row{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;}
+.ac-callbar{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:14px;}
+.ac-live-badge{display:flex;align-items:center;gap:7px;background:var(--danger-soft);color:var(--danger);font-weight:700;font-size:12px;padding:5px 12px;border-radius:20px;}
+.ac-live-dot{width:6px;height:6px;border-radius:50%;background:var(--danger);animation:acpulse 1.2s infinite;}
+@keyframes acpulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.ac-timer{font-family:var(--font-mono);font-weight:700;font-size:14px;}
+.ac-callbtns{margin-left:auto;display:flex;gap:8px;}
+.ac-cbtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface-sunken);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim);}
+.ac-cbtn.end{background:var(--danger);border-color:var(--danger);color:#fff;}
+.ac-grid{display:grid;grid-template-columns:260px 1fr 280px;gap:14px;align-items:start;}
+.ac-lead-card{padding:16px;}
+.ac-lead-card .nm{font-weight:700;font-size:15px;margin-top:8px;}
+.ac-lead-card .sub{font-size:11.5px;color:var(--text-faint);}
+.ac-field-row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-size:12px;}
+.lbl{color:var(--text-faint);}
+.ac-score-bar{height:6px;background:var(--surface-sunken);border-radius:6px;overflow:hidden;margin-top:5px;}
+.ac-score-fill{height:100%;background:var(--connected);border-radius:6px;}
+.ac-notes{width:100%;min-height:70px;border:1px solid var(--border-strong);border-radius:8px;padding:9px;font-size:12.5px;margin-top:8px;resize:vertical;}
+.ac-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);padding:0 16px;}
+.ac-tabs button{border:none;background:transparent;padding:10px 4px;margin-right:16px;font-weight:600;font-size:12.5px;color:var(--text-faint);cursor:pointer;border-bottom:2px solid transparent;}
+.ac-tabs button.active{color:var(--primary);border-color:var(--primary);}
+.ac-transcript{padding:14px 16px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.ac-bubble{max-width:75%;padding:9px 13px;border-radius:12px;font-size:12.5px;position:relative;}
+.ac-bubble .t{font-size:9.5px;color:var(--text-faint);margin-bottom:3px;}
+.ac-bubble.them{background:var(--surface-sunken);align-self:flex-start;border-bottom-left-radius:3px;}
+.ac-bubble.me{background:var(--primary-soft);color:var(--text);align-self:flex-end;border-bottom-right-radius:3px;}
+.ac-alert{margin:0 16px 12px 16px;background:var(--live-soft,#FEF3C7);color:#B45309;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.ac-suggest{margin:0 16px 14px 16px;background:var(--surface-sunken);border-radius:10px;padding:13px;}
+.ac-suggest-head{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--primary);margin-bottom:8px;}
+.ac-suggest-text{font-size:12.5px;line-height:1.5;margin-bottom:10px;}
+.ac-suggest-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.ac-input-row{display:flex;gap:8px;padding:0 16px 16px 16px;}
+.ac-input-row input{flex:1;border:1px solid var(--border-strong);border-radius:20px;padding:10px 15px;font-size:12.5px;outline:none;}
+.ac-send{width:38px;height:38px;border-radius:50%;background:var(--primary);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 38px;}
+.ac-insight-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border);font-size:12px;}
+.ac-insight-ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:0 0 26px;}
+.ac-gauge{width:52px;height:52px;position:relative;}
+.ac-gauge svg{width:100%;height:100%;transform:rotate(-90deg);}
+.ac-gauge .n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+.ac-summary-box{background:var(--surface-sunken);border-radius:8px;padding:11px 12px;font-size:11.5px;color:var(--text-dim);line-height:1.6;margin:10px 0;}
+.ac-nextstep{display:flex;align-items:flex-start;gap:8px;font-size:12px;padding:5px 0;}
+.ac-nextstep svg{width:14px;height:14px;stroke:var(--connected);flex:0 0 14px;margin-top:2px;}
+.ac-markas{display:flex;gap:7px;margin-top:14px;}
+.ac-markas button{flex:1;border:none;border-radius:8px;padding:9px 0;font-weight:700;font-size:11.5px;cursor:pointer;color:#fff;}
+.obj2-grid{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start;}
+.obj2-item{display:flex;align-items:center;gap:9px;padding:11px 12px;font-size:12.5px;font-weight:600;color:var(--text-dim);cursor:pointer;border-left:3px solid transparent;}
+.obj2-item.active{background:var(--primary-soft);color:var(--primary);border-color:var(--primary);}
+.obj2-item:hover:not(.active){background:var(--surface-sunken);}
+.conf-badge{margin-left:auto;background:var(--connected-soft);color:var(--connected);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.nba-row{display:flex;align-items:flex-start;gap:14px;padding:16px;border-bottom:1px solid var(--border);cursor:pointer;}
+.nba-row:last-child{border-bottom:none;}
+.nba-row:hover{background:var(--surface-sunken);}
+.nba-num{width:30px;height:30px;border-radius:50%;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:0 0 30px;}
+.nba-title{font-weight:700;font-size:13.5px;}
+.nba-desc{font-size:12px;color:var(--text-faint);margin-top:2px;}
+.kb-grid{display:grid;grid-template-columns:220px 1fr 280px;gap:16px;align-items:start;}
+.kb-side-item{padding:10px 12px;font-size:12.5px;font-weight:600;color:var(--text-dim);cursor:pointer;border-radius:8px;}
+.kb-side-item.active{background:var(--primary-soft);color:var(--primary);}
+.kb-feature{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:12.5px;}
+.kb-feature svg{width:14px;height:14px;stroke:var(--connected);flex:0 0 14px;}
+.kb-ask-bubble{background:var(--surface-sunken);border-radius:10px;padding:11px;font-size:12px;color:var(--text-dim);margin-top:10px;line-height:1.6;}
+.cs-tags{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 16px 0;}
+.cs-stat{display:flex;align-items:center;gap:8px;padding:12px 16px;border:1px solid var(--border);border-radius:10px;flex:1;}
+.cs-stat svg{width:16px;height:16px;}
+
+@media (max-width:900px){
+  .ac-grid{grid-template-columns:1fr;}
+  .login-left{display:none;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .reports-grid{grid-template-columns:1fr;}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:80;transform:translateX(-100%);transition:transform .2s;}
+  .sidebar.open{transform:translateX(0);}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const ICONS = {
+  bot:`<rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13.5" r="1.2"/><circle cx="14.5" cy="13.5" r="1.2"/><path d="M12 8V5M9 5h6" stroke-linecap="round"/>`,
+  target2:`<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>`,
+  book:`<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15.5A2.5 2.5 0 0 0 17.5 21H4z" stroke-linejoin="round"/><path d="M4 5.5v13A2.5 2.5 0 0 0 6.5 21H20" stroke-linejoin="round"/>`,
+  chevron:`<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/>`,
+  dollar2:`<circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 3 6 1.6 6 4.5 0 1.4-1.3 2.4-3 2.4s-3-1-3-2.4" stroke-linecap="round"/>`,
+  clock:`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/>`,
+  contact2:`<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7" stroke-linecap="round"/>`,
+  warn:`<path d="M12 3l9 16H3z" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke-linecap="round"/>`,
+  sparkles:`<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" stroke-linecap="round"/>`,
+  send:`<path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/>`,
+  trend:`<path d="M3 17l6-6 4 4 8-8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" stroke-linecap="round" stroke-linejoin="round"/>`,
+  smile:`<circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" stroke-linecap="round"/><path d="M9 9h.01M15 9h.01" stroke-linecap="round" stroke-width="2.6"/>`,
+  pause:`<rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/>`,
+  endCall:`<path d="M4 13c4-4 12-4 16 0l-1.3 3.3a1.5 1.5 0 0 1-1.9.7l-2.3-.9a1.5 1.5 0 0 1-.95-1.5l.1-1.4a10 10 0 0 0-4.3 0l.1 1.4a1.5 1.5 0 0 1-.95 1.5l-2.3.9a1.5 1.5 0 0 1-1.9-.7z"/>`,
+  grid:`<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>`,
+  users:`<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14c2.4.4 4.2 2.3 4.5 5.2" stroke-linecap="round"/>`,
+  phoneLog:`<path d="M4 5h4l1.5 4-2 1.5a9 9 0 0 0 4 4l1.5-2 4 1.5v4a1 1 0 0 1-1 1C9.5 19 4 13.5 4 6a1 1 0 0 1 0-1z"/>`,
+  chart:`<path d="M4 20V11M11 20V4M18 20v-8" stroke-linecap="round"/>`,
+  task:`<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round"/>`,
+  phoneCall:`<path d="M4 3h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 12l5 2v4a2 2 0 0 1-2 2C9.6 20 4 14.4 4 6a2 2 0 0 1 0-3z"/>`,
+  logout:`<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"/>`,
+  check:`<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>`,
+  clock:`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/>`,
+  warn:`<path d="M12 3l9 16H3z" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke-linecap="round"/>`,
+  target:`<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>`,
+  x:`<path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/>`,
+  megaphone:`<path d="M4 10v4a1 1 0 0 0 1 1h2l1 4h2l-1-4h1l8 4V6l-8 4H5a1 1 0 0 0-1 1z"/><path d="M19 9.5a3 3 0 0 1 0 5" stroke-linecap="round"/>`,
+  whatsapp:`<path d="M12 3a8.5 8.5 0 0 0-7.4 12.7L3 21l5.5-1.5A8.5 8.5 0 1 0 12 3z"/><path d="M8.5 9.3c.2 2.7 3 5.6 5.8 5.8.9 0 1.7-.5 2-1.3l.1-.5-2-1-.5.7c-1.1-.4-2.4-1.6-2.8-2.8l.7-.5-1-2-.5.1c-.8.3-1.3 1.1-1.3 2z" stroke-linejoin="round"/>`,
+  walk:`<circle cx="13" cy="4.5" r="1.6"/><path d="M9 21l1.5-6.5L8 13l2-5 3 2 3-1 1 2-3 1.5.5 2.5L17 19M10.5 14.5L7 16" stroke-linecap="round" stroke-linejoin="round"/>`,
+  smartphone:`<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2" stroke-linecap="round"/>`,
+  arrowLeft:`<path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/>`,
+  search:`<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5" stroke-linecap="round"/>`,
+  userPlus:`<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.6 2.7-6.5 6-6.5s6 2.9 6 6.5" stroke-linecap="round"/><path d="M18 8v5M15.5 10.5h5" stroke-linecap="round"/>`,
+  bellRing:`<path d="M6 10a6 6 0 0 1 12 0v4l1.5 3h-15L6 14z" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M4 6l-1.5-1.5M20 6l1.5-1.5" stroke-linecap="round"/>`,
+  mic:`<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/>`,
+  keypad:`<circle cx="7" cy="7" r="1.3"/><circle cx="12" cy="7" r="1.3"/><circle cx="17" cy="7" r="1.3"/><circle cx="7" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="17" cy="12" r="1.3"/><circle cx="7" cy="17" r="1.3"/><circle cx="12" cy="17" r="1.3"/><circle cx="17" cy="17" r="1.3"/>`,
+  speaker:`<path d="M3 10v4h4l5 4V6L7 10z"/><path d="M16 9a4 4 0 0 1 0 6" stroke-linecap="round"/>`,
+  endCall:`<path d="M4 13c4-4 12-4 16 0l-1.3 3.3a1.5 1.5 0 0 1-1.9.7l-2.3-.9a1.5 1.5 0 0 1-.95-1.5l.1-1.4a10 10 0 0 0-4.3 0l.1 1.4a1.5 1.5 0 0 1-.95 1.5l-2.3.9a1.5 1.5 0 0 1-1.9-.7z"/>`,
+  cpu:`<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9 3.5v3.2M15 3.5v3.2M9 17.3v3.2M15 17.3v3.2M3.5 9h3.2M3.5 15h3.2M17.3 9h3.2M17.3 15h3.2" stroke-linecap="round"/>`,
+};
+function icon(name,size=16){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
+const AVATAR_COLORS=["#4F46E5","#16A34A","#D97706","#DB2777","#0891B2","#DC2626"];
+function colorFor(seed){let h=0;for(const c of seed)h=(h*31+c.charCodeAt(0))>>>0;return AVATAR_COLORS[h%AVATAR_COLORS.length];}
+function initials(n){return n.split(" ").map(p=>p[0]).slice(0,2).join("").toUpperCase();}
+function fmtDuration(s){if(!s)return "—";const m=Math.floor(s/60),r=s%60;return `${m}:${String(r).padStart(2,"0")}`;}
+function scoreClass(s){if(s==null)return "pill-neutral";if(s>=70)return "pill-connected";if(s>=40)return "pill-live";return "pill-neutral";}
+
+let leads=[
+  {id:"l1",name:"Priya Sharma",company:"Nimbus Retail",phone:"+91 98765 43210",score:82,stage:"In-Progress"},
+  {id:"l2",name:"Arjun Mehta",company:"Kestrel Logistics",phone:"+91 91234 56780",score:45,stage:"Uncontacted"},
+  {id:"l3",name:"Fatima Noor",company:"Delta Textiles",phone:"+91 99887 66554",score:68,stage:"Follow-up"},
+  {id:"l4",name:"Rohan Desai",company:"Vertex Health",phone:"+91 90000 12345",score:30,stage:"Not Connected"},
+  {id:"l5",name:"Ananya Iyer",company:"Solstice Media",phone:"+91 98111 22334",score:91,stage:"In-Progress"},
+];
+let callLogs=[
+  {name:"Priya Sharma",company:"Nimbus Retail",when:"Today, 11:20 AM",duration:312,disposition:"Connected — Interested",score:82},
+  {name:"Rohan Desai",company:"Vertex Health",when:"Yesterday, 4:52 PM",duration:0,disposition:"No Answer",score:30},
+  {name:"Fatima Noor",company:"Delta Textiles",when:"Yesterday, 2:18 PM",duration:246,disposition:"Connected — Interested",score:68},
+];
+let tasks=[
+  {note:"Send revised proposal & confirm rollout date",contact:"Priya Sharma",when:"Fri · 10:00 AM",done:false},
+  {note:"Send onboarding checklist",contact:"Ananya Iyer",when:"Wed · 11:00 AM",done:true},
+];
+const DISPOSITIONS=["Connected — Interested","Connected — Not Interested","Voicemail","No Answer","Busy","Callback Requested"];
+const NOTES_REQUIRED=["Connected — Interested","Connected — Not Interested","Callback Requested"];
+
+const CAMPAIGNS=[
+  {name:"Diwali Offer Blast", assigned:0, unassigned:0, uncontacted:0, inProgress:0, closed:0},
+];
+let walkInLeads=[];
+const WA_THREADS=[
+  {id:"wa1",name:"Priya Sharma",last:"Sounds great, talk soon!",msgs:[
+    {from:"them",text:"Hi, got your proposal — reviewing now."},
+    {from:"me",text:"Great! Let me know if you have questions."},
+    {from:"them",text:"Sounds great, talk soon!"},
+  ]},
+];
+
+function getQueryParam(name){
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+let state={ screen:"user-dashboard", view:"home", call:null,
+  user:{ name: getQueryParam("name") || "Demo User", email: getQueryParam("email") || "user@gmail.com" },
+  campaignSearch:"", walkinModalOpen:false, walkinFilterOn:true, waThread:"wa1",
+  wd:{ selectedLeadId:null, callState:"idle", callStatus:null, seconds:0, timeline:[], disposition:"", notes:"", followUpDate:"", followUpTime:"", timers:[], expireCountdown:0 },
+  ai:{ leadId:null, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false },
+};
+
+function render(){
+  const app=document.getElementById("app");
+  app.innerHTML=renderUserDashboard();
+  renderChartsIfNeeded();
+}
+
+/* ---------------- USER DASHBOARD SHELL ---------------- */
+function renderUserDashboard(){
+  const nav=[
+    {id:"home",label:"Home",ic:"grid"},
+    {id:"campaigns",label:"My Campaigns",ic:"megaphone"},
+    {id:"leads",label:"My Leads",ic:"users"},
+    {id:"whatsapp",label:"WhatsApp",ic:"whatsapp"},
+    {id:"walkin",label:"Walk-in Leads",ic:"walk"},
+    {id:"logs",label:"Call Logs",ic:"phoneLog"},
+    {id:"reports",label:"Reports",ic:"chart"},
+    {id:"webdialer",label:"Web Dialer",ic:"smartphone"},
+    {id:"tasks",label:"My Tasks",ic:"task"},
+  ];
+  const AC_VIEWS=["aicoach","ac-objection","ac-nextaction","ac-knowledge","ac-summary"];
+  const acExpanded=AC_VIEWS.includes(state.view);
+  const acSub=[
+    {id:"ac-objection",label:"Objection Detection",ic:"warn"},
+    {id:"ac-nextaction",label:"Best Action — AI Recommendation",ic:"target2"},
+    {id:"ac-knowledge",label:"AI Knowledge Base",ic:"book"},
+    {id:"ac-summary",label:"AI Call Summary",ic:"report"},
+  ];
+  return `
+  <div class="app-shell">
+    <div class="sidebar">
+      <div class="sb-brand"><div class="mark">CRM</div><div class="name">CRM Pro</div></div>
+      <div class="sb-nav">
+        <button class="sb-item ${state.view==='aicoach'?'active':(acExpanded?'expanded-parent':'')}" onclick="state.view='aicoach';render();">
+          ${icon('bot',17)}<span>AI Coach</span>
+          <svg style="margin-left:auto;width:12px;height:12px;transform:${acExpanded?'rotate(90deg)':'rotate(0)'};transition:transform .15s;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${ICONS.chevron}</svg>
+        </button>
+        ${acExpanded ? `<div class="sb-sub">${acSub.map(s=>`<button class="${state.view===s.id?'active':''}" onclick="state.view='${s.id}';render();">${icon(s.ic,14)}<span>${s.label}</span></button>`).join("")}</div>` : ''}
+        ${nav.map(n=>`<button class="sb-item ${state.view===n.id?'active':''}" onclick="state.view='${n.id}';render();">${icon(n.ic,17)}<span>${n.label}</span></button>`).join("")}
+      </div>
+      <div class="sb-footer">
+        <div class="sb-user">
+          <div class="av">${initials(state.user.name)}</div>
+          <div class="meta"><div class="nm">${state.user.name}</div><div class="rl">User</div></div>
+          <button onclick="logout()" title="Log out">${icon('logout',15)}</button>
+        </div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar"><h2>${({home:"Dashboard",aicoach:"AI Coach",'ac-objection':"Objection Detection",'ac-nextaction':"Best Action — AI Recommendation",'ac-knowledge':"AI Knowledge Base",'ac-summary':"AI Call Summary",campaigns:"My Campaigns",leads:"My Leads",whatsapp:"WhatsApp",walkin:"Walk-in Leads",logs:"Call Logs",reports:"Reports",webdialer:"Web Dialer",tasks:"My Tasks"})[state.view]}</h2></div>
+      <div class="content">
+        ${renderView()}
+      </div>
+    </div>
+  </div>
+  ${state.call?renderCallModal():''}
+  `;
+}
+function logout(){
+  const token = localStorage.getItem('accessToken');
+  fetch('/api/v1/auth/logout', { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} }).catch(()=>{});
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('auth-store');
+  window.location.href = "/login";
+}
+function renderView(){
+  if(state.view==="home") return renderHome();
+  if(state.view==="aicoach") return renderAICoach();
+  if(state.view==="ac-objection") return renderACObjectionPage();
+  if(state.view==="ac-nextaction") return renderACNextActionPage();
+  if(state.view==="ac-knowledge") return renderACKnowledgePage();
+  if(state.view==="ac-summary") return renderACSummaryPage();
+  if(state.view==="campaigns") return renderCampaigns();
+  if(state.view==="leads") return renderLeads();
+  if(state.view==="whatsapp") return renderWhatsApp();
+  if(state.view==="walkin") return renderWalkin();
+  if(state.view==="logs") return renderLogs();
+  if(state.view==="reports") return renderReports();
+  if(state.view==="webdialer") return renderWebDialer();
+  if(state.view==="tasks") return renderTasks();
+}
+
+/* ---------------- HOME ---------------- */
+function renderHome(){
+  const totalCalls=callLogs.length;
+  const connected=callLogs.filter(c=>c.disposition.startsWith("Connected")).length;
+  const dueTasks=tasks.filter(t=>!t.done).length;
+  return `
+  <div class="hi">Good morning, ${state.user.name.split(" ")[0]} 👋</div>
+  <div class="hi-sub">Here's how your day is looking.</div>
+  <div class="stat-grid">
+    <div class="card stat-card"><div class="stat-icon" style="background:var(--blue-soft);color:var(--primary);">${icon('users',17)}</div><div class="stat-num">${leads.length}</div><div class="stat-label">My Leads</div></div>
+    <div class="card stat-card"><div class="stat-icon" style="background:var(--connected-soft);color:var(--connected);">${icon('phoneCall',17)}</div><div class="stat-num">${totalCalls}</div><div class="stat-label">Calls Today</div></div>
+    <div class="card stat-card"><div class="stat-icon" style="background:var(--live-soft);color:var(--live);">${icon('clock',17)}</div><div class="stat-num">${dueTasks}</div><div class="stat-label">Follow-ups Due</div></div>
+    <div class="card stat-card"><div class="stat-badge">↗ ${connected}/${totalCalls}</div><div class="stat-icon" style="background:var(--danger-soft);color:var(--danger);">${icon('target',17)}</div><div class="stat-num">${connected}</div><div class="stat-label">Connected</div></div>
+  </div>
+  <div class="section-title">My leads</div>
+  <div class="card">${leads.slice(0,4).map(leadRow).join("")}</div>
+  `;
+}
+
+/* ---------------- LEADS ---------------- */
+function leadRow(l){
+  return `
+  <div class="lead-row">
+    <div class="avatar" style="background:${colorFor(l.name)};width:34px;height:34px;font-size:12px;">${initials(l.name)}</div>
+    <div class="lead-meta"><div class="lead-name">${l.name}</div><div class="lead-sub">${l.company} · ${l.phone}</div></div>
+    <span class="pill pill-neutral">${l.stage}</span>
+    <span class="score-badge ${scoreClass(l.score)}">${l.score}</span>
+    <button class="icon-btn call" onclick="startCall('${l.id}')">${icon('phoneCall',14)}</button>
+  </div>`;
+}
+function renderLeads(){
+  return `<div class="section-title">All leads (${leads.length})</div><div class="card">${leads.map(leadRow).join("")}</div>`;
+}
+
+/* ---------------- MY CAMPAIGNS (matches screenshot exactly) ---------------- */
+function renderCampaigns(){
+  const list = CAMPAIGNS.filter(c=>c.name.toLowerCase().includes(state.campaignSearch.toLowerCase()));
+  return `
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+    <button class="icon-btn" onclick="state.view='home';render();">${icon('arrowLeft',15)}</button>
+    <div style="font-size:19px;font-weight:700;">Assigned Campaigns</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;padding:8px 12px;width:240px;">
+      ${icon('search',14)}<input placeholder="Search Campaign" style="border:none;outline:none;background:transparent;font-size:13px;width:100%;" value="${state.campaignSearch}" oninput="state.campaignSearch=this.value;render();">
+    </div>
+  </div>
+  <div class="card">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="text-align:left;color:var(--text-faint);font-size:11px;text-transform:uppercase;">
+        <th style="padding:14px 16px;">No.</th><th>Campaign Name</th><th>Assigned Leads</th><th>Unassigned Leads</th><th>Uncontacted Leads</th><th>In-Progress</th><th>Closed Leads</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        ${list.length ? list.map((c,i)=>`
+          <tr style="border-top:1px solid var(--border);font-size:13px;">
+            <td style="padding:13px 16px;">${i+1}</td><td style="font-weight:600;">${c.name}</td>
+            <td>${c.assigned}</td><td>${c.unassigned}</td><td>${c.uncontacted}</td><td>${c.inProgress}</td><td>${c.closed}</td>
+            <td><button class="btn btn-sm">View</button></td>
+          </tr>`).join("") : ''}
+      </tbody>
+    </table>
+    ${!list.length ? `<div style="text-align:center;padding:70px 20px;"><span class="pill" style="background:var(--primary-soft);color:var(--primary);padding:8px 20px;font-size:13px;">No Data Found</span></div>` : ''}
+  </div>`;
+}
+
+/* ---------------- NEO WHATSAPP (matches screenshot: QR + steps + feature cards) ---------------- */
+function renderWhatsApp(){
+  return `
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap;">
+    <div style="font-size:15.5px;font-weight:700;max-width:640px;">Turn every WhatsApp conversation into a revenue opportunity, seamlessly synced to your CRM.</div>
+    <button class="btn" style="background:var(--primary-soft);color:var(--primary);border:none;">${icon('phoneCall',13)} Learn More</button>
+  </div>
+  <div class="card" style="padding:28px;margin-bottom:20px;">
+    <div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="text-align:center;">
+        ${qrPlaceholderSvg()}
+        <div style="color:var(--primary);font-weight:600;font-size:13px;margin-top:8px;">Scan the QR code</div>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:14px;">Steps to login through WhatsApp</div>
+        <div style="font-size:13.5px;color:var(--text-dim);line-height:2.1;">
+          1. Open WhatsApp on your phone<br>
+          2. Tap Menu (Android) or Settings (iPhone)<br>
+          3. Tap Linked devices, then Link device<br>
+          4. Scan the QR code to confirm
+        </div>
+        <div style="margin-top:10px;"><a href="#" style="color:var(--primary);font-weight:600;font-size:13px;text-decoration:underline;">Login with Mobile Number</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="reports-grid" style="grid-template-columns:repeat(3,1fr);">
+    ${waFeatureCard('mic','#DCFCE7','#16A34A',"Use Your Own WhatsApp Business Number","You scan your WhatsApp number so every message stays linked correctly to the lead you're assigned to handle.")}
+    ${waFeatureCard('bellRing','#EEEDFD','#4F46E5',"Send Messages Directly From CRM Pro","No more switching apps. Send WhatsApp messages from the dialer with one click, keeping your workflow simple.")}
+    ${waFeatureCard('users','#E0E7FF','#4F46E5',"Chat Faster and Close More Leads","Reply with templates and every conversation syncs instantly to keep your process smooth.")}
+  </div>`;
+}
+function waFeatureCard(ic,bg,fg,title,body){
+  return `<div class="card" style="padding:20px;">
+    <div class="stat-icon" style="background:${bg};color:${fg};">${icon(ic,17)}</div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:6px;">${title}</div>
+    <div style="font-size:12.5px;color:var(--text-dim);">${body}</div>
+  </div>`;
+}
+function qrPlaceholderSvg(){
+  // deterministic fake QR pattern — visual placeholder only
+  let cells="", n=21, size=180, cell=size/n;
+  let seed=42;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const onFinder = (x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7);
+    const on = onFinder ? ((x%6<5&&y%6<5)?1:0) : (rnd()>0.52?1:0);
+    if(on) cells+=`<rect x="${x*cell}" y="${y*cell}" width="${cell}" height="${cell}"/>`;
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px;">${cells}</svg>`;
+}
+
+/* ---------------- WALK-IN LEADS (matches screenshot: table + Add Lead modal) ---------------- */
+function renderWalkin(){
+  return `
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+    ${state.walkinFilterOn?`<span class="pill" style="background:var(--primary-soft);color:var(--primary);gap:8px;">Last 7 Days <button style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;" onclick="state.walkinFilterOn=false;render();">${icon('x',10)}</button></span>`:''}
+    <button class="btn btn-primary" style="margin-left:auto;" onclick="state.walkinModalOpen=true;render();">${icon('userPlus',14)} Add Lead</button>
+  </div>
+  <div class="card">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="text-align:left;color:var(--text-faint);font-size:11px;text-transform:uppercase;">
+        <th style="padding:14px 16px;">No.</th><th>Contact Name</th><th>Contact Number</th><th>Email</th><th>Campaign</th><th>Status</th><th>Creation Date</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        ${walkInLeads.map((w,i)=>`
+          <tr style="border-top:1px solid var(--border);font-size:13px;">
+            <td style="padding:13px 16px;">${i+1}</td><td style="font-weight:600;">${w.name}</td><td class="mono">${w.phone}</td>
+            <td>${w.email||'—'}</td><td>${w.campaign}</td><td><span class="pill pill-neutral">${w.status}</span></td>
+            <td class="mono" style="font-size:11.5px;">${w.created}</td>
+            <td><button class="icon-btn call" onclick="startCall('${w.id}')">${icon('phoneCall',13)}</button></td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+    ${!walkInLeads.length?`<div style="text-align:center;padding:70px 20px;color:var(--text-faint);">No walk-in leads yet — click Add Lead to create one.</div>`:''}
+  </div>
+  ${state.walkinModalOpen?renderAddLeadModal():''}`;
+}
+function renderAddLeadModal(){
+  return `
+  <div class="modal-overlay" onclick="if(event.target===this) state.walkinModalOpen=false, render();">
+    <div class="modal" style="max-width:440px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:10px;"><h3 style="font-size:19px;font-weight:800;">Add Lead</h3><button class="btn btn-sm" style="background:var(--primary-soft);color:var(--primary);border:none;">${icon('phoneCall',11)} Learn More</button></div>
+        <button onclick="state.walkinModalOpen=false;render();" style="border:none;background:none;cursor:pointer;">${icon('x',16)}</button>
+      </div>
+      <input class="field" id="wl-name" placeholder="Contact Name">
+      <input class="field" id="wl-phone" placeholder="Contact Number *">
+      <input class="field" id="wl-email" placeholder="Email">
+      <select class="field" id="wl-campaign">
+        <option value="">Campaign *</option>
+        ${CAMPAIGNS.map(c=>`<option value="${c.name}">${c.name}</option>`).join("")}
+      </select>
+      <button class="btn btn-primary" style="width:100%;" onclick="submitWalkinLead()">Submit</button>
+    </div>
+  </div>`;
+}
+function submitWalkinLead(){
+  const name=document.getElementById("wl-name").value.trim();
+  const phone=document.getElementById("wl-phone").value.trim();
+  const email=document.getElementById("wl-email").value.trim();
+  const campaign=document.getElementById("wl-campaign").value;
+  if(!phone||!campaign) return alert("Contact number and campaign are required");
+  walkInLeads.unshift({id:"w"+(walkInLeads.length+1),name:name||"Unnamed Lead",phone,email,campaign,status:"Pending",created:"Just now"});
+  state.walkinModalOpen=false; render();
+}
+
+/* ---------------- WEB DIALER (mobile companion — ported from yesterday's build) ---------------- */
+const WD_STEPS=[{k:"CALL_REQUESTED",l:"Requested"},{k:"NOTIFICATION_SENT",l:"Push sent"},{k:"NOTIFICATION_OPENED",l:"Opened"},{k:"CALL_INITIATED",l:"Initiated"},{k:"CALL_RINGING",l:"Ringing"},{k:"CALL_CONNECTED",l:"Connected"},{k:"CALL_COMPLETED",l:"Completed"},{k:"CALL_DATA_SYNCING",l:"Syncing"},{k:"CALL_DATA_SYNCED",l:"Synced"},{k:"DISPOSITION_PENDING",l:"Disposition"},{k:"DISPOSITION_SAVED",l:"Saved"}];
+const WD_NOTES_REQUIRED=["Connected — Interested","Connected — Not Interested","Callback Requested"];
+function wdClearTimers(){ state.wd.timers.forEach(t=>clearInterval(t)); state.wd.timers=[]; }
+function wdNow(){ return new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }
+function wdLog(text){ state.wd.timeline.push({time:wdNow(),text}); }
+
+function renderWebDialer(){
+  return `
+  <div style="font-size:12px;color:var(--text-faint);margin-bottom:16px;">The laptop only sends a call request — your registered mobile places the actual call over its own SIM. No masking, no modem.</div>
+  <div style="display:grid;grid-template-columns:1fr 280px;gap:18px;align-items:start;">
+    <div>
+      <div class="card" style="padding:20px;">
+        <div style="font-weight:700;font-size:14.5px;margin-bottom:14px;">Call request</div>
+        ${state.wd.callState==="idle" ? wdLeadPicker() : wdActiveRequest()}
+      </div>
+      <div class="card" style="margin-top:16px;padding:18px;">
+        <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">Lead timeline</div>
+        ${state.wd.timeline.length ? state.wd.timeline.map(t=>`<div style="display:flex;gap:10px;padding:5px 0;font-size:12px;"><span class="mono" style="color:var(--text-faint);width:56px;flex:0 0 56px;">${t.time}</span><span>${t.text}</span></div>`).join("") : `<div style="font-size:12px;color:var(--text-faint);">Events for the active call request appear here.</div>`}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:11px;color:var(--text-faint);margin-bottom:8px;">Agent's registered mobile</div>
+      ${wdPhone()}
+    </div>
+  </div>`;
+}
+function wdLeadPicker(){
+  return leads.slice(0,5).map(l=>`
+    <div class="lead-row" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;padding:10px;">
+      <div class="avatar" style="background:${colorFor(l.name)};width:32px;height:32px;font-size:11px;">${initials(l.name)}</div>
+      <div class="lead-meta"><div class="lead-name">${l.name}</div><div class="lead-sub">${l.company} · ${l.phone}</div></div>
+      <button class="btn btn-connect btn-sm" onclick="wdInitiate('${l.id}')">${icon('phoneCall',12)} Call</button>
+    </div>`).join("");
+}
+function wdActiveRequest(){
+  const lead=leads.find(l=>l.id===state.wd.selectedLeadId);
+  const terminal=["FAILED","EXPIRED","CANCELLED"].includes(state.wd.callState);
+  const idx=WD_STEPS.findIndex(s=>s.k===state.wd.callState);
+  const map={
+    CALL_REQUESTED:"Call request created…", NOTIFICATION_SENT:`Waiting for mobile confirmation (expires in ${state.wd.expireCountdown}s)`,
+    NOTIFICATION_OPENED:"Agent viewing request on mobile…", CALL_INITIATED:"Call initiated on mobile…", CALL_RINGING:"Ringing…",
+    CALL_CONNECTED:`Call in progress — ${fmtDuration(state.wd.seconds)}`, CALL_COMPLETED:"Call completed, waiting for metadata…",
+    CALL_DATA_SYNCING:"Synchronizing call data…", CALL_DATA_SYNCED:"Call data synced.", DISPOSITION_PENDING:"Disposition required.",
+    DISPOSITION_SAVED:"Disposition saved.", FAILED:"Call failed.", EXPIRED:"Request expired — no response.", CANCELLED:"Request cancelled.",
+  };
+  return `
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+    <div class="avatar" style="background:${colorFor(lead.name)};width:34px;height:34px;font-size:12px;">${initials(lead.name)}</div>
+    <div><div style="font-weight:600;font-size:13px;">${lead.name}</div><div style="font-size:11px;color:var(--text-faint);">${lead.company}</div></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">
+    ${WD_STEPS.map((s,i)=>`<span class="pill" style="background:${terminal?'var(--surface-sunken)':i<idx?'var(--connected-soft)':i===idx?'var(--primary-soft)':'var(--surface-sunken)'};color:${terminal?'var(--text-faint)':i<idx?'var(--connected)':i===idx?'var(--primary)':'var(--text-faint)'};">${s.l}</span>`).join("")}
+  </div>
+  <div class="card" style="background:var(--surface-sunken);border:none;padding:14px;font-size:13px;font-weight:600;">${map[state.wd.callState]}</div>
+  ${state.wd.callState==="DISPOSITION_PENDING"?wdDispositionPanel():''}
+  ${state.wd.callState==="DISPOSITION_SAVED"?`<div style="text-align:center;margin-top:14px;"><span class="pill pill-connected">${icon('check',10)} Saved</span><div style="margin-top:8px;"><button class="btn btn-sm" onclick="wdReset()">Start another call</button></div></div>`:''}
+  ${terminal?`<div style="text-align:center;margin-top:14px;"><button class="btn btn-sm" onclick="wdReset()">Back to leads</button></div>`:''}
+  `;
+}
+function wdDispositionPanel(){
+  const needsNotes=WD_NOTES_REQUIRED.includes(state.wd.disposition);
+  return `<div style="margin-top:14px;">
+    <label style="font-size:11px;font-weight:700;color:var(--text-faint);">DISPOSITION</label>
+    <select class="field2" onchange="state.wd.disposition=this.value;render();">
+      <option value="">Select outcome…</option>
+      ${DISPOSITIONS.concat(["Callback Requested"]).filter((v,i,a)=>a.indexOf(v)===i).map(d=>`<option value="${d}">${d}</option>`).join("")}
+    </select>
+    <label style="font-size:11px;font-weight:700;color:var(--text-faint);">NOTES ${needsNotes?'(required)':'(optional)'}</label>
+    <textarea class="field2" style="min-height:56px;" oninput="state.wd.notes=this.value;"></textarea>
+    <button class="btn btn-primary" style="width:100%;" onclick="wdSaveDisposition()">Save Disposition</button>
+  </div>`;
+}
+function wdPhone(){
+  const lead=state.wd.selectedLeadId?leads.find(l=>l.id===state.wd.selectedLeadId):null;
+  const cs=state.wd.callState;
+  let inner=`<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(160deg,var(--primary-soft),#fff);"><div style="width:44px;height:44px;border-radius:12px;background:var(--primary);"></div><div style="font-size:10px;color:var(--text-faint);">Standing by</div></div>`;
+  if(lead){
+    if(cs==="NOTIFICATION_SENT") inner=`
+      <div style="height:100%;display:flex;align-items:flex-start;justify-content:center;padding-top:20px;background:linear-gradient(160deg,var(--primary-soft),#fff);">
+        <div class="card" style="padding:10px 12px;width:88%;cursor:pointer;" onclick="wdOpenNotification()">
+          <div style="font-size:9.5px;font-weight:700;color:var(--text-faint);">CRM PRO · now</div>
+          <div style="font-size:12px;font-weight:700;margin-top:2px;">Call ${lead.name} now?</div>
+          <div style="font-size:10.5px;color:var(--text-dim);">tap to view</div>
+        </div>
+      </div>`;
+    else if(cs==="NOTIFICATION_OPENED") inner=`
+      <div style="height:100%;display:flex;flex-direction:column;align-items:center;text-align:center;padding:26px 16px;">
+        <div class="avatar" style="background:${colorFor(lead.name)};width:52px;height:52px;font-size:17px;margin-bottom:10px;">${initials(lead.name)}</div>
+        <div style="font-weight:700;font-size:14px;">${lead.name}</div><div style="font-size:11px;color:var(--text-faint);">${lead.company}</div>
+        <div style="margin-top:auto;display:flex;gap:8px;width:100%;">
+          <button class="btn" style="flex:1;" onclick="wdDecline()">Decline</button>
+          <button class="btn btn-connect" style="flex:1;" onclick="wdCallNow()">Call Now</button>
+        </div>
+      </div>`;
+    else if(cs==="CALL_INITIATED"||cs==="CALL_RINGING"||cs==="CALL_CONNECTED") inner=`
+      <div style="height:100%;background:#14121c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:24px 14px;text-align:center;">
+        <div><div class="avatar" style="background:${colorFor(lead.name)};width:56px;height:56px;font-size:18px;margin-bottom:10px;">${initials(lead.name)}</div>
+        <div style="font-weight:700;">${lead.name}</div>
+        <div style="font-size:11px;color:#a99fc2;margin-top:6px;">${cs==="CALL_CONNECTED"?"Connected · SIM cellular call":cs==="CALL_RINGING"?"Ringing…":"Calling…"}</div>
+        ${cs==="CALL_CONNECTED"?`<div class="mono" style="margin-top:5px;" id="wd-timer">${fmtDuration(state.wd.seconds)}</div>`:''}</div>
+        <button style="width:48px;height:48px;border-radius:50%;background:var(--danger);border:none;color:#fff;cursor:pointer;" onclick="${cs==='CALL_CONNECTED'?'wdEndCall()':'wdCancelInFlight()'}">${icon('endCall',18)}</button>
+      </div>`;
+    else if(cs==="CALL_COMPLETED"||cs==="CALL_DATA_SYNCING") inner=`<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;"><div style="width:26px;height:26px;border-radius:50%;border:3px solid var(--border-strong);border-top-color:var(--primary);animation:spin .9s linear infinite;"></div><div style="font-size:12px;font-weight:600;">${cs==="CALL_COMPLETED"?"Call ended":"Syncing…"}</div></div>`;
+    else inner=`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-faint);">Synced ✓</div>`;
+  }
+  return `<div style="width:220px;height:440px;background:#0d0d14;border-radius:30px;padding:8px;box-shadow:var(--shadow);">
+    <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+    <div style="width:100%;height:100%;background:#fff;border-radius:22px;overflow:hidden;">${inner}</div>
+  </div>`;
+}
+function wdInitiate(id){
+  wdClearTimers();
+  state.wd={...state.wd,selectedLeadId:id,callState:"CALL_REQUESTED",callStatus:null,seconds:0,timeline:[],disposition:"",notes:"",timers:[],expireCountdown:0};
+  wdLog("Outbound call requested"); render();
+  setTimeout(()=>{ if(state.wd.callState!=="CALL_REQUESTED")return; state.wd.callState="NOTIFICATION_SENT"; state.wd.expireCountdown=15; wdLog("Push notification delivered"); render();
+    const cd=setInterval(()=>{ if(state.wd.callState!=="NOTIFICATION_SENT"){clearInterval(cd);return;} state.wd.expireCountdown--; if(state.wd.expireCountdown<=0){clearInterval(cd);state.wd.callState="EXPIRED";wdLog("Request expired");render();return;} render(); },1000);
+    state.wd.timers.push(cd);
+  },800);
+}
+function wdOpenNotification(){ state.wd.callState="NOTIFICATION_OPENED"; wdLog("Notification opened on mobile"); render(); }
+function wdDecline(){ state.wd.callState="CANCELLED"; wdLog("Agent declined on mobile"); render(); }
+function wdCallNow(){
+  state.wd.callState="CALL_INITIATED"; wdLog("Call initiated on mobile"); render();
+  setTimeout(()=>{ state.wd.callState="CALL_RINGING"; render();
+    setTimeout(()=>{
+      state.wd.callState="CALL_CONNECTED"; state.wd.callStatus="CONNECTED"; wdLog("Call connected"); render();
+      const t=setInterval(()=>{ if(state.wd.callState!=="CALL_CONNECTED"){clearInterval(t);return;} state.wd.seconds++; const el=document.getElementById("wd-timer"); if(el)el.textContent=fmtDuration(state.wd.seconds); },1000);
+      state.wd.timers.push(t);
+    },1400);
+  },900);
+}
+function wdCancelInFlight(){ wdClearTimers(); state.wd.callState="CALL_COMPLETED"; wdLog("Call ended before connecting"); render(); wdSync(); }
+function wdEndCall(){ wdClearTimers(); state.wd.callState="CALL_COMPLETED"; wdLog(`Call completed | Duration: ${fmtDuration(state.wd.seconds)}`); render(); wdSync(); }
+function wdSync(){
+  setTimeout(()=>{ state.wd.callState="CALL_DATA_SYNCING"; render();
+    setTimeout(()=>{ state.wd.callState="CALL_DATA_SYNCED"; wdLog("Call data synchronized"); render();
+      setTimeout(()=>{ state.wd.callState="DISPOSITION_PENDING"; render(); },400);
+    },1100);
+  },400);
+}
+function wdSaveDisposition(){
+  const wd=state.wd;
+  if(!wd.disposition) return alert("Select a disposition first");
+  if(WD_NOTES_REQUIRED.includes(wd.disposition) && !wd.notes.trim()) return alert("Notes are required for this disposition");
+  wd.callState="DISPOSITION_SAVED"; wdLog(`Disposition: ${wd.disposition}`);
+  const lead=leads.find(l=>l.id===wd.selectedLeadId);
+  callLogs.unshift({name:lead.name,company:lead.company,when:"Just now",duration:wd.seconds,disposition:wd.disposition,score:lead.score});
+  if(wd.disposition==="Callback Requested") tasks.unshift({note:"Callback: "+(wd.notes||"follow up"),contact:lead.name,when:"Tomorrow · 10:00 AM",done:false});
+  render();
+}
+function wdReset(){ wdClearTimers(); state.wd={selectedLeadId:null,callState:"idle",callStatus:null,seconds:0,timeline:[],disposition:"",notes:"",timers:[],expireCountdown:0}; render(); }
+
+/* ============================================================
+   AI COACH — Telecaller live-call workspace
+   ============================================================ */
+const AC_SCRIPT=[
+  {who:"them",text:"Hi, we are looking for a CRM. Can you tell me about the pricing?"},
+  {who:"me",text:"Sure! May I know your team size?"},
+  {who:"them",text:"We are a team of 15, but the price seems a bit high for us.", objection:true},
+];
+const AC_SUGGESTIONS=[
+  "I understand that budget is an important consideration. May I ask what specific part of the pricing feels high? This will help me understand your requirements better and see how we can provide the right value.",
+  "Totally fair — a lot of teams feel that way at first. If I could show you how the Premium plan pays for itself in time saved per rep, would that be useful to walk through?",
+  "That makes sense. Many of our customers at your team size started on a smaller plan and upgraded once they saw the ROI — want me to show you what that path could look like for you?",
+];
+const AC_NEXT_QUESTION="What's driving the timeline for switching CRMs — is there a specific deadline your team is working toward?";
+
+function acPickLead(id){
+  state.ai={ leadId:id, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false };
+  render();
+  acStartCall();
+}
+function acStartCall(){
+  state.ai.active=true; render();
+  state.ai.timer=setInterval(()=>{ state.ai.seconds++; const el=document.getElementById("ac-timer"); if(el) el.textContent=fmtDuration(state.ai.seconds); },1000);
+  acAdvanceScript();
+}
+function acAdvanceScript(){
+  if(state.ai.step>=AC_SCRIPT.length) return;
+  setTimeout(()=>{
+    if(!state.ai.active) return;
+    const line=AC_SCRIPT[state.ai.step];
+    state.ai.transcript.push(line);
+    state.ai.step++;
+    if(line.objection){ state.ai.objection=true; state.ai.sentiment="Neutral"; }
+    render();
+    if(state.ai.step<AC_SCRIPT.length) acAdvanceScript();
+  }, 1600);
+}
+function acUseResponse(){
+  state.ai.transcript.push({who:"me", text:AC_SUGGESTIONS[state.ai.suggestIdx]});
+  state.ai.objection=false;
+  state.ai.sentiment="Positive";
+  state.ai.convProb=Math.min(95, state.ai.convProb+8);
+  render();
+}
+function acShowAlternative(){ state.ai.suggestIdx=(state.ai.suggestIdx+1)%AC_SUGGESTIONS.length; render(); }
+function acNextQuestion(){
+  state.ai.transcript.push({who:"me", text:AC_NEXT_QUESTION});
+  state.ai.objection=false;
+  render();
+}
+function acEndCall(status){
+  clearInterval(state.ai.timer);
+  state.ai.active=false; state.ai.ended=true;
+  const lead=leads.find(l=>l.id===state.ai.leadId);
+  const dispMap={Converted:"Connected — Interested", Lost:"Connected — Not Interested", "Follow-up":"Callback Requested"};
+  const disposition=dispMap[status]||"Connected — Interested";
+  callLogs.unshift({name:lead.name,company:lead.company,when:"Just now",duration:state.ai.seconds,disposition,score:state.ai.convProb});
+  if(status==="Follow-up") tasks.unshift({note:"AI Coach follow-up: "+lead.name, contact:lead.name, when:"In 2 days", done:false});
+  lead.stage = status==="Converted"?"closed":status==="Follow-up"?"follow-up":status==="Lost"?"closed":lead.stage;
+  render();
+}
+function acReset(){ state.ai={ leadId:null, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false }; render(); }
+
+function renderAICoach(){
+  if(!state.ai.leadId) return renderACLeadPicker();
+  if(state.ai.ended) return renderACEnded();
+  return renderACWorkspace();
+}
+function renderACLeadPicker(){
+  return `
+  <div style="font-size:12px;color:var(--text-faint);margin-bottom:14px;">Pick a lead to start an AI-coached call — live guidance, objection handling and next-best-action while you talk.</div>
+  <div class="card">
+    ${leads.map(l=>`
+      <div class="ac-lead-row">
+        <div class="avatar" style="background:${colorFor(l.name)};width:36px;height:36px;font-size:12.5px;">${initials(l.name)}</div>
+        <div class="lead-meta"><div class="lead-name">${l.name}</div><div class="lead-sub">${l.company} · ${l.phone}</div></div>
+        <span class="score-badge ${scoreClass(l.score)}">${l.score}</span>
+        <button class="btn btn-primary btn-sm" onclick="acPickLead('${l.id}')">${icon('phoneCall',12)} Start AI Call</button>
+      </div>`).join("")}
+  </div>`;
+}
+function renderACEnded(){
+  return `<div class="card" style="padding:40px;text-align:center;">
+    <div class="stat-icon" style="background:var(--connected-soft);color:var(--connected);margin:0 auto 14px auto;">${icon('check',18)}</div>
+    <h3 style="margin-bottom:6px;">Call saved</h3>
+    <div style="color:var(--text-dim);font-size:13px;margin-bottom:18px;">Outcome logged to Call Logs${state.ai.status==="Follow-up"?" and a follow-up task was created":""}.</div>
+    <button class="btn btn-primary" onclick="acReset()">Start another AI call</button>
+  </div>`;
+}
+function renderACWorkspace(){
+  const lead=leads.find(l=>l.id===state.ai.leadId);
+  const ai=state.ai;
+  return `
+  <div class="ac-callbar">
+    <span class="ac-live-badge"><span class="ac-live-dot"></span>LIVE CALL</span>
+    <span class="ac-timer" id="ac-timer">${fmtDuration(ai.seconds)}</span>
+    <span style="font-weight:600;font-size:13px;">${lead.name} <span style="color:var(--text-faint);font-weight:400;">— ${lead.company}</span></span>
+    <div class="ac-callbtns">
+      <div class="ac-cbtn">${icon('pause',15)}</div>
+      <div class="ac-cbtn">${icon('mic',15)}</div>
+      <div class="ac-cbtn end" onclick="document.getElementById('ac-markas-lost-shortcut')?.click();">${icon('endCall',16)}</div>
+    </div>
+  </div>
+  <div class="ac-grid">
+    ${renderACLeadCard(lead)}
+    ${renderACConversation(lead)}
+    ${renderACInsights(lead)}
+  </div>`;
+}
+function renderACLeadCard(lead){
+  return `
+  <div class="card ac-lead-card">
+    <div class="avatar" style="background:${colorFor(lead.name)};width:44px;height:44px;font-size:15px;">${initials(lead.name)}</div>
+    <div class="nm">${lead.name}</div>
+    <div class="sub">${lead.title||"Business Owner"} · ${lead.company}</div>
+    <span class="pill pill-live" style="margin-top:8px;">Warm Lead</span>
+    <div class="ac-field-row"><span class="lbl">Phone</span><span class="mono">${lead.phone}</span></div>
+    <div class="ac-field-row"><span class="lbl">Source</span><span>Website</span></div>
+    <div class="ac-field-row"><span class="lbl">Product Interest</span><span>Pulsive CRM — Premium</span></div>
+    <div class="ac-field-row" style="border-top:none;flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;"><span class="lbl">Lead Score</span><b>${lead.score}/100</b></div>
+      <div class="ac-score-bar"><div class="ac-score-fill" style="width:${lead.score}%;"></div></div>
+    </div>
+    <div class="ac-field-row" style="border-top:none;flex-direction:column;align-items:stretch;">
+      <span class="lbl" style="margin-bottom:5px;">Status</span>
+      <select class="field2" style="margin:0;" onchange="state.ai.status=this.value;">
+        <option>Contacted</option><option>Qualified</option><option>In Negotiation</option>
+      </select>
+    </div>
+    <div style="margin-top:10px;">
+      <span class="lbl" style="font-size:11px;">Call Notes</span>
+      <textarea class="ac-notes" placeholder="Add notes during the call…" oninput="state.ai.notes=this.value;"></textarea>
+    </div>
+  </div>`;
+}
+function renderACConversation(lead){
+  const ai=state.ai;
+  return `
+  <div class="card">
+    <div class="ac-tabs"><button class="active">Transcript</button><button>AI Analysis</button></div>
+    <div class="ac-transcript" id="ac-transcript">
+      ${ai.transcript.map(t=>`<div class="ac-bubble ${t.who==='them'?'them':'me'}"><div class="t">${t.who==='them'?lead.name.split(' ')[0]:'You'}</div>${t.text}</div>`).join("")}
+      ${ai.active && ai.step<AC_SCRIPT.length ? `<div class="ac-bubble them" style="opacity:.5;">…</div>` : ''}
+    </div>
+    ${ai.objection ? `
+      <div class="ac-alert">${icon('warn',14)} Price objection detected</div>
+      <div class="ac-suggest">
+        <div class="ac-suggest-head">${icon('sparkles',13)} AI Coach Suggests</div>
+        <div class="ac-suggest-text">${AC_SUGGESTIONS[ai.suggestIdx]}</div>
+        <div class="ac-suggest-btns">
+          <button class="btn btn-primary btn-sm" onclick="acUseResponse()">Use This Response</button>
+          <button class="btn btn-sm" onclick="acShowAlternative()">Show Alternatives</button>
+          <button class="btn btn-sm" onclick="acNextQuestion()">Next Question</button>
+        </div>
+      </div>` : ai.active ? `
+      <div class="ac-suggest">
+        <div class="ac-suggest-head">${icon('sparkles',13)} AI Coach</div>
+        <div class="ac-suggest-text" style="color:var(--text-faint);">Listening for buying signals and objections…</div>
+      </div>` : ''}
+    <div class="ac-input-row">
+      <input placeholder="Type a message or ask AI…">
+      <button class="ac-send">${icon('send',16)}</button>
+    </div>
+  </div>`;
+}
+function renderACInsights(lead){
+  const ai=state.ai;
+  const gaugeR=22, c=2*Math.PI*gaugeR, pct=ai.convProb/100;
+  return `
+  <div class="card" style="padding:16px;">
+    <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">Lead 360° &amp; AI Insights</div>
+    <div class="ac-insight-row" style="border-top:none;">
+      <div class="ac-insight-ic" style="background:var(--connected-soft);color:var(--connected);">${icon('trend',14)}</div>
+      <span class="lbl">Buying Intent</span><b style="margin-left:auto;color:var(--connected);">High</b>
+    </div>
+    <div class="ac-insight-row">
+      <div class="ac-insight-ic" style="background:${ai.sentiment==='Positive'?'var(--connected-soft)':'var(--surface-sunken)'};color:${ai.sentiment==='Positive'?'var(--connected)':'var(--text-dim)'};">${icon('smile',14)}</div>
+      <span class="lbl">Sentiment</span><b style="margin-left:auto;">${ai.sentiment}</b>
+    </div>
+    <div class="ac-insight-row" style="justify-content:space-between;">
+      <span class="lbl">Conversion Probability</span>
+      <div class="ac-gauge">
+        <svg viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="${gaugeR}" fill="none" stroke="var(--surface-sunken)" stroke-width="5"/>
+          <circle cx="28" cy="28" r="${gaugeR}" fill="none" stroke="var(--primary)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}"/>
+        </svg>
+        <div class="n">${ai.convProb}%</div>
+      </div>
+    </div>
+    <div style="font-weight:700;font-size:11.5px;color:var(--text-faint);margin-top:12px;">AI SUMMARY</div>
+    <div class="ac-summary-box">Customer is interested in a CRM for a 15-person sales team. ${ai.objection?'Currently concerned about pricing — likely to move forward if value/ROI are clearly positioned.':'Objection addressed — sentiment has improved, good sign to move toward next steps.'}</div>
+    <div style="font-weight:700;font-size:11.5px;color:var(--text-faint);margin-top:12px;margin-bottom:2px;">RECOMMENDED NEXT STEPS</div>
+    <div class="ac-nextstep">${icon('check',14)} Explain ROI and value for their team size</div>
+    <div class="ac-nextstep">${icon('check',14)} Share case studies from similar companies</div>
+    <div class="ac-nextstep">${icon('check',14)} Offer a product demo</div>
+    <div class="ac-nextstep">${icon('check',14)} Follow up within 2 days</div>
+    <div class="ac-markas">
+      <button style="background:var(--connected);" onclick="acEndCall('Converted')">Converted</button>
+      <button id="ac-markas-lost-shortcut" style="background:var(--danger);" onclick="acEndCall('Lost')">Lost</button>
+      <button style="background:var(--blue);" onclick="acEndCall('Follow-up')">Follow-up</button>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   AI COACH SUB-PAGES
+   ============================================================ */
+let acObjSel="price";
+const OBJ_CATS=[
+  {id:"price",label:"Price Objection",ic:"dollar2"},
+  {id:"competitor",label:"Competitor Mention",ic:"users"},
+  {id:"time",label:"Need More Time",ic:"clock"},
+  {id:"notint",label:"Not Interested",ic:"warn"},
+  {id:"feature",label:"Feature Comparison",ic:"chart"},
+  {id:"dm",label:"Decision Maker Unavailable",ic:"contact2"},
+  {id:"existing",label:"Already Using a CRM",ic:"grid"},
+  {id:"custom",label:"Custom Objection",ic:"sparkles"},
+];
+const OBJ_CONTENT={
+  price:{conf:92, text:"I understand that budget is an important consideration. May I ask what specific part of the pricing feels high? This will help me understand your requirements better and see how we can provide the right value.", why:"It acknowledges the concern, shows empathy, and opens the conversation to understand the real reason behind the objection."},
+  competitor:{conf:88, text:"That's great that you're evaluating options — it shows you're serious about getting this right. What's working well for you with your current tool, and what's missing?", why:"Positions the comparison as collaborative rather than defensive, and surfaces the real gap you can solve."},
+  time:{conf:85, text:"Totally understand — no pressure. Would it help if I sent over a short summary so it's easy to revisit when the time is right?", why:"Removes pressure while keeping the door open with a low-friction next step."},
+  notint:{conf:79, text:"No worries at all. Can I ask what changed, or what would make this more relevant down the line? I'd rather understand than assume.", why:"Avoids pushing back and instead gathers information for a better future approach."},
+  feature:{conf:90, text:"Happy to walk through that comparison directly — which specific features matter most for your team's workflow?", why:"Redirects a broad comparison into a focused, winnable conversation."},
+  dm:{conf:81, text:"Understood — would it help if I prepared a short summary you could share with them, or would a quick joint call work better?", why:"Offers concrete ways to keep the deal moving without being pushy."},
+  existing:{conf:87, text:"Makes sense — most of our customers switched from another CRM too. What's the one thing you wish it did better?", why:"Uses social proof and turns the objection into a discovery question."},
+  custom:{conf:75, text:"That's a fair point — let me make sure I understand exactly what you mean before I respond.", why:"A safe default response the agent can adapt once the objection is clarified."},
+};
+function acSetObjSel(id){ acObjSel=id; render(); }
+function acCurrentAILead(){ return state.ai.leadId ? leads.find(l=>l.id===state.ai.leadId) : null; }
+function acContextBanner(){
+  const lead=acCurrentAILead();
+  return lead
+    ? `<div class="badge-note">${icon('phoneCall',13)} Live for <b>${lead.name}</b> — ${lead.company}${state.ai.active?' · call in progress':' · last call'}</div>`
+    : `<div class="badge-note" style="background:var(--surface-sunken);color:var(--text-dim);">${icon('phoneCall',13)} No active AI call — this is general reference. <a href="#" onclick="state.view='aicoach';render();return false;" style="color:var(--primary);font-weight:700;">Start one</a> to link this to a real lead.</div>`;
+}
+
+function acObjUseThis(){
+  const lead=acCurrentAILead();
+  const c=OBJ_CONTENT[acObjSel];
+  if(!lead){ alert("Start an AI call first — this response will be added to that live conversation."); return; }
+  state.ai.transcript.push({who:"me", text:c.text});
+  state.ai.objection=false;
+  state.ai.sentiment="Positive";
+  state.ai.convProb=Math.min(95, state.ai.convProb+5);
+  render();
+  alert(`Added to the live transcript with ${lead.name}.`);
+}
+function acObjTryAnother(){
+  const idx=OBJ_CATS.findIndex(o=>o.id===acObjSel);
+  acObjSel=OBJ_CATS[(idx+1)%OBJ_CATS.length].id;
+  render();
+}
+function renderACObjectionPage(){
+  const c=OBJ_CONTENT[acObjSel];
+  return `
+  ${acContextBanner()}
+  <div class="obj2-grid">
+    <div class="card" style="padding:8px 0;">
+      ${OBJ_CATS.map(o=>`<div class="obj2-item ${acObjSel===o.id?'active':''}" onclick="acSetObjSel('${o.id}')">${icon(o.ic,15)} ${o.label}</div>`).join("")}
+    </div>
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
+        <div class="stat-icon" style="background:var(--primary-soft);color:var(--primary);width:34px;height:34px;">${icon('sparkles',15)}</div>
+        <h3 style="font-size:15px;">AI Suggested Responses</h3>
+        <span class="conf-badge" style="margin-left:auto;">Confidence ${c.conf}%</span>
+      </div>
+      <div class="ac-summary-box" style="font-size:13px;color:var(--text);margin:0 0 14px 0;">${c.text}</div>
+      <div style="display:flex;gap:9px;margin-bottom:18px;">
+        <button class="btn btn-primary" onclick="acObjUseThis()">Use This</button>
+        <button class="btn" onclick="acObjTryAnother()">Try Another</button>
+      </div>
+      <div style="background:var(--primary-soft);border-radius:10px;padding:13px;display:flex;gap:10px;">
+        <div style="flex:0 0 26px;">${icon('sparkles',16)}</div>
+        <div><b style="font-size:12.5px;">Why this works</b><div style="font-size:12px;color:var(--text-dim);margin-top:4px;line-height:1.6;">${c.why}</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const NEXT_ACTIONS=[
+  {n:1,color:"#2563EB",title:"Ask about timeline",desc:"Customer seems interested. Understand their timeline for implementation.",action:"note"},
+  {n:2,color:"#DB2777",title:"Share relevant case study",desc:"Send a case study from a similar business (team size: 10-20).",action:"note"},
+  {n:3,color:"#EA580C",title:"Offer a product demo",desc:"Invite them for a personalized demo.",action:"note"},
+  {n:4,color:"#16A34A",title:"Discuss ROI",desc:"Explain how Pulsive can help them save time and increase productivity.",action:"note"},
+  {n:5,color:"#7C3AED",title:"Create follow-up task",desc:"If not closing today, schedule a follow-up within 2 days.",action:"task"},
+];
+function acNextActionClick(n){
+  const item=NEXT_ACTIONS.find(a=>a.n===n);
+  const lead=acCurrentAILead();
+  const contactName=lead?lead.name:"General";
+  if(item.action==="task"){
+    tasks.unshift({note:item.title+(lead?" — "+lead.name:""), contact:contactName, when:"In 2 days", done:false});
+    alert(`Task created: "${item.title}"${lead?` for ${lead.name}`:''}. Check My Tasks.`);
+  } else {
+    if(state.ai.leadId){ state.ai.notes = (state.ai.notes?state.ai.notes+"\\n":"") + "• "+item.title; }
+    alert(`Noted: "${item.title}"`+(lead?` for ${lead.name}. Added to call notes.`:'.'));
+  }
+  render();
+}
+function renderACNextActionPage(){
+  return `
+  ${acContextBanner()}
+  <div style="font-size:12px;color:var(--text-faint);margin-bottom:14px;">Ranked by what will move this specific conversation forward — highest priority first.</div>
+  <div class="card">
+    ${NEXT_ACTIONS.map(a=>`
+      <div class="nba-row" onclick="acNextActionClick(${a.n})">
+        <div class="nba-num" style="background:${a.color};">${a.n}</div>
+        <div style="flex:1;"><div class="nba-title">${a.title}</div><div class="nba-desc">${a.desc}</div></div>
+        <div style="color:var(--text-faint);">${icon('chevron',16)}</div>
+      </div>`).join("")}
+  </div>`;
+}
+
+let kbSel="features";
+let kbAskLog=[{q:"What is included in the Premium Plan?", a:"The Premium Plan includes unlimited users, WhatsApp integration, advanced reports, API access and priority support."}];
+const KB_TABS=["Product Info","Case Studies","FAQs","Competitors","Call Scripts"];
+const KB_SIDE=[
+  {id:"about",label:"About Pulsive CRM"},{id:"features",label:"Key Features & Benefits"},
+  {id:"pricing",label:"Pricing & Plans"},{id:"industries",label:"Industries We Serve"},{id:"success",label:"Success Stories"},
+];
+const KB_FEATURES=["Lead Management","Sales Automation","WhatsApp & Calling Integration","Team Collaboration","Advanced Reporting","Affordable Pricing","Dedicated Support"];
+function kbAsk(){
+  const input=document.getElementById('kb-ask-input');
+  const val=input.value.trim();
+  if(!val) return;
+  const lead=acCurrentAILead();
+  kbAskLog.unshift({q:val, a:"This is a demo answer — no live AI Knowledge Base is connected yet. Wire this up to a real backend to answer questions like this one"+(lead?` for ${lead.name}`:'')+"."});
+  render();
+}
+function renderACKnowledgePage(){
+  return `
+  ${acContextBanner()}
+  <div class="tab-row" style="margin-bottom:16px;">${KB_TABS.map((t,i)=>`<button class="${i===0?'active':''}">${t}</button>`).join("")}</div>
+  <div class="kb-grid">
+    <div class="card" style="padding:8px;">
+      ${KB_SIDE.map(s=>`<div class="kb-side-item ${kbSel===s.id?'active':''}" onclick="kbSel='${s.id}';render();">${s.label}</div>`).join("")}
+    </div>
+    <div class="card" style="padding:18px;">
+      <h3 style="font-size:15px;margin-bottom:12px;">Key Features & Benefits</h3>
+      ${KB_FEATURES.map(f=>`<div class="kb-feature">${icon('check',14)} ${f}</div>`).join("")}
+    </div>
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div class="stat-icon" style="width:30px;height:30px;background:var(--primary-soft);color:var(--primary);">${icon('sparkles',14)}</div><b style="font-size:13px;">Ask AI</b></div>
+      <div style="display:flex;gap:7px;margin-top:10px;">
+        <input id="kb-ask-input" class="field2" style="margin:0;" placeholder="Ask a question…" onkeydown="if(event.key==='Enter')kbAsk();">
+        <button class="ac-send" style="flex:0 0 36px;width:36px;height:36px;" onclick="kbAsk()">${icon('send',14)}</button>
+      </div>
+      ${kbAskLog.map(qa=>`<div class="kb-ask-bubble"><b style="color:var(--text);">${qa.q}</b><br>${qa.a}</div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function renderACSummaryPage(){
+  const lead=acCurrentAILead();
+  if(!lead){
+    return `${acContextBanner()}
+    <div class="card" style="padding:50px 20px;text-align:center;color:var(--text-faint);">
+      ${icon('report',30)}
+      <div style="font-weight:700;margin:10px 0 4px 0;color:var(--text);">No call summary yet</div>
+      Start an AI-coached call to generate a real summary for that lead.
+      <div style="margin-top:14px;"><button class="btn btn-primary" onclick="state.view='aicoach';render();">Go to AI Coach</button></div>
+    </div>`;
+  }
+  const ai=state.ai;
+  const summaryText = ai.transcript.length
+    ? `Discussed CRM requirements with ${lead.name} from ${lead.company}. ${ai.objection?'A pricing objection was raised and has not been addressed yet.':'Any objections raised were addressed — sentiment moved in a positive direction.'}`
+    : `Call with ${lead.name} from ${lead.company} — no transcript captured yet.`;
+  const tags=[];
+  tags.push(ai.sentiment==="Positive" ? `<span class="pill pill-connected">Interested</span>` : `<span class="pill pill-neutral">${ai.sentiment}</span>`);
+  if(ai.objection) tags.push(`<span class="pill pill-live">Price Concern</span>`);
+  if(ai.status) tags.push(`<span class="pill" style="background:var(--blue-soft);color:var(--blue);">${ai.status}</span>`);
+  const nextActionText = ai.objection ? `Address the pricing objection with ${lead.name}, then share a case study.` : `Schedule a product demo with ${lead.name} and share a case study.`;
+  return `
+  ${acContextBanner()}
+  <div class="card" style="padding:22px;">
+    <h3 style="font-size:15px;margin-bottom:10px;">Call Summary — ${lead.name}</h3>
+    <div style="font-size:13px;color:var(--text-dim);line-height:1.7;">${summaryText}</div>
+    <div class="cs-tags">${tags.join("")}</div>
+    ${ai.notes ? `<div class="ac-summary-box" style="white-space:pre-wrap;"><b style="color:var(--text);">Call notes:</b><br>${ai.notes}</div>` : ''}
+    <div style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
+      <div class="cs-stat"><div style="color:var(--text-dim);">${icon('phoneCall',16)}</div><div><div style="font-family:var(--font-mono);font-weight:700;">${fmtDuration(ai.seconds)}</div><div style="font-size:10.5px;color:var(--text-faint);">Call Duration</div></div></div>
+      <div class="cs-stat"><div style="color:${ai.sentiment==='Positive'?'var(--connected)':'var(--text-dim)'};">${icon('smile',16)}</div><div><div style="font-weight:700;color:${ai.sentiment==='Positive'?'var(--connected)':'var(--text)'};">${ai.sentiment}</div><div style="font-size:10.5px;color:var(--text-faint);">Sentiment</div></div></div>
+      <div class="cs-stat"><div style="color:var(--primary);">${icon('trend',16)}</div><div><div style="font-weight:700;">${ai.convProb}%</div><div style="font-size:10.5px;color:var(--text-faint);">Conversion Probability</div></div></div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div><b style="font-size:12.5px;">Next Action</b><div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">${nextActionText}</div></div>
+      <button class="btn btn-primary" style="margin-left:auto;" onclick="tasks.unshift({note:'${ai.objection?'Address pricing objection & follow up':'Schedule product demo & share case study'}',contact:'${lead.name}',when:'In 2 days',done:false});showToastAC();">Create Follow-up Task</button>
+    </div>
+  </div>`;
+}
+function showToastAC(){ alert("Follow-up task created in My Tasks"); }
+
+/* ---------------- CALL FLOW ---------------- */
+function startCall(id){
+  const lead=leads.find(l=>l.id===id) || walkInLeads.find(l=>l.id===id);
+  state.call={lead,phase:"connecting",seconds:0,disposition:"",notes:""};
+  render();
+  setTimeout(()=>{
+    if(!state.call||state.call.lead.id!==id)return;
+    state.call.phase="connected"; render();
+    state.call._t=setInterval(()=>{
+      if(!state.call)return; state.call.seconds++;
+      const el=document.getElementById("call-timer"); if(el)el.textContent=fmtDuration(state.call.seconds);
+    },1000);
+  },1100);
+}
+function endCall(){ clearInterval(state.call._t); state.call.phase="wrapup"; render(); }
+function closeCall(){ clearInterval(state.call?._t); state.call=null; render(); }
+function saveDisposition(){
+  const c=state.call;
+  if(!c.disposition) return alert("Select a disposition first");
+  if(NOTES_REQUIRED.includes(c.disposition) && !c.notes.trim()) return alert("Notes are required for this disposition");
+  callLogs.unshift({name:c.lead.name,company:c.lead.company,when:"Just now",duration:c.seconds,disposition:c.disposition,score:c.lead.score});
+  if(c.disposition==="Callback Requested") tasks.unshift({note:"Callback: "+(c.notes||"follow up"),contact:c.lead.name,when:"Tomorrow · 10:00 AM",done:false});
+  closeCall();
+}
+function renderCallModal(){
+  const c=state.call, l=c.lead;
+  return `
+  <div class="modal-overlay">
+    <div class="modal">
+      <div style="text-align:center;">
+        <div class="avatar" style="background:${colorFor(l.name)};width:54px;height:54px;font-size:18px;margin:0 auto 10px auto;">${initials(l.name)}</div>
+        <div style="font-weight:700;font-size:16px;">${l.name}</div>
+        <div style="font-size:12px;color:var(--text-faint);">${l.company} · ${l.phone}</div>
+        <div style="margin-top:10px;">
+          ${c.phase==="connecting"?`<span class="pill pill-live">Connecting…</span>`:''}
+          ${c.phase==="connected"?`<span class="pill pill-connected">Connected</span> <span class="mono" id="call-timer" style="margin-left:6px;">${fmtDuration(c.seconds)}</span>`:''}
+          ${c.phase==="wrapup"?`<span class="pill pill-neutral">Call ended · ${fmtDuration(c.seconds)}</span>`:''}
+        </div>
+      </div>
+      ${c.phase==="connected"?`<button class="btn" style="width:100%;margin-top:18px;background:var(--danger-soft);color:var(--danger);border:none;" onclick="endCall()">End call</button>`:''}
+      ${c.phase==="wrapup"?`
+      <div style="margin-top:18px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-faint);">DISPOSITION</label>
+        <select class="field2" onchange="state.call.disposition=this.value">
+          <option value="">Select outcome…</option>
+          ${DISPOSITIONS.map(d=>`<option value="${d}">${d}</option>`).join("")}
+        </select>
+        <label style="font-size:11px;font-weight:700;color:var(--text-faint);">NOTES</label>
+        <textarea class="field2" style="min-height:60px;" oninput="state.call.notes=this.value"></textarea>
+        <button class="btn btn-primary" style="width:100%;" onclick="saveDisposition()">Save</button>
+      </div>`:''}
+      ${c.phase!=="connected"&&c.phase!=="wrapup"?`<button class="btn" style="width:100%;margin-top:14px;" onclick="closeCall()">Cancel</button>`:''}
+    </div>
+  </div>`;
+}
+
+/* ---------------- CALL LOGS ---------------- */
+function renderLogs(){
+  return `<div class="section-title">Call history</div><div class="card">
+    ${callLogs.map(h=>`
+      <div class="lead-row">
+        <div class="avatar" style="background:${colorFor(h.name)};width:32px;height:32px;font-size:11px;">${initials(h.name)}</div>
+        <div class="lead-meta"><div class="lead-name">${h.name}</div><div class="lead-sub">${h.company} · ${h.when}</div></div>
+        <span class="mono" style="font-size:11.5px;color:var(--text-faint);">${fmtDuration(h.duration)}</span>
+        <span class="pill ${h.disposition.startsWith('Connected')?'pill-connected':'pill-neutral'}">${h.disposition}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
+/* ---------------- REPORTS ---------------- */
+function renderReports(){
+  const total=callLogs.length, connected=callLogs.filter(c=>c.disposition.startsWith("Connected")).length;
+  return `
+  <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="card stat-card"><div class="stat-num">${total}</div><div class="stat-label">Total Calls</div></div>
+    <div class="card stat-card"><div class="stat-num">${connected}</div><div class="stat-label">Connected</div></div>
+    <div class="card stat-card"><div class="stat-num">${fmtDuration(Math.round(callLogs.reduce((a,c)=>a+c.duration,0)/Math.max(1,total)))}</div><div class="stat-label">Avg. Duration</div></div>
+    <div class="card stat-card"><div class="stat-num">${tasks.filter(t=>!t.done).length}</div><div class="stat-label">Follow-ups Due</div></div>
+  </div>
+  <div class="reports-grid">
+    <div class="card" style="padding:18px;"><div class="section-title">Disposition breakdown</div><div class="chart-wrap"><canvas id="chartDisp"></canvas></div></div>
+    <div class="card" style="padding:18px;"><div class="section-title">Calls — last 7 days</div><div class="chart-wrap"><canvas id="chartTrend"></canvas></div></div>
+  </div>`;
+}
+let _charts={};
+function renderChartsIfNeeded(){
+  if(state.view!=="reports"||state.screen!=="user-dashboard"||typeof Chart==="undefined")return;
+  Object.values(_charts).forEach(c=>c&&c.destroy());
+  const d=document.getElementById("chartDisp"), t=document.getElementById("chartTrend");
+  if(d){ const counts={}; callLogs.forEach(c=>counts[c.disposition]=(counts[c.disposition]||0)+1);
+    _charts.d=new Chart(d,{type:'doughnut',data:{labels:Object.keys(counts),datasets:[{data:Object.values(counts),backgroundColor:['#16A34A','#9497A3','#4F46E5','#D97706'],borderWidth:0}]},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:10}}}},cutout:"60%",responsive:true,maintainAspectRatio:false}}); }
+  if(t){ _charts.t=new Chart(t,{type:'line',data:{labels:["Wed","Thu","Fri","Sat","Sun","Mon","Tue"],datasets:[{label:"Calls",data:[3,5,4,1,1,4,5],borderColor:'#4F46E5',backgroundColor:'#4F46E522',tension:.35,fill:true}]},options:{plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}}); }
+}
+
+/* ---------------- TASKS ---------------- */
+function renderTasks(){
+  return `<div class="section-title">My tasks</div><div class="card">
+    ${tasks.map((t,i)=>`
+      <div class="task-row">
+        <button class="task-check ${t.done?'done':''}" onclick="tasks[${i}].done=!tasks[${i}].done;render();">${t.done?icon('check',10):''}</button>
+        <div class="lead-meta"><div class="lead-name" style="${t.done?'text-decoration:line-through;color:var(--text-faint);':''}">${t.note}</div><div class="lead-sub">${t.contact}</div></div>
+        <span class="mono" style="font-size:11px;color:var(--text-faint);">${t.when}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
+/* ---------------- AUTH GUARD ----------------
+   This page is a static file, so it can't rely on Next.js middleware —
+   the rest of this app guards routes client-side too (see the
+   isAuthenticated check in the (dashboard) layout), reading the JWT
+   this app's login flow puts in localStorage. This does the same: no
+   valid token, or a token that isn't role AGENT (the "user" role),
+   sends the visitor to /login instead of rendering the dashboard. */
+(async function guardAndBoot(){
+  const token = localStorage.getItem('accessToken');
+  if (!token) { window.location.href = '/login'; return; }
+  try {
+    const res = await fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('unauthorized');
+    const body = await res.json();
+    const me = body.data || body;
+    if (me.role !== 'AGENT') { window.location.href = '/dashboard'; return; }
+    // /auth/me only confirms identity + role (id/tenantId/role/email) — it doesn't
+    // return firstName/lastName, so the greeting name stays whatever the login
+    // redirect passed via ?name=; only backfill email if the query param was empty.
+    state.user.email = state.user.email || me.email;
+    render();
+  } catch {
+    window.location.href = '/login';
+  }
+})();
+</script>
+</body>
+</html>

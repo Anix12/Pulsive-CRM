@@ -1,196 +1,201 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import adminApi from '@/lib/adminApi';
-import { useState } from 'react';
-import { Shield, Users, LogOut, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
-import { Modal } from '@/components/ui/Modal';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { Shield, LogOut, Search, Plus, Users, Contact2, Briefcase, ChevronRight } from 'lucide-react';
+import { format } from 'date-fns';
+import adminApi from '@/lib/adminApi';
+import { cn } from '@/lib/utils';
+import { planBadge, statusBadge, statusLabel, avatarColor, ComingSoonModal } from './adminUi';
 
-const planBadge: Record<string, string> = {
-  FREE: 'bg-gray-100 text-gray-600',
-  STARTER: 'bg-blue-50 text-blue-700',
-  PRO: 'bg-purple-100 text-purple-700',
-  ENTERPRISE: 'bg-indigo-100 text-indigo-700',
-};
+type StatusFilter = 'ALL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
 
-const statusBadge: Record<string, string> = {
-  ACTIVE: 'bg-green-50 text-green-700',
-  SUSPENDED: 'bg-yellow-50 text-yellow-700',
-  CANCELLED: 'bg-red-50 text-red-600',
-};
-
-function ImpersonateModal({ tenant, onClose }: { tenant: any; onClose: () => void }) {
-  const [loading, setLoading] = useState(false);
-  const [token, setToken] = useState('');
-
-  const impersonate = async () => {
-    setLoading(true);
-    try {
-      const { data } = await adminApi.post(`/api/v1/admin/tenants/${tenant.id}/impersonate`, {});
-      setToken(data.data.accessToken);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyAndOpen = () => {
-    navigator.clipboard.writeText(token);
-    window.open('/', '_blank');
-  };
-
+function StatTile({
+  value,
+  label,
+  className,
+}: {
+  value: number | string;
+  label: string;
+  className?: string;
+}) {
   return (
-    <Modal open={!!tenant} onClose={onClose} title={`Impersonate: ${tenant?.name}`} size="sm">
-      <p className="text-sm text-gray-600">
-        Generate a temporary access token to log in as this tenant's owner.
-        This action will be recorded in the audit log.
-      </p>
-      {!token ? (
-        <div className="mt-5 flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={impersonate} disabled={loading} className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Generating...' : 'Generate Token'}
-          </button>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-3">
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-xs text-gray-500 mb-1">Access Token (expires in 15 min)</p>
-            <p className="break-all text-xs font-mono text-gray-800">{token.slice(0, 40)}...</p>
-          </div>
-          <p className="text-xs text-gray-500">
-            Copy the token, open the app, and use it via: Settings → Developer → Paste Token
-          </p>
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Close</button>
-            <button onClick={copyAndOpen} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
-              Copy Token & Open App
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
+    <div className={cn('rounded-xl px-5 py-4', className)}>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="mt-0.5 text-xs text-gray-500">{label}</p>
+    </div>
   );
 }
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const qc = useQueryClient();
-  const [impersonating, setImpersonating] = useState<any>(null);
-  const [statusTarget, setStatusTarget] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [search, setSearch] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tenants'],
-    queryFn: async () => { const { data } = await adminApi.get('/api/v1/admin/tenants'); return data.data; },
+    queryFn: async () => {
+      const { data } = await adminApi.get('/api/v1/admin/tenants', { params: { limit: 100 } });
+      return { tenants: data.data as any[], meta: data.meta };
+    },
   });
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      adminApi.patch(`/api/v1/admin/tenants/${id}/status`, { status }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-tenants'] }); setStatusTarget(null); },
-  });
+  const tenants = data?.tenants || [];
+
+  const counts = useMemo(
+    () => ({
+      ALL: tenants.length,
+      ACTIVE: tenants.filter((t) => t.status === 'ACTIVE').length,
+      SUSPENDED: tenants.filter((t) => t.status === 'SUSPENDED').length,
+      CANCELLED: tenants.filter((t) => t.status === 'CANCELLED').length,
+    }),
+    [tenants],
+  );
+
+  const totalUsers = useMemo(
+    () => tenants.reduce((sum, t) => sum + (t._count?.users || 0), 0),
+    [tenants],
+  );
+
+  const filtered = useMemo(() => {
+    return tenants.filter((t) => {
+      if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
+      if (search && !t.name.toLowerCase().includes(search.toLowerCase()) && !t.slug.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [tenants, statusFilter, search]);
 
   const logout = () => {
     localStorage.removeItem('adminToken');
     router.push('/admin/login');
   };
 
-  const totalActive = (data || []).filter((t: any) => t.status === 'ACTIVE').length;
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gray-900 px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="h-5 w-5 text-indigo-400" />
-            <span className="font-bold text-white">Super Admin Panel</span>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-gray-100 bg-white px-7 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_16px_-4px_rgba(59,130,246,0.6)]">
+            <Shield className="h-4 w-4 text-white" />
           </div>
-          <button onClick={logout} className="flex items-center gap-2 text-sm text-gray-400 hover:text-white">
-            <LogOut className="h-4 w-4" /> Sign Out
-          </button>
+          <div>
+            <h1 className="text-[15px] font-semibold text-gray-900">Platform Admin</h1>
+            <p className="text-xs text-gray-400">Manage every company running on Pulsive</p>
+          </div>
         </div>
+        <button
+          onClick={logout}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 ring-1 ring-gray-200 transition hover:bg-gray-50 hover:text-gray-700"
+        >
+          <LogOut className="h-3.5 w-3.5" /> Sign out
+        </button>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Total Tenants', value: data?.length || 0 },
-            { label: 'Active Tenants', value: totalActive },
-            { label: 'Suspended', value: (data || []).filter((t: any) => t.status === 'SUSPENDED').length },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              <p className="text-sm text-gray-500">{label}</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-            </div>
-          ))}
+      <div className="mx-auto max-w-6xl space-y-6 px-7 py-7">
+        {/* Stat tiles */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <StatTile value={tenants.length} label="Total companies" className="bg-white ring-1 ring-gray-100" />
+          <StatTile value={counts.ACTIVE} label="Active" className="bg-emerald-50" />
+          <StatTile value={counts.SUSPENDED} label="Suspended" className="bg-amber-50" />
+          <StatTile value={counts.CANCELLED} label="Cancelled" className="bg-rose-50" />
+          <StatTile value={totalUsers} label="Total users" className="bg-violet-50" />
         </div>
 
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-400" />
-              <h2 className="font-semibold text-gray-900">All Tenants</h2>
-            </div>
+        {/* Filters + search + add */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100/80 p-1 w-fit">
+            {(['ALL', 'ACTIVE', 'SUSPENDED', 'CANCELLED'] as StatusFilter[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className={cn(
+                  'rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition whitespace-nowrap',
+                  statusFilter === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                )}
+              >
+                {key === 'ALL' ? 'All' : statusLabel[key]}{' '}
+                <span className="text-gray-400">{counts[key]}</span>
+              </button>
+            ))}
           </div>
 
-          {isLoading ? (
-            <div className="flex h-48 items-center justify-center text-gray-500">Loading...</div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Tenant', 'Plan', 'Status', 'Users', 'Contacts', 'Created', ''].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {(data || []).map((tenant: any) => (
-                  <tr key={tenant.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900">{tenant.name}</p>
-                      <p className="text-xs text-gray-500">{tenant.slug}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${planBadge[tenant.plan] || ''}`}>
-                        {tenant.plan}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={tenant.status}
-                        onChange={(e) => updateStatus.mutate({ id: tenant.id, status: e.target.value })}
-                        className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${statusBadge[tenant.status] || ''}`}
-                      >
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="SUSPENDED">SUSPENDED</option>
-                        <option value="CANCELLED">CANCELLED</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{tenant._count?.users || 0}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{tenant._count?.contacts || 0}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {format(new Date(tenant.createdAt), 'dd MMM yyyy')}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setImpersonating(tenant)}
-                        className="rounded-lg bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100"
-                      >
-                        Impersonate
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search companies..."
+                className="w-56 rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+            >
+              <Plus className="h-4 w-4" /> Add company
+            </button>
+          </div>
         </div>
+
+        {/* Company list */}
+        {isLoading ? (
+          <div className="flex h-48 items-center justify-center text-sm text-gray-400">Loading companies...</div>
+        ) : filtered.length === 0 ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-1 rounded-xl bg-white text-sm text-gray-400 ring-1 ring-gray-100">
+            No companies match your filters.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((tenant) => (
+              <Link
+                key={tenant.id}
+                href={`/admin/${tenant.id}`}
+                className="group flex items-center gap-4 rounded-xl bg-white p-5 ring-1 ring-gray-100 transition hover:ring-blue-200 hover:shadow-sm"
+              >
+                <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold', avatarColor(tenant.name))}>
+                  {tenant.name?.[0]?.toUpperCase() || '?'}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-[14px] font-semibold text-gray-900">{tenant.name}</p>
+                    <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', statusBadge[tenant.status] || 'bg-gray-100 text-gray-600')}>
+                      {statusLabel[tenant.status] || tenant.status}
+                    </span>
+                    <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', planBadge[tenant.plan] || 'bg-gray-100 text-gray-600')}>
+                      {tenant.plan}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-gray-400">{tenant.slug}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5 text-gray-400" /> {tenant._count?.users ?? 0} users</span>
+                    <span className="flex items-center gap-1"><Contact2 className="h-3.5 w-3.5 text-gray-400" /> {tenant._count?.contacts ?? 0} leads</span>
+                    <span className="flex items-center gap-1"><Briefcase className="h-3.5 w-3.5 text-gray-400" /> {tenant._count?.deals ?? 0} deals</span>
+                  </div>
+                </div>
+
+                <div className="hidden shrink-0 text-right sm:block">
+                  <p className="text-xs text-gray-400">ID: {tenant.id.slice(-6)}</p>
+                  <p className="mt-0.5 text-xs text-gray-400">{format(new Date(tenant.createdAt), 'd MMM yyyy')}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:text-blue-500" />
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {(data?.meta?.total ?? 0) > tenants.length && (
+          <p className="text-center text-xs text-gray-400">
+            Showing {tenants.length} of {data?.meta?.total} companies.
+          </p>
+        )}
       </div>
 
-      {impersonating && <ImpersonateModal tenant={impersonating} onClose={() => setImpersonating(null)} />}
+      <ComingSoonModal open={addOpen} onClose={() => setAddOpen(false)} feature="Add company" />
     </div>
   );
 }
