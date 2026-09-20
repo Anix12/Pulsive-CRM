@@ -7,6 +7,8 @@ import { Radar, RefreshCw } from 'lucide-react';
 import api from '@/lib/api';
 import { GoogleMap, type MapMarker } from '@/components/ui/GoogleMap';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 interface AgentRow {
   agentId: string;
@@ -48,6 +50,74 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     <div className="rounded-xl border border-gray-100 bg-white p-4 text-center shadow-sm">
       <p className="text-xl font-bold" style={{ color: color ?? '#111827' }}>{value}</p>
       <p className="mt-0.5 text-[11px] text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+interface AgentPerformanceRow {
+  agentId: string; name: string; role: string;
+  totalVisits: number; completedVisits: number;
+  totalBookings: number; confirmedBookings: number;
+  conversionPct: number; revenue: number;
+}
+
+function fmtMoney(n: number) {
+  if (!n) return '₹0';
+  return `₹${n.toLocaleString()}`;
+}
+
+function AgentPerformanceReport() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['re-agent-performance'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/real-estate/agent-tracker/performance');
+      return data.data as AgentPerformanceRow[];
+    },
+  });
+
+  if (isError) return null;
+  if (isLoading) return <div className="h-56 animate-pulse rounded-xl bg-white shadow-sm ring-1 ring-gray-100" />;
+  if (!data || data.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+        Agent Performance <span className="normal-case text-gray-300">· all-time</span>
+      </p>
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Revenue by Agent</p>
+          <SimpleBarChart
+            data={data.slice(0, 6).map((a) => ({ label: a.name, value: a.revenue }))}
+            height={150}
+            formatValue={(n) => fmtMoney(n)}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Conversion Rate by Agent</p>
+          <SimpleBarChart
+            data={data.slice(0, 6).map((a) => ({ label: a.name, value: a.conversionPct }))}
+            height={150}
+            formatValue={(n) => `${n}%`}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Site Visits by Agent</p>
+          <SimpleBarChart
+            data={data.slice(0, 6).map((a) => ({ label: a.name, value: a.totalVisits }))}
+            height={150}
+            formatValue={(n) => `${n} visit${n === 1 ? '' : 's'}`}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Bookings by Agent</p>
+          <SimpleBarChart
+            data={data.slice(0, 6).map((a) => ({ label: a.name, value: a.confirmedBookings }))}
+            height={150}
+            formatValue={(n) => `${n} booking${n === 1 ? '' : 's'}`}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -112,12 +182,36 @@ export default function AgentTrackerPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <StatCard label="Total Agents" value={summary?.totalAgents ?? 0} />
-        <StatCard label="On the way" value={summary?.onTheWay ?? 0} color={STATUS_COLORS.ON_THE_WAY} />
-        <StatCard label="At Site" value={summary?.atSite ?? 0} color={STATUS_COLORS.AT_SITE} />
-        <StatCard label="Returning" value={summary?.returning ?? 0} color={STATUS_COLORS.RETURNING} />
-        <StatCard label="Idle" value={summary?.idle ?? 0} color={STATUS_COLORS.IDLE} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 lg:col-span-2">
+          <StatCard label="Total Agents" value={summary?.totalAgents ?? 0} />
+          <StatCard label="On the way" value={summary?.onTheWay ?? 0} color={STATUS_COLORS.ON_THE_WAY} />
+          <StatCard label="At Site" value={summary?.atSite ?? 0} color={STATUS_COLORS.AT_SITE} />
+          <StatCard label="Returning" value={summary?.returning ?? 0} color={STATUS_COLORS.RETURNING} />
+          <StatCard label="Idle" value={summary?.idle ?? 0} color={STATUS_COLORS.IDLE} />
+        </div>
+        {summary && summary.totalAgents > 0 && (() => {
+          const segments = [
+            { label: 'On the way', count: summary.onTheWay, color: STATUS_COLORS.ON_THE_WAY },
+            { label: 'At Site', count: summary.atSite, color: STATUS_COLORS.AT_SITE },
+            { label: 'Visiting', count: summary.visiting, color: STATUS_COLORS.VISITING },
+            { label: 'Returning', count: summary.returning, color: STATUS_COLORS.RETURNING },
+            { label: 'Idle', count: summary.idle, color: STATUS_COLORS.IDLE },
+          ].filter((s) => s.count > 0);
+          return (
+            <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+              <DonutChart
+                data={segments}
+                nameKey="label"
+                valueKey="count"
+                colors={segments.map((s) => s.color)}
+                height={130}
+                showLegend={false}
+                ariaLabel="Agents grouped by current status"
+              />
+            </div>
+          );
+        })()}
       </div>
 
       <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
@@ -178,6 +272,8 @@ export default function AgentTrackerPage() {
           </table>
         )}
       </div>
+
+      <AgentPerformanceReport />
     </div>
   );
 }

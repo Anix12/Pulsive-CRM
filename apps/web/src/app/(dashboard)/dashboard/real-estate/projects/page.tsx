@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Building2, Plus, Pencil, Trash2, ArrowRight } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, ArrowRight, BarChart3 } from 'lucide-react';
 import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 const STATUS_OPTIONS = ['UPCOMING', 'UNDER_CONSTRUCTION', 'READY', 'COMPLETED'] as const;
 
@@ -155,12 +157,80 @@ function ProjectFormModal({ open, onClose, project }: { open: boolean; onClose: 
   );
 }
 
+const UNIT_STATUS_COLORS: Record<string, string> = {
+  AVAILABLE: '#10b981', HOLD: '#f59e0b', BOOKED: '#6366f1', SOLD: '#9ca3af',
+};
+
+interface UnitsStats {
+  totalUnits: number;
+  byStatus: { status: string; count: number }[];
+  byProject: { projectId: string; name: string; total: number; available: number; hold: number; booked: number; sold: number }[];
+}
+
+function InventoryReport() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['re-units-stats'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/real-estate/units/stats');
+      return data.data as UnitsStats;
+    },
+  });
+
+  if (isError) return null;
+  if (isLoading || !data) {
+    return <div className="h-56 animate-pulse rounded-xl bg-white shadow-sm ring-1 ring-gray-100" />;
+  }
+  if (data.totalUnits === 0) return null;
+
+  const statusSegments = data.byStatus.map((s) => ({ label: s.status, count: s.count, color: UNIT_STATUS_COLORS[s.status] ?? '#d1d5db' }));
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Inventory Overview</p>
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Units by Status</p>
+          <DonutChart
+            data={statusSegments}
+            nameKey="label"
+            valueKey="count"
+            colors={statusSegments.map((s) => s.color)}
+            height={160}
+            centerValue={data.totalUnits}
+            centerLabel="Total Units"
+            showLegend={false}
+            ariaLabel="Units grouped by status"
+          />
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {statusSegments.map((s) => (
+              <li key={s.label} className="flex items-center gap-1.5 text-xs">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                <span className="text-gray-500">{s.label}</span>
+                <span className="text-gray-700">{s.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Units by Project</p>
+          <SimpleBarChart
+            data={data.byProject.slice(0, 8).map((p) => ({ label: p.name, value: p.total }))}
+            height={160}
+            formatValue={(n) => `${n} unit${n === 1 ? '' : 's'}`}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectsPage() {
   const qc = useQueryClient();
   const router = useRouter();
   const [modal, setModal] = useState<{ open: boolean; project?: any }>({ open: false });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(true);
 
   const { data, isLoading } = useQuery({
     queryKey: ['re-projects'],
@@ -189,13 +259,24 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
           <p className="text-sm text-gray-500">Manage your real estate inventory</p>
         </div>
-        <button
-          onClick={() => setModal({ open: true })}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          <Plus className="h-4 w-4" /> Add Project
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setReportOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            {reportOpen ? 'Hide report' : 'Show report'}
+          </button>
+          <button
+            onClick={() => setModal({ open: true })}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            <Plus className="h-4 w-4" /> Add Project
+          </button>
+        </div>
       </div>
+
+      {reportOpen && <InventoryReport />}
 
       <div className="flex flex-wrap gap-2">
         <button

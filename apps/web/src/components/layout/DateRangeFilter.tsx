@@ -6,7 +6,9 @@ import {
   subDays, startOfQuarter, endOfQuarter, format, isSameDay,
 } from 'date-fns';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { PILL_SPRING } from '@/lib/motion';
 
 export interface DateRange {
   from: Date;
@@ -32,6 +34,7 @@ export const PRESETS = buildPresets();
 export const DEFAULT_RANGE: DateRange = PRESETS[4].range(); // "This month" — keeps prior default behavior
 
 export function DateRangeFilter({ value, onChange }: { value: DateRange; onChange: (r: DateRange) => void }) {
+  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState(format(value.from, 'yyyy-MM-dd'));
   const [customTo, setCustomTo] = useState(format(value.to, 'yyyy-MM-dd'));
@@ -71,8 +74,15 @@ export function DateRangeFilter({ value, onChange }: { value: DateRange; onChang
         <ChevronDown className={cn('h-3.5 w-3.5 text-gray-400 transition-transform', open && 'rotate-180')} />
       </button>
 
-      {open && (
-        <div className="glass-panel absolute right-0 top-full z-30 mt-2 w-64 rounded-xl p-2">
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="glass-panel absolute right-0 top-full z-30 mt-2 w-64 rounded-xl p-2"
+          >
           <ul className="space-y-0.5">
             {PRESETS.map((p) => {
               const r = p.range();
@@ -82,12 +92,19 @@ export function DateRangeFilter({ value, onChange }: { value: DateRange; onChang
                   <button
                     onClick={() => { onChange(r); setOpen(false); }}
                     className={cn(
-                      'flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-sm transition',
-                      isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50',
+                      'relative flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-sm transition-colors duration-150 ease-out',
+                      isActive ? 'text-blue-700' : 'text-gray-600 hover:bg-gray-50',
                     )}
                   >
-                    {p.label}
-                    {isActive && <Check className="h-3.5 w-3.5" />}
+                    {isActive && (
+                      <motion.span
+                        layoutId="date-range-active-pill"
+                        className="absolute inset-0 rounded-lg bg-blue-50"
+                        transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+                      />
+                    )}
+                    <span className="relative z-10">{p.label}</span>
+                    {isActive && <Check className="relative z-10 h-3.5 w-3.5" />}
                   </button>
                 </li>
               );
@@ -120,8 +137,9 @@ export function DateRangeFilter({ value, onChange }: { value: DateRange; onChang
               Apply
             </button>
           </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -32,6 +32,7 @@ router.delete('/projects/:id', projects.remove);
 // Units (nested under a project for create/list, flat for get/update/delete)
 router.get('/projects/:id/units', units.listByProject);
 router.post('/projects/:id/units', validate(CreateUnitSchema), units.create);
+router.get('/units/stats', units.stats);
 router.get('/units/:id', units.getById);
 router.patch('/units/:id', validate(UpdateUnitSchema), units.update);
 router.delete('/units/:id', units.remove);

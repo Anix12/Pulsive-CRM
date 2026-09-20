@@ -4,6 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Trophy, Megaphone, Globe } from 'lucide-react';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 export default function CampaignIntelligencePage() {
   const { data, isLoading } = useQuery({
@@ -21,47 +24,69 @@ export default function CampaignIntelligencePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Campaign Intelligence</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Campaign Intelligence</h1>
+        <p className="mt-0.5 text-sm text-gray-500">KPIs and channel performance across your campaigns.</p>
+      </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        {[
-          { label: 'Campaigns', value: kpis?.campaignCount ?? 0 },
-          { label: 'Total Leads', value: kpis?.totalLeads ?? 0 },
-          { label: 'Contact Rate', value: `${kpis?.contactRate ?? 0}%` },
-          { label: 'Conversion Rate', value: `${kpis?.conversionRate ?? 0}%` },
-          { label: 'Lost Rate', value: `${kpis?.lostRate ?? 0}%` },
-        ].map((k) => (
-          <div key={k.label} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-            <p className="text-xs text-gray-500">{k.label}</p>
-            <p className="mt-1 text-xl font-bold text-gray-900">{k.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <MetricCard index={0} label="Campaigns" value={String(kpis?.campaignCount ?? 0)} numericValue={kpis?.campaignCount ?? 0} formatValue={(n) => Math.round(n).toLocaleString()} />
+        <MetricCard index={1} label="Total Leads" value={String(kpis?.totalLeads ?? 0)} numericValue={kpis?.totalLeads ?? 0} formatValue={(n) => Math.round(n).toLocaleString()} />
+        <MetricCard index={2} label="Contact Rate" value={`${kpis?.contactRate ?? 0}%`} numericValue={kpis?.contactRate ?? 0} formatValue={(n) => `${n.toFixed(0)}%`} />
+        <MetricCard index={3} label="Conversion Rate" value={`${kpis?.conversionRate ?? 0}%`} numericValue={kpis?.conversionRate ?? 0} formatValue={(n) => `${n.toFixed(0)}%`} />
+        <MetricCard index={4} label="Lost Rate" value={`${kpis?.lostRate ?? 0}%`} numericValue={kpis?.lostRate ?? 0} formatValue={(n) => `${n.toFixed(0)}%`} valueClassName="text-red-500" />
       </div>
 
       {/* Channel breakdown */}
       <div className="grid gap-4 sm:grid-cols-2">
         {[
-          { key: 'paidAds', label: 'Paid Ads', icon: Megaphone, color: 'text-indigo-600 bg-indigo-50' },
+          { key: 'paidAds', label: 'Paid Ads', icon: Megaphone, color: 'text-blue-600 bg-blue-50' },
           { key: 'webLeads', label: 'Web Leads', icon: Globe, color: 'text-emerald-600 bg-emerald-50' },
-        ].map(({ key, label, icon: Icon, color }) => {
+        ].map(({ key, label, icon: Icon, color }, i) => {
           const ch = channels?.[key];
           return (
-            <div key={key} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              <div className="mb-3 flex items-center gap-2">
-                <div className={cn('rounded-lg p-2', color)}><Icon className="h-4 w-4" /></div>
-                <h3 className="font-semibold text-gray-900">{label}</h3>
-              </div>
+            <SectionCard
+              key={key}
+              index={i}
+              title={label}
+              icon={<div className={cn('rounded-lg p-2', color)}><Icon className="h-4 w-4" /></div>}
+            >
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><p className="text-gray-400">Leads</p><p className="font-semibold text-gray-900">{ch?.leads ?? 0}</p></div>
                 <div><p className="text-gray-400">Contacted</p><p className="font-semibold text-gray-900">{ch?.contactedPct ?? 0}%</p></div>
                 <div><p className="text-gray-400">Converted</p><p className="font-semibold text-emerald-600">{ch?.convertedPct ?? 0}%</p></div>
                 <div><p className="text-gray-400">Lost</p><p className="font-semibold text-red-500">{ch?.lostPct ?? 0}%</p></div>
               </div>
-            </div>
+            </SectionCard>
           );
         })}
       </div>
+
+      {/* Paid Ads vs Web Leads comparison */}
+      {channels && (
+        <SectionCard title="Paid Ads vs Web Leads">
+          <div className="grid gap-5 sm:grid-cols-3">
+            {[
+              { label: 'Contact Rate', key: 'contactedPct' as const },
+              { label: 'Conversion Rate', key: 'convertedPct' as const },
+              { label: 'Lost Rate', key: 'lostPct' as const },
+            ].map(({ label, key }) => (
+              <div key={key}>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+                <SimpleBarChart
+                  data={[
+                    { label: 'Paid Ads', value: channels.paidAds?.[key] ?? 0 },
+                    { label: 'Web Leads', value: channels.webLeads?.[key] ?? 0 },
+                  ]}
+                  height={140}
+                  formatValue={(n) => `${n.toFixed(0)}%`}
+                />
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
 
       {/* Best performing callout */}
       {data?.bestPerformingCampaign && (

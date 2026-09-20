@@ -71,6 +71,19 @@ export const listAgents = async (tenantId: string) => {
     _count: { _all: true },
   });
 
+  const notInterestedCounts = await prisma.call.groupBy({
+    by: ['aiAgentId'],
+    where: { tenantId, aiAgentId: { not: null }, aiSuccessEvaluation: false },
+    _count: { _all: true },
+  });
+
+  const perAgentAgg = await prisma.call.groupBy({
+    by: ['aiAgentId'],
+    where: { tenantId, aiAgentId: { not: null } },
+    _avg: { duration: true },
+    _sum: { cost: true },
+  });
+
   const connectedStatuses = new Set(['IN_PROGRESS', 'COMPLETED']);
 
   return agents.map((agent) => {
@@ -80,8 +93,12 @@ export const listAgents = async (tenantId: string) => {
       .filter((s) => connectedStatuses.has(s.status))
       .reduce((sum, s) => sum + s._count._all, 0);
     const interestedCalls = interestedCounts.find((s) => s.aiAgentId === agent.id)?._count._all ?? 0;
+    const notInterestedCalls = notInterestedCounts.find((s) => s.aiAgentId === agent.id)?._count._all ?? 0;
+    const agg = perAgentAgg.find((s) => s.aiAgentId === agent.id);
+    const avgDuration = Math.round(agg?._avg.duration || 0);
+    const totalCost = agg?._sum.cost || 0;
 
-    return { ...agent, totalCalls, connectedCalls, interestedCalls };
+    return { ...agent, totalCalls, connectedCalls, interestedCalls, notInterestedCalls, avgDuration, totalCost };
   });
 };
 
