@@ -35,6 +35,7 @@ import forecastRoutes from '@/modules/forecast/forecast.routes';
 import aiCallingRoutes from '@/modules/ai-calling/ai-calling.routes';
 import leadListsRoutes from '@/modules/lead-lists/lead-lists.routes';
 import realEstateRoutes from '@/modules/real-estate/real-estate.routes';
+import aiSalesCoachRoutes from '@/modules/ai-sales-coach/ai-sales-coach.routes';
 
 if (env.SENTRY_DSN) {
   Sentry.init({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
@@ -97,6 +98,7 @@ export const createApp = () => {
   app.use('/api/v1/ai-calling', aiCallingRoutes);
   app.use('/api/v1/lead-lists', leadListsRoutes);
   app.use('/api/v1/real-estate', realEstateRoutes);
+  app.use('/api/v1/ai-sales-coach', aiSalesCoachRoutes);
 
   // Error handling
   app.use(notFoundHandler);

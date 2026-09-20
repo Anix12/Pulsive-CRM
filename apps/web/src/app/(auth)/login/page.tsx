@@ -28,6 +28,15 @@ export default function LoginPage() {
   const onSubmit = async (data: FormData) => {
     try {
       await login(data.email, data.password);
+      const user = useAuthStore.getState().user;
+      if (user?.role === 'AGENT') {
+        const params = new URLSearchParams({
+          name: `${user.firstName} ${user.lastName}`.trim(),
+          email: user.email,
+        });
+        window.location.href = `/user-dashboard.html?${params.toString()}`;
+        return;
+      }
       router.push('/dashboard');
     } catch {
       setError('root', { message: 'Invalid email or password' });
