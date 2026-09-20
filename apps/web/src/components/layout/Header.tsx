@@ -4,7 +4,6 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, ArrowLeft } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
-import { BreakToggle } from './BreakToggle';
 import { allNavItems } from '@/lib/navSections';
 
 const pageTitles: [string, string][] = [...allNavItems]
@@ -28,7 +27,7 @@ export function Header() {
   const isHome = pathname === '/dashboard';
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white/80 px-6 backdrop-blur-xl">
+    <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white/80 px-6 backdrop-blur-xl">
       <div className="flex items-center gap-2">
         {!isHome && (
           <button
@@ -43,7 +42,6 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1">
-        <BreakToggle />
         <NotificationBell />
 
         <div className="mx-2 h-4 w-px bg-gray-200" />

@@ -17,7 +17,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as any;
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthCall = /\/(auth\/(login|register|refresh)|admin\/login)/.test(original?.url ?? '');
+    if (error.response?.status === 401 && !original._retry && !isAuthCall) {
       original._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');

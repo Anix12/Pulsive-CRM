@@ -3,16 +3,22 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { motion } from 'framer-motion';
+import { ArrowRight, Building2, User, Mail } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { IconInput, PasswordInput } from '@/components/auth/AuthInputs';
 
 const schema = z.object({
   companyName: z.string().min(2, 'Company name must be at least 2 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain uppercase, lowercase and a number'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -21,71 +27,95 @@ export default function RegisterPage() {
   const register_ = useAuthStore((s) => s.register);
   const router = useRouter();
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
-    resolver: zodResolver(schema),
-  });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
     try {
       await register_(data);
-      router.push('/onboarding');
+      router.push('/dashboard');
     } catch (err: any) {
-      setError('root', { message: err?.response?.data?.error?.message || 'Registration failed' });
+      const apiError = err?.response?.data?.error;
+      const detail = apiError?.details ? (Object.values(apiError.details).flat()[0] as string) : undefined;
+      setError('root', { message: detail || apiError?.message || 'Registration failed. Please try again.' });
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Start your free trial</h1>
-          <p className="mt-2 text-sm text-gray-600">Set up your CRM in minutes</p>
+    <AuthShell>
+      <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">Get started free</span>
+      <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-gray-900">Set up your CRM.</h2>
+      <p className="mt-1 text-sm text-gray-500">Takes a couple of minutes — no card required.</p>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+        {errors.root && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {errors.root.message}
+          </motion.div>
+        )}
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700">Company name</label>
+          <IconInput {...register('companyName')} icon={Building2} placeholder="Acme Pvt Ltd" autoFocus />
+          {errors.companyName && <p className="text-xs text-red-500">{errors.companyName.message}</p>}
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5 rounded-xl bg-white p-8 shadow-sm ring-1 ring-gray-100">
-          {errors.root && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{errors.root.message}</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700">First name</label>
+            <IconInput {...register('firstName')} icon={User} placeholder="Rahul" />
+            {errors.firstName && <p className="text-xs text-red-500">{errors.firstName.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700">Last name</label>
+            <IconInput {...register('lastName')} icon={User} placeholder="Sharma" />
+            {errors.lastName && <p className="text-xs text-red-500">{errors.lastName.message}</p>}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700">Work email</label>
+          <IconInput {...register('email')} icon={Mail} type="email" placeholder="rahul@acme.com" />
+          {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700">Password</label>
+          <PasswordInput {...register('password')} placeholder="••••••••" />
+          {errors.password ? (
+            <p className="text-xs text-red-500">{errors.password.message}</p>
+          ) : (
+            <p className="text-xs text-gray-400">8+ characters with uppercase, lowercase and a number.</p>
           )}
+        </div>
 
-          {[
-            { name: 'companyName' as const, label: 'Company Name', placeholder: 'Acme Pvt Ltd', type: 'text' },
-            { name: 'firstName' as const, label: 'First Name', placeholder: 'Rahul', type: 'text' },
-            { name: 'lastName' as const, label: 'Last Name', placeholder: 'Sharma', type: 'text' },
-            { name: 'email' as const, label: 'Work Email', placeholder: 'rahul@acme.com', type: 'email' },
-            { name: 'password' as const, label: 'Password', placeholder: '••••••••', type: 'password' },
-          ].map((field) => (
-            <div key={field.name}>
-              <label className="block text-sm font-medium text-gray-700">{field.label}</label>
-              <input
-                {...register(field.name)}
-                type={field.type}
-                placeholder={field.placeholder}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-              {errors[field.name] && (
-                <p className="mt-1 text-xs text-red-500">{errors[field.name]?.message}</p>
-              )}
-            </div>
-          ))}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          type="submit"
+          disabled={isSubmitting}
+          className="btn-gradient-brand flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? 'Creating account…' : (
+            <>
+              Create free account <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </motion.button>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Creating account...' : 'Create free account'}
-          </button>
-
-          <p className="text-center text-xs text-gray-500">
-            By signing up you agree to our Terms of Service and Privacy Policy.
-          </p>
-
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link href="/login" className="font-semibold text-indigo-600 hover:text-indigo-500">Sign in</Link>
-          </p>
-        </form>
-      </div>
-    </div>
+        <p className="text-center text-xs text-gray-400">
+          By continuing, you agree to our{' '}
+          <span className="font-medium text-blue-600">Terms</span> and{' '}
+          <span className="font-medium text-blue-600">Privacy Policy</span>.
+        </p>
+      </form>
+    </AuthShell>
   );
 }

@@ -4,7 +4,7 @@ import {
   Zap, TrendingUp, Plug, Settings, GraduationCap, FileText,
   Megaphone, Send, CheckSquare, LineChart, Brain,
   MessageCircle, Workflow, BarChart3, Wallet, Settings2,
-  Sparkles, ListChecks, PhoneCall, Package, Truck, UsersRound, Shield, Bot,
+  Sparkles, ListChecks, PhoneCall, Package, Truck, UsersRound, Shield, Bot, Smartphone,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -71,6 +71,14 @@ export const navSections: NavSection[] = [
       { href: '/dashboard/templates', label: 'Templates', icon: FileText, description: 'Reusable message templates for faster replies.' },
       { href: '/dashboard/marketing', label: 'Marketing', icon: Send, description: 'Build contact lists and marketing campaigns.' },
     ],
+  },
+  {
+    key: 'web-dialer',
+    label: 'Web Dialer',
+    icon: Smartphone,
+    href: '/dashboard/web-dialer',
+    description: 'Start calls to your contacts right from the browser.',
+    items: [],
   },
   {
     key: 'automate',

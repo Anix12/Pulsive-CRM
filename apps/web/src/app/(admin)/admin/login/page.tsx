@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Shield } from 'lucide-react';
+import Link from 'next/link';
+import { Shield, ArrowLeft } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -67,6 +68,14 @@ export default function AdminLoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        <Link
+          href="/dashboard"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-600 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-gray-800 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
       </div>
     </div>
   );

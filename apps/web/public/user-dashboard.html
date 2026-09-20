@@ -78,12 +78,21 @@ h1,h2,h3{margin:0;}
 .sb-user .meta{flex:1;overflow:hidden;}
 .sb-user .nm{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sb-user .rl{font-size:11px;color:var(--text-faint);}
-.sb-user button{border:none;background:transparent;color:var(--text-faint);cursor:pointer;padding:4px;}
-.sb-user button:hover{color:var(--danger);}
+.sb-signout{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:6px;padding:9px 11px;border:1px solid var(--border-strong);border-radius:8px;background:transparent;color:var(--text-dim);font-weight:600;font-size:13px;cursor:pointer;}
+.sb-signout:hover{background:var(--surface-sunken);color:var(--danger);border-color:var(--danger);}
 
 .main{flex:1;min-width:0;}
 .topbar{height:60px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 26px;gap:14px;}
 .topbar h2{font-size:17px;font-weight:700;}
+.topbar-right{margin-left:auto;position:relative;}
+.brk-btn{display:flex;align-items:center;gap:7px;padding:7px 13px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text-dim);font-weight:600;font-size:12.5px;cursor:pointer;}
+.brk-btn:hover{background:var(--surface-sunken);color:var(--text);}
+.brk-btn.on{background:#FEF3C7;border-color:#F59E0B;color:#B45309;}
+.brk-menu{position:absolute;right:0;top:calc(100% + 8px);width:230px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;z-index:50;}
+.brk-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 11px;border:none;background:transparent;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;text-align:left;}
+.brk-menu button:hover{background:var(--surface-sunken);}
+.brk-menu .t{color:var(--text-faint);font-weight:500;}
+.brk-menu p{margin:0;padding:9px 11px;font-size:12px;color:var(--text-faint);}
 .content{padding:26px;max-width:1180px;}
 
 /* ---------------- CARDS / STATS (matches the icon-badge card style) ---------------- */
@@ -230,6 +239,7 @@ const ICONS = {
   chart:`<path d="M4 20V11M11 20V4M18 20v-8" stroke-linecap="round"/>`,
   task:`<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round"/>`,
   phoneCall:`<path d="M4 3h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 12l5 2v4a2 2 0 0 1-2 2C9.6 20 4 14.4 4 6a2 2 0 0 1 0-3z"/>`,
+  coffee:`<path d="M4 9h12v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v2M12 3v2" stroke-linecap="round"/>`,
   logout:`<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"/>`,
   check:`<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>`,
   clock:`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/>`,
@@ -250,7 +260,7 @@ const ICONS = {
   endCall:`<path d="M4 13c4-4 12-4 16 0l-1.3 3.3a1.5 1.5 0 0 1-1.9.7l-2.3-.9a1.5 1.5 0 0 1-.95-1.5l.1-1.4a10 10 0 0 0-4.3 0l.1 1.4a1.5 1.5 0 0 1-.95 1.5l-2.3.9a1.5 1.5 0 0 1-1.9-.7z"/>`,
   cpu:`<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9 3.5v3.2M15 3.5v3.2M9 17.3v3.2M15 17.3v3.2M3.5 9h3.2M3.5 15h3.2M17.3 9h3.2M17.3 15h3.2" stroke-linecap="round"/>`,
 };
-function icon(name,size=16){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
+function icon(name,size=16){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
 const AVATAR_COLORS=["#4F46E5","#16A34A","#D97706","#DB2777","#0891B2","#DC2626"];
 function colorFor(seed){let h=0;for(const c of seed)h=(h*31+c.charCodeAt(0))>>>0;return AVATAR_COLORS[h%AVATAR_COLORS.length];}
 function initials(n){return n.split(" ").map(p=>p[0]).slice(0,2).join("").toUpperCase();}
@@ -296,6 +306,7 @@ let state={ screen:"user-dashboard", view:"home", call:null,
   user:{ name: getQueryParam("name") || "Demo User", email: getQueryParam("email") || "user@gmail.com" },
   campaignSearch:"", walkinModalOpen:false, walkinFilterOn:true, waThread:"wa1",
   wd:{ selectedLeadId:null, callState:"idle", callStatus:null, seconds:0, timeline:[], disposition:"", notes:"", followUpDate:"", followUpTime:"", timers:[], expireCountdown:0 },
+  brk:{ onBreak:false, windows:[], open:false },
   ai:{ leadId:null, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false },
 };
 
@@ -342,12 +353,17 @@ function renderUserDashboard(){
         <div class="sb-user">
           <div class="av">${initials(state.user.name)}</div>
           <div class="meta"><div class="nm">${state.user.name}</div><div class="rl">User</div></div>
-          <button onclick="logout()" title="Log out">${icon('logout',15)}</button>
         </div>
+        <button class="sb-signout" onclick="logout()">${icon('logout',16)}<span>Sign out</span></button>
       </div>
     </div>
     <div class="main">
-      <div class="topbar"><h2>${({home:"Dashboard",aicoach:"AI Coach",'ac-objection':"Objection Detection",'ac-nextaction':"Best Action — AI Recommendation",'ac-knowledge':"AI Knowledge Base",'ac-summary':"AI Call Summary",campaigns:"My Campaigns",leads:"My Leads",whatsapp:"WhatsApp",walkin:"Walk-in Leads",logs:"Call Logs",reports:"Reports",webdialer:"Web Dialer",tasks:"My Tasks"})[state.view]}</h2></div>
+      <div class="topbar"><h2>${({home:"Dashboard",aicoach:"AI Coach",'ac-objection':"Objection Detection",'ac-nextaction':"Best Action — AI Recommendation",'ac-knowledge':"AI Knowledge Base",'ac-summary':"AI Call Summary",campaigns:"My Campaigns",leads:"My Leads",whatsapp:"WhatsApp",walkin:"Walk-in Leads",logs:"Call Logs",reports:"Reports",webdialer:"Web Dialer",tasks:"My Tasks"})[state.view]}</h2>
+        <div class="topbar-right">
+          <button class="brk-btn ${state.brk.onBreak?'on':''}" onclick="event.stopPropagation();toggleBreak()">${icon('coffee',15)}<span>${state.brk.onBreak?'End Break':'Take a Break'}</span></button>
+          ${state.brk.open&&!state.brk.onBreak?`<div class="brk-menu">${state.brk.windows.length?state.brk.windows.map(w=>`<button onclick="startBreak('${String(w.name).replace(/'/g,"\'")}')">${w.name}<span class="t">${w.startTime}–${w.endTime}</span></button>`).join(''):'<p>No break windows configured yet.</p>'}</div>`:''}
+        </div>
+      </div>
       <div class="content">
         ${renderView()}
       </div>
@@ -356,6 +372,36 @@ function renderUserDashboard(){
   ${state.call?renderCallModal():''}
   `;
 }
+async function brkApi(path,method='GET',body){
+  const token=localStorage.getItem('accessToken');
+  const res=await fetch(path,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:body?JSON.stringify(body):undefined});
+  if(!res.ok) throw new Error('request failed');
+  const j=await res.json();
+  return j.data;
+}
+async function refreshBreak(){
+  try{
+    const me=await brkApi('/api/v1/presence/me');
+    const on=me&&me.status==='BREAK';
+    if(on!==state.brk.onBreak){state.brk.onBreak=on;render();}
+  }catch{}
+}
+async function toggleBreak(){
+  if(state.brk.onBreak){
+    try{await brkApi('/api/v1/presence/break/end','POST');state.brk.onBreak=false;}catch{}
+    render();return;
+  }
+  state.brk.open=!state.brk.open;
+  render();
+  if(state.brk.open){
+    try{state.brk.windows=await brkApi('/api/v1/settings/break-windows')||[];render();}catch{}
+  }
+}
+async function startBreak(label){
+  try{await brkApi('/api/v1/presence/break/start','POST',{label});state.brk.onBreak=true;}catch{}
+  state.brk.open=false;render();
+}
+document.addEventListener('click',()=>{if(state.brk&&state.brk.open){state.brk.open=false;render();}});
 function logout(){
   const token = localStorage.getItem('accessToken');
   fetch('/api/v1/auth/logout', { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} }).catch(()=>{});
@@ -1223,6 +1269,8 @@ function renderTasks(){
     // redirect passed via ?name=; only backfill email if the query param was empty.
     state.user.email = state.user.email || me.email;
     render();
+    refreshBreak();
+    setInterval(refreshBreak,30000);
   } catch {
     window.location.href = '/login';
   }
