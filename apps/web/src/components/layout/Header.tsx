@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ArrowLeft } from 'lucide-react';
+import { LogOut, ArrowLeft, Headset } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { BreakToggle } from './BreakToggle';
 import { allNavItems } from '@/lib/navSections';
@@ -12,9 +12,17 @@ const pageTitles: [string, string][] = [...allNavItems]
   .map((item) => [item.href, item.label]);
 
 export function Header() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  const handleSwitchToAgentView = () => {
+    const params = new URLSearchParams({
+      name: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+      email: user?.email ?? '',
+    });
+    window.location.href = `/user-dashboard.html?${params.toString()}`;
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -43,6 +51,15 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1">
+        {user && user.role !== 'AGENT' && (
+          <button
+            onClick={handleSwitchToAgentView}
+            className="mr-1 flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            <Headset className="h-3.5 w-3.5" />
+            Switch to Agent View
+          </button>
+        )}
         <BreakToggle />
         <NotificationBell />
 

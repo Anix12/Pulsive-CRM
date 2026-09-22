@@ -114,18 +114,20 @@ export const navSections: NavSection[] = [
       { href: '/dashboard/ai-calling/call-report', label: 'AI Call Report', icon: Sparkles, description: 'AI-generated transcripts and sentiment.', comingSoon: true },
     ],
   },
-  {
-    key: 'shipping',
-    label: 'Shipping',
-    icon: Truck,
-    href: '/dashboard/shipping',
-    description: 'Fulfillment and delivery tracking.',
-    items: [
-      { href: '/dashboard/shipping/orders', label: 'Orders', icon: Package, description: 'Track customer orders ready for fulfillment.', comingSoon: true },
-      { href: '/dashboard/shipping/shipments', label: 'Shipments', icon: Truck, description: 'Monitor shipment status and delivery updates.', comingSoon: true },
-      { href: '/dashboard/shipping/delhivery-config', label: 'Delhivery Config', icon: Settings2, description: 'Configure your Delhivery courier credentials.', comingSoon: true },
-    ],
-  },
+  // Shipping — commented out per request; the module is unfinished (all sub-items
+  // are comingSoon placeholders) and not ready to be shown in the sidebar.
+  // {
+  //   key: 'shipping',
+  //   label: 'Shipping',
+  //   icon: Truck,
+  //   href: '/dashboard/shipping',
+  //   description: 'Fulfillment and delivery tracking.',
+  //   items: [
+  //     { href: '/dashboard/shipping/orders', label: 'Orders', icon: Package, description: 'Track customer orders ready for fulfillment.', comingSoon: true },
+  //     { href: '/dashboard/shipping/shipments', label: 'Shipments', icon: Truck, description: 'Monitor shipment status and delivery updates.', comingSoon: true },
+  //     { href: '/dashboard/shipping/delhivery-config', label: 'Delhivery Config', icon: Settings2, description: 'Configure your Delhivery courier credentials.', comingSoon: true },
+  //   ],
+  // },
   {
     key: 'manage',
     label: 'Manage',

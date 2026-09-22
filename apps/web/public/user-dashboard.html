@@ -293,7 +293,7 @@ function getQueryParam(name){
 }
 
 let state={ screen:"user-dashboard", view:"home", call:null,
-  user:{ name: getQueryParam("name") || "Demo User", email: getQueryParam("email") || "user@gmail.com" },
+  user:{ name: getQueryParam("name") || "Demo User", email: getQueryParam("email") || "user@gmail.com", isAdminViewing:false },
   campaignSearch:"", walkinModalOpen:false, walkinFilterOn:true, waThread:"wa1",
   wd:{ selectedLeadId:null, callState:"idle", callStatus:null, seconds:0, timeline:[], disposition:"", notes:"", followUpDate:"", followUpTime:"", timers:[], expireCountdown:0 },
   ai: acDefaultAiState(null),
@@ -347,7 +347,10 @@ function renderUserDashboard(){
       </div>
     </div>
     <div class="main">
-      <div class="topbar"><h2>${({home:"Dashboard",aicoach:"AI Coach",'ac-objection':"Objection Detection",'ac-nextaction':"Best Action — AI Recommendation",'ac-knowledge':"AI Knowledge Base",'ac-summary':"AI Call Summary",campaigns:"My Campaigns",leads:"My Leads",whatsapp:"WhatsApp",walkin:"Walk-in Leads",logs:"Call Logs",reports:"Reports",webdialer:"Web Dialer",tasks:"My Tasks"})[state.view]}</h2></div>
+      <div class="topbar">
+        <h2>${({home:"Dashboard",aicoach:"AI Coach",'ac-objection':"Objection Detection",'ac-nextaction':"Best Action — AI Recommendation",'ac-knowledge':"AI Knowledge Base",'ac-summary':"AI Call Summary",campaigns:"My Campaigns",leads:"My Leads",whatsapp:"WhatsApp",walkin:"Walk-in Leads",logs:"Call Logs",reports:"Reports",webdialer:"Web Dialer",tasks:"My Tasks"})[state.view]}</h2>
+        ${state.user.isAdminViewing ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="window.location.href='/dashboard';">${icon('grid',13)} Switch to Admin</button>` : ''}
+      </div>
       <div class="content">
         ${renderView()}
       </div>
@@ -1289,8 +1292,11 @@ function renderTasks(){
    the rest of this app guards routes client-side too (see the
    isAuthenticated check in the (dashboard) layout), reading the JWT
    this app's login flow puts in localStorage. This does the same: no
-   valid token, or a token that isn't role AGENT (the "user" role),
-   sends the visitor to /login instead of rendering the dashboard. */
+   valid token sends the visitor to /login instead of rendering the
+   dashboard. AGENT-role users land here on login; OWNER/ADMIN/MANAGER
+   can also get here via the "Switch to Agent View" button on the admin
+   dashboard header — they see this same view under their own account
+   (own leads, own calls), with a "Switch to Admin" button to go back. */
 (async function guardAndBoot(){
   const token = localStorage.getItem('accessToken');
   if (!token) { window.location.href = '/login'; return; }
@@ -1299,11 +1305,11 @@ function renderTasks(){
     if (!res.ok) throw new Error('unauthorized');
     const body = await res.json();
     const me = body.data || body;
-    if (me.role !== 'AGENT') { window.location.href = '/dashboard'; return; }
     // /auth/me only confirms identity + role (id/tenantId/role/email) — it doesn't
     // return firstName/lastName, so the greeting name stays whatever the login
     // redirect passed via ?name=; only backfill email if the query param was empty.
     state.user.email = state.user.email || me.email;
+    state.user.isAdminViewing = me.role !== 'AGENT';
     render();
     // Load this agent's real leads for the AI Coach — falls back to the
     // placeholder leads above if the request fails (e.g. offline).
