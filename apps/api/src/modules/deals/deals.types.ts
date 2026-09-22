@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const CreateStageSchema = z.object({
   name: z.string().min(1).max(60),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  pipelineId: z.string().min(1).optional(),
 });
 
 export const UpdateStageSchema = z.object({
@@ -12,6 +13,7 @@ export const UpdateStageSchema = z.object({
 
 export const ReorderStagesSchema = z.object({
   orderedIds: z.array(z.string()).min(1),
+  pipelineId: z.string().min(1),
 });
 
 export type CreateStageInput = z.infer<typeof CreateStageSchema>;

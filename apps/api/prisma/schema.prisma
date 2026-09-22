@@ -252,7 +252,7 @@ model DealStage {
   deals            Deal[]
   callDispositions CallDisposition[]
 
-  @@unique([tenantId, order])
+  @@unique([tenantId, pipelineId, order])
   @@index([tenantId])
   @@index([tenantId, pipelineId])
 }

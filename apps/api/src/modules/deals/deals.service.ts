@@ -9,22 +9,35 @@ import { CreateDealInput, UpdateDealInput, CreateStageInput, UpdateStageInput, R
 // ── Pipelines ────────────────────────────────────────────────────────────────
 
 export const listPipelines = async (tenantId: string) => {
-  const pipelines = await prisma.pipeline.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+  const pipelines = await prisma.pipeline.findMany({
+    where: { tenantId },
+    include: { stages: { orderBy: { order: 'asc' } } },
+    orderBy: { createdAt: 'asc' },
+  });
   if (pipelines.length > 0) return pipelines;
   const created = await prisma.pipeline.create({ data: { tenantId, name: 'Sales Pipeline', isDefault: true } });
-  return [created];
+  return [{ ...created, stages: [] }];
+};
+
+const ensureDefaultPipeline = async (tenantId: string) => {
+  const existing = await prisma.pipeline.findFirst({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+  if (existing) return existing;
+  return prisma.pipeline.create({ data: { tenantId, name: 'Sales Pipeline', isDefault: true } });
 };
 
 // ── Stage management ───────────────────────────────────────────────────────────
+// Stages belong to a Pipeline; ordering (DealStage.order) is unique per
+// (tenantId, pipelineId), so each pipeline has its own independent 1..n order.
 
 export const createStage = async (tenantId: string, input: CreateStageInput) => {
+  const pipelineId = input.pipelineId ?? (await ensureDefaultPipeline(tenantId)).id;
   const last = await prisma.dealStage.findFirst({
-    where: { tenantId },
+    where: { tenantId, pipelineId },
     orderBy: { order: 'desc' },
   });
   const nextOrder = (last?.order ?? 0) + 1;
   return prisma.dealStage.create({
-    data: { tenantId, name: input.name, color: input.color ?? '#94A3B8', order: nextOrder },
+    data: { tenantId, pipelineId, name: input.name, color: input.color ?? '#94A3B8', order: nextOrder },
   });
 };
 
@@ -47,20 +60,29 @@ export const deleteStage = async (tenantId: string, id: string) => {
 };
 
 export const reorderStages = async (tenantId: string, input: ReorderStagesInput) => {
-  const stages = await prisma.dealStage.findMany({ where: { tenantId } });
+  const stages = await prisma.dealStage.findMany({ where: { tenantId, pipelineId: input.pipelineId } });
   const stageIds = new Set(stages.map((s) => s.id));
 
   for (const id of input.orderedIds) {
-    if (!stageIds.has(id)) throw new AppError(400, 'INVALID_STAGE', `Stage ${id} not found`);
+    if (!stageIds.has(id)) throw new AppError(400, 'INVALID_STAGE', `Stage ${id} not found in this pipeline`);
   }
 
-  await prisma.$transaction(
-    input.orderedIds.map((id, idx) =>
-      prisma.dealStage.update({ where: { id }, data: { order: idx + 1 } }),
-    ),
-  );
+  // Two-phase update: the target order values almost always collide with an
+  // existing row's current order mid-transaction (e.g. swapping two adjacent
+  // stages), which trips the (tenantId, pipelineId, order) unique constraint.
+  // Moving every row to a distinct negative placeholder first, then to its
+  // real order, avoids any such collision. Uses an interactive transaction
+  // so the two phases are guaranteed to run in order.
+  await prisma.$transaction(async (tx) => {
+    for (const [idx, id] of input.orderedIds.entries()) {
+      await tx.dealStage.update({ where: { id }, data: { order: -(idx + 1) } });
+    }
+    for (const [idx, id] of input.orderedIds.entries()) {
+      await tx.dealStage.update({ where: { id }, data: { order: idx + 1 } });
+    }
+  });
 
-  return prisma.dealStage.findMany({ where: { tenantId }, orderBy: { order: 'asc' } });
+  return prisma.dealStage.findMany({ where: { tenantId, pipelineId: input.pipelineId }, orderBy: { order: 'asc' } });
 };
 
 // ── Deal CRUD ──────────────────────────────────────────────────────────────────
@@ -88,8 +110,11 @@ export const list = async (tenantId: string, req: Request) => {
   return { deals, meta: paginationMeta(total, page, limit) };
 };
 
-export const getStages = async (tenantId: string) => {
-  return prisma.dealStage.findMany({ where: { tenantId }, orderBy: { order: 'asc' } });
+export const getStages = async (tenantId: string, pipelineId?: string) => {
+  return prisma.dealStage.findMany({
+    where: { tenantId, ...(pipelineId ? { pipelineId } : {}) },
+    orderBy: { order: 'asc' },
+  });
 };
 
 // ── Analytics ──────────────────────────────────────────────────────────────────

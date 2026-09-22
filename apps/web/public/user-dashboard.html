@@ -277,9 +277,13 @@ const DISPOSITIONS=["Connected — Interested","Connected — Not Interested","V
 const NOTES_REQUIRED=["Connected — Interested","Connected — Not Interested","Callback Requested"];
 
 const CAMPAIGNS=[
-  {name:"Diwali Offer Blast", assigned:0, unassigned:0, uncontacted:0, inProgress:0, closed:0},
+  {name:"Diwali Offer Blast", assigned:24, unassigned:6, uncontacted:9, inProgress:11, closed:4},
+  {name:"Website Signups — Sept", assigned:17, unassigned:2, uncontacted:5, inProgress:8, closed:4},
 ];
-let walkInLeads=[];
+let walkInLeads=[
+  {id:"w1", name:"Kunal Bhatia", phone:"+91 98220 44110", email:"kunal.b@brightcorp.in", campaign:"Diwali Offer Blast", status:"New", created:"Today, 09:40 AM"},
+  {id:"w2", name:"Simran Kaur", phone:"+91 97654 32109", email:"", campaign:"Walk-in", status:"Contacted", created:"Yesterday, 5:15 PM"},
+];
 const WA_THREADS=[
   {id:"wa1",name:"Priya Sharma",last:"Sounds great, talk soon!",msgs:[
     {from:"them",text:"Hi, got your proposal — reviewing now."},
@@ -1312,10 +1316,16 @@ function renderTasks(){
     state.user.isAdminViewing = me.role !== 'AGENT';
     render();
     // Load this agent's real leads for the AI Coach — falls back to the
-    // placeholder leads above if the request fails (e.g. offline).
+    // placeholder leads above if the request fails (e.g. offline), or if
+    // an admin/owner/manager is previewing this view via "Switch to Agent
+    // View": their own account usually has no leads assigned to it, and an
+    // all-empty preview isn't a useful demo, so keep the sample data instead.
     try {
       const myLeads = await apiGet('/api/v1/ai-sales-coach/my-leads');
-      if (Array.isArray(myLeads)) { leads = myLeads; render(); }
+      if (Array.isArray(myLeads) && (myLeads.length > 0 || !state.user.isAdminViewing)) {
+        leads = myLeads;
+        render();
+      }
     } catch { /* keep placeholder leads */ }
   } catch {
     window.location.href = '/login';

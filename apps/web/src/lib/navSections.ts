@@ -4,7 +4,7 @@ import {
   Zap, TrendingUp, Plug, Settings, GraduationCap, FileText,
   Megaphone, Send, CheckSquare, LineChart, Brain,
   MessageCircle, Workflow, BarChart3, Wallet, Settings2,
-  Sparkles, ListChecks, PhoneCall, Package, Truck, UsersRound, Shield, Bot,
+  Sparkles, ListChecks, PhoneCall, Package, Truck, UsersRound, Shield, Bot, GitBranch,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -54,7 +54,8 @@ export const navSections: NavSection[] = [
     description: 'Everything for finding and closing deals.',
     items: [
       { href: '/dashboard/contacts', label: 'Leads', icon: Users, description: 'Track and manage every lead in one place.' },
-      { href: '/dashboard/deals', label: 'Pipeline', icon: Briefcase, description: 'Visualize deals moving through your sales stages.' },
+      { href: '/dashboard/deals', label: 'Deals', icon: Briefcase, description: 'Visualize deals moving through your sales stages.' },
+      { href: '/dashboard/pipeline', label: 'Pipeline', icon: GitBranch, description: 'Manage your pipelines and the stages leads move through.' },
       { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone, description: 'Organize outreach campaigns and lead sources.' },
       { href: '/dashboard/tasks', label: 'Tasks', icon: CheckSquare, description: 'Stay on top of follow-ups and to-dos.' },
     ],

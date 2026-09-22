@@ -814,7 +814,7 @@ function PipelinesPanel() {
   return (
     <SectionCard
       title="Pipelines & Stages"
-      description={`Multiple named pipelines, each with its own set of stages. Manage stage order/colors from the Pipeline board's "Manage Stages" button.`}
+      description="Multiple named pipelines, each with its own set of stages. Manage stage order/colors from Sales → Pipeline."
       action={
         <button onClick={() => setOpen(true)} className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
           <Plus className="h-3.5 w-3.5" /> New Pipeline
