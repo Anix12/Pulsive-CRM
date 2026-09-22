@@ -5,6 +5,8 @@ import { paginationMeta } from '@/utils/response';
 import { AUDIT_ACTIONS } from '@/config/constants';
 import { Request } from 'express';
 import { parse } from 'csv-parse/sync';
+import { resolveView } from '@/modules/lead-views/lead-views.service';
+import { buildLeadFilters, stageOptions } from './contacts.filters';
 import { CreateContactInput, UpdateContactInput, CreateContactSchema } from './contacts.types';
 
 export const overview = async (tenantId: string, range: string) => {
@@ -65,8 +67,10 @@ export const overview = async (tenantId: string, range: string) => {
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { search, status, temperature, assignedToId, tag, source, campaignId, minScore } = req.query as Record<string, string>;
+  const { search, status, temperature, assignedToId, tag, source, campaignId, minScore, viewId } = req.query as Record<string, string>;
 
+  // A Lead View supplies its own filter (and sort) on top of any ad-hoc filters below.
+  const view = viewId ? await resolveView(tenantId, viewId) : null;
   const where: any = { tenantId };
   if (status) where.status = status;
   if (temperature) where.temperature = temperature;
@@ -85,21 +89,45 @@ export const list = async (tenantId: string, req: Request) => {
     ];
   }
 
+  // The View's filter and the screen's filters are ANDed, so neither can override the other.
+  const leadFilters = buildLeadFilters(req.query as Record<string, string>);
+  const finalWhere: any = view || leadFilters.length ? { AND: [...(view ? [view.where] : []), where, ...leadFilters] } : where;
+
   const { sortBy } = req.query as Record<string, string>;
-  const orderBy = sortBy === 'score' ? { score: 'desc' as const } : { createdAt: 'desc' as const };
+  const orderBy = view && !sortBy ? view.orderBy : sortBy === 'score' ? { score: 'desc' as const } : { createdAt: 'desc' as const };
 
   const [contacts, total] = await Promise.all([
     prisma.contact.findMany({
-      where,
+      where: finalWhere,
       skip,
       take: limit,
       orderBy,
       include: { assignedTo: { select: { id: true, firstName: true, lastName: true } } },
     }),
-    prisma.contact.count({ where }),
+    prisma.contact.count({ where: finalWhere }),
   ]);
 
   return { contacts, meta: paginationMeta(total, page, limit) };
+};
+
+// Values for the Stages & Tags and custom-property filters of the lead list.
+export const filterOptions = async (tenantId: string) => {
+  const sample = await prisma.contact.findMany({
+    where: { tenantId },
+    select: { tags: true, customFields: true },
+    take: 500,
+  });
+  const tags = new Set<string>();
+  const customFields = new Set<string>();
+  for (const c of sample) {
+    c.tags.forEach((t) => tags.add(t));
+    if (c.customFields && typeof c.customFields === 'object') Object.keys(c.customFields).forEach((k) => customFields.add(k));
+  }
+  return {
+    stages: stageOptions,
+    tags: [...tags].sort((a, b) => a.localeCompare(b)),
+    customFields: [...customFields].sort((a, b) => a.localeCompare(b)),
+  };
 };
 
 export const getById = async (tenantId: string, id: string) => {

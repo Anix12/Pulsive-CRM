@@ -15,6 +15,7 @@ export class TwilioCallingProvider implements CallingProvider {
       const call = await this.client.calls.create({
         to: params.to,
         from: params.from,
+        ...(params.twimlUrl ? { url: params.twimlUrl, method: 'POST' as const } : {}),
         statusCallback: params.statusCallbackUrl,
         statusCallbackMethod: 'POST',
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],

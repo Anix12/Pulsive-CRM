@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/lead-views.css">
 <style>
 :root{
   --bg:#F6F7FB; --surface:#FFFFFF; --surface-sunken:#F2F3F8; --border:#E7E8EF; --border-strong:#D8DAE5;
@@ -83,6 +84,7 @@ h1,h2,h3{margin:0;}
 
 .main{flex:1;min-width:0;}
 .topbar{height:60px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 26px;gap:14px;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
 .topbar h2{font-size:17px;font-weight:700;}
 .content{padding:26px;max-width:1180px;}
 
@@ -208,6 +210,7 @@ h1,h2,h3{margin:0;}
 </head>
 <body>
 <div id="app"></div>
+<script src="/lead-views.js"></script>
 <script>
 const ICONS = {
   bot:`<rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13.5" r="1.2"/><circle cx="14.5" cy="13.5" r="1.2"/><path d="M12 8V5M9 5h6" stroke-linecap="round"/>`,
@@ -249,6 +252,7 @@ const ICONS = {
   speaker:`<path d="M3 10v4h4l5 4V6L7 10z"/><path d="M16 9a4 4 0 0 1 0 6" stroke-linecap="round"/>`,
   endCall:`<path d="M4 13c4-4 12-4 16 0l-1.3 3.3a1.5 1.5 0 0 1-1.9.7l-2.3-.9a1.5 1.5 0 0 1-.95-1.5l.1-1.4a10 10 0 0 0-4.3 0l.1 1.4a1.5 1.5 0 0 1-.95 1.5l-2.3.9a1.5 1.5 0 0 1-1.9-.7z"/>`,
   cpu:`<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9 3.5v3.2M15 3.5v3.2M9 17.3v3.2M15 17.3v3.2M3.5 9h3.2M3.5 15h3.2M17.3 9h3.2M17.3 15h3.2" stroke-linecap="round"/>`,
+  coffee:`<path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 10.5h1.5a2.5 2.5 0 0 1 0 5H17" stroke-linecap="round"/><path d="M7 5.5c0-1 .8-1 .8-2M10.5 5.5c0-1 .8-1 .8-2" stroke-linecap="round"/>`,
 };
 function icon(name,size=16){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
 const AVATAR_COLORS=["#4F46E5","#16A34A","#D97706","#DB2777","#0891B2","#DC2626"];
@@ -295,8 +299,11 @@ function getQueryParam(name){
 let state={ screen:"user-dashboard", view:"home", call:null,
   user:{ name: getQueryParam("name") || "Demo User", email: getQueryParam("email") || "user@gmail.com", isAdminViewing:false },
   campaignSearch:"", walkinModalOpen:false, walkinFilterOn:true, waThread:"wa1",
-  wd:{ selectedLeadId:null, callState:"idle", callStatus:null, seconds:0, timeline:[], disposition:"", notes:"", followUpDate:"", followUpTime:"", timers:[], expireCountdown:0 },
+  wd:{ selectedLeadId:null, callState:"idle", callStatus:null, seconds:0, timeline:[], disposition:"", notes:"", followUpDate:"", followUpTime:"", timers:[], expireCountdown:0,
+    mode:"leads", dial:{ digits:"", callId:null, call:null, calling:false, hanging:false, error:"", timer:null } },
   ai: acDefaultAiState(null),
+  brk:{ onBreak:false, windows:[], open:false, loaded:false, starting:false, duration:15, presence:null, tickTimer:null },
+  campaignsData:{ loading:false, loaded:false, items:[], starting:null, error:"" },
 };
 
 function render(){
@@ -349,13 +356,17 @@ function renderUserDashboard(){
     <div class="main">
       <div class="topbar">
         <h2>${({home:"Dashboard",aicoach:"AI Coach",'ac-objection':"Objection Detection",'ac-nextaction':"Best Action — AI Recommendation",'ac-knowledge':"AI Knowledge Base",'ac-summary':"AI Call Summary",campaigns:"My Campaigns",leads:"My Leads",whatsapp:"WhatsApp",walkin:"Walk-in Leads",logs:"Call Logs",reports:"Reports",webdialer:"Web Dialer",tasks:"My Tasks"})[state.view]}</h2>
-        ${state.user.isAdminViewing ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="window.location.href='/dashboard';">${icon('grid',13)} Switch to Admin</button>` : ''}
+        <div class="topbar-right">
+          ${state.user.isAdminViewing ? `<button class="btn btn-primary btn-sm" onclick="window.location.href='/dashboard';">${icon('grid',13)} Switch to Admin</button>` : ''}
+          ${renderBreakButton()}
+        </div>
       </div>
       <div class="content">
         ${renderView()}
       </div>
     </div>
   </div>
+  ${LV.bar()}
   ${state.call?renderCallModal():''}
   `;
 }
@@ -394,7 +405,7 @@ function renderView(){
   if(state.view==="ac-knowledge") return renderACKnowledgePage();
   if(state.view==="ac-summary") return renderACSummaryPage();
   if(state.view==="campaigns") return renderCampaigns();
-  if(state.view==="leads") return renderLeads();
+  if(state.view==="leads") return LV.render();
   if(state.view==="whatsapp") return renderWhatsApp();
   if(state.view==="walkin") return renderWalkin();
   if(state.view==="logs") return renderLogs();
@@ -438,31 +449,57 @@ function renderLeads(){
 }
 
 /* ---------------- MY CAMPAIGNS (matches screenshot exactly) ---------------- */
+function loadRealCampaigns(){
+  if(state.campaignsData.loaded||state.campaignsData.loading) return;
+  state.campaignsData.loading=true; render();
+  // Only campaigns that actually have leads assigned to this agent - not the whole tenant's list.
+  wdApi('/campaigns?limit=100&myLeadsOnly=true').then(r=>{
+    state.campaignsData.loading=false; state.campaignsData.loaded=true;
+    state.campaignsData.items=r.ok?r.data:[]; render();
+  });
+}
+async function campaignStartCalling(id,name){
+  if(typeof LV==='undefined') return;
+  if(state.brk.onBreak){ state.campaignsData.error="You're on break - end it to start calling"; render(); return; }
+  if(LV.hasActiveSession && LV.hasActiveSession()){ LV.maximize(); return; }
+  state.campaignsData.starting=id; render();
+  // Only the leads in this campaign assigned to me - matches what "My Leads" shows.
+  const r=await wdApi('/contacts?campaignId='+encodeURIComponent(id)+'&assignedToId='+encodeURIComponent(wdCurrentUserId()||'')+'&limit=500');
+  state.campaignsData.starting=null;
+  if(!r.ok||!r.data.length){ state.campaignsData.error=r.ok?`No leads assigned to you in "${name}" yet`:r.message; render(); return; }
+  const leadIds=r.data.map(c=>c.id);
+  LV.startQueue('campaign:'+id,name,leadIds);
+}
 function renderCampaigns(){
-  const list = CAMPAIGNS.filter(c=>c.name.toLowerCase().includes(state.campaignSearch.toLowerCase()));
+  loadRealCampaigns();
+  const cd=state.campaignsData;
+  const list = cd.items.filter(c=>c.name.toLowerCase().includes(state.campaignSearch.toLowerCase()));
   return `
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
     <button class="icon-btn" onclick="state.view='home';render();">${icon('arrowLeft',15)}</button>
-    <div style="font-size:19px;font-weight:700;">Assigned Campaigns</div>
+    <div style="font-size:19px;font-weight:700;">My Campaigns</div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;padding:8px 12px;width:240px;">
       ${icon('search',14)}<input placeholder="Search Campaign" style="border:none;outline:none;background:transparent;font-size:13px;width:100%;" value="${state.campaignSearch}" oninput="state.campaignSearch=this.value;render();">
     </div>
   </div>
+  ${cd.error?`<div style="margin-bottom:14px;padding:10px 14px;background:#FFF1F2;color:#BE123C;border-radius:10px;font-size:12.5px;">${cd.error}</div>`:''}
   <div class="card">
     <table style="width:100%;border-collapse:collapse;">
       <thead><tr style="text-align:left;color:var(--text-faint);font-size:11px;text-transform:uppercase;">
-        <th style="padding:14px 16px;">No.</th><th>Campaign Name</th><th>Assigned Leads</th><th>Unassigned Leads</th><th>Uncontacted Leads</th><th>In-Progress</th><th>Closed Leads</th><th>Action</th>
+        <th style="padding:14px 16px;">No.</th><th>Campaign Name</th><th>My Leads</th><th>Status</th><th>Source</th><th>Action</th>
       </tr></thead>
       <tbody>
         ${list.length ? list.map((c,i)=>`
           <tr style="border-top:1px solid var(--border);font-size:13px;">
             <td style="padding:13px 16px;">${i+1}</td><td style="font-weight:600;">${c.name}</td>
-            <td>${c.assigned}</td><td>${c.unassigned}</td><td>${c.uncontacted}</td><td>${c.inProgress}</td><td>${c.closed}</td>
-            <td><button class="btn btn-sm">View</button></td>
+            <td><span class="pill" style="background:var(--primary-soft);color:var(--primary);">${c.myLeadCount ?? 0}</span></td>
+            <td><span class="pill pill-neutral">${c.status||'-'}</span></td><td>${c.source||'-'}</td>
+            <td><button class="btn btn-connect btn-sm" ${cd.starting===c.id||state.brk.onBreak?'disabled':''} title="${state.brk.onBreak?"You're on break":''}" onclick="campaignStartCalling('${c.id}','${String(c.name).replace(/'/g,"\\'")}')">${icon('phoneCall',12)} ${cd.starting===c.id?'Loading…':'Start calling'}</button></td>
           </tr>`).join("") : ''}
       </tbody>
     </table>
-    ${!list.length ? `<div style="text-align:center;padding:70px 20px;"><span class="pill" style="background:var(--primary-soft);color:var(--primary);padding:8px 20px;font-size:13px;">No Data Found</span></div>` : ''}
+    ${cd.loading ? `<div style="text-align:center;padding:70px 20px;color:var(--text-faint);font-size:13px;">Loading campaigns…</div>`
+      : !list.length ? `<div style="text-align:center;padding:70px 20px;"><span class="pill" style="background:var(--primary-soft);color:var(--primary);padding:8px 20px;font-size:13px;">No Data Found</span></div>` : ''}
   </div>`;
 }
 
@@ -579,8 +616,383 @@ function wdClearTimers(){ state.wd.timers.forEach(t=>clearInterval(t)); state.wd
 function wdNow(){ return new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }
 function wdLog(text){ state.wd.timeline.push({time:wdNow(),text}); }
 
-function renderWebDialer(){
+// Minimal fetch helper for the real (non-simulated) dial pad below — the lead-request
+// flow above it is a UI mock, but dial pad calls actually hit the calling API.
+function wdCurrentUserId(){
+  try{ const t=localStorage.getItem('accessToken'); return t?JSON.parse(atob(t.split('.')[1])).sub:null; }catch(e){ return null; }
+}
+async function wdApi(path,method,body){
+  const token=localStorage.getItem('accessToken');
+  try{
+    const res=await fetch('/api/v1'+path,{method:method||'GET',headers:Object.assign({'Content-Type':'application/json'},token?{Authorization:'Bearer '+token}:{}),body:body?JSON.stringify(body):undefined});
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok||j.success===false) return {ok:false,message:(j.error&&j.error.message)||'Request failed'};
+    return {ok:true,data:j.data};
+  }catch(e){ return {ok:false,message:'Network error. Check your connection.'}; }
+}
+// ── Take a Break (real presence API, shared with the main CRM app) ────────────────
+// Picking a duration + reason pauses calling and the queue until it elapses; the agent
+// can always end it early. breakStartedAt/breakDurationMinutes come from the server, so
+// the countdown survives a refresh instead of living only in this tab.
+const WD_BRK_DURATIONS=[5,10,15,30,60];
+function wdBrkClock(ms){ const t=Math.max(0,Math.ceil(ms/1000)); return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); }
+function wdBrkEndsAt(){
+  const p=state.brk.presence;
+  if(!p||p.status!=='BREAK'||!p.breakStartedAt||!p.breakDurationMinutes) return null;
+  return new Date(p.breakStartedAt).getTime()+p.breakDurationMinutes*60000;
+}
+function loadBreakData(){
+  if(state.brk.loaded) return;
+  state.brk.loaded=true;
+  wdApi('/settings/break-windows').then(r=>{ if(r.ok) state.brk.windows=r.data; render(); });
+  wdRefreshPresence();
+}
+async function wdRefreshPresence(){
+  const r=await wdApi('/presence/me');
+  if(r.ok){
+    const wasOnBreak=state.brk.onBreak;
+    state.brk.presence=r.data; state.brk.onBreak=r.data&&r.data.status==='BREAK';
+    if(state.brk.onBreak&&!state.brk.tickTimer) state.brk.tickTimer=setInterval(wdBrkTick,1000);
+    if(!state.brk.onBreak&&state.brk.tickTimer){ clearInterval(state.brk.tickTimer); state.brk.tickTimer=null; }
+    if(wasOnBreak&&!state.brk.onBreak) render(); // came back from a break (auto or elsewhere)
+  }
+}
+function wdBrkTick(){
+  const endsAt=wdBrkEndsAt();
+  if(!endsAt) return;
+  if(Date.now()>=endsAt){ endBreak(); return; }
+  const el=document.getElementById('wd-brk-clock'); if(el) el.textContent=wdBrkClock(endsAt-Date.now());
+}
+function toggleBreakMenu(){
+  if(state.brk.onBreak) return; // use "End" on the pill instead
+  state.brk.open=!state.brk.open; render();
+}
+async function startBreak(label){
+  state.brk.starting=true; render();
+  const r=await wdApi('/presence/break/start','POST',{ label, durationMinutes:state.brk.duration });
+  state.brk.starting=false;
+  if(r.ok){
+    state.brk.presence=r.data; state.brk.onBreak=true; state.brk.open=false;
+    if(state.brk.tickTimer) clearInterval(state.brk.tickTimer);
+    state.brk.tickTimer=setInterval(wdBrkTick,1000);
+    // No End Session mid-queue any more - taking a break is what steps the agent out
+    // of an active calling queue, same as the main CRM app.
+    if(typeof LV!=='undefined') LV.pauseForBreak();
+  }
+  render();
+}
+async function endBreak(){
+  state.brk.starting=true; render();
+  const r=await wdApi('/presence/break/end','POST');
+  state.brk.starting=false;
+  if(r.ok){ state.brk.presence=r.data; state.brk.onBreak=false; if(state.brk.tickTimer){ clearInterval(state.brk.tickTimer); state.brk.tickTimer=null; } }
+  render();
+}
+function renderBreakButton(){
+  loadBreakData();
+  const b=state.brk;
+  if(b.onBreak){
+    const endsAt=wdBrkEndsAt();
+    return `<button class="btn btn-connect" style="font-size:12px;padding:7px 13px;" onclick="endBreak()" ${b.starting?'disabled':''}>${icon('coffee',14)} On break${endsAt?` · <span class="mono" id="wd-brk-clock">${wdBrkClock(endsAt-Date.now())}</span>`:''} <span class="pill" style="background:rgba(255,255,255,.25);color:#fff;margin-left:4px;">End</span></button>`;
+  }
+  return `<div style="position:relative;">
+    <button class="btn" style="font-size:12px;padding:7px 13px;" onclick="event.stopPropagation();toggleBreakMenu();">${icon('coffee',14)} Take a Break</button>
+    ${b.open?`<div class="card" style="position:absolute;right:0;top:calc(100% + 6px);width:230px;padding:10px;z-index:20;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;">Duration</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+        ${WD_BRK_DURATIONS.map(d=>`<button onclick="state.brk.duration=${d};render();" style="border:0;border-radius:99px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;background:${state.brk.duration===d?'var(--primary)':'var(--surface-sunken)'};color:${state.brk.duration===d?'#fff':'var(--text-dim)'};">${d}m</button>`).join('')}
+      </div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;">Reason</div>
+      ${b.windows.length?b.windows.map(w=>`<button onclick="startBreak('${String(w.name).replace(/'/g,"\\'")}')" style="display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;font-size:12px;cursor:pointer;" onmouseover="this.style.background='var(--surface-sunken)'" onmouseout="this.style.background='none'">${w.name}<span style="color:var(--text-faint)">${state.brk.duration}m</span></button>`).join(''):`<button onclick="startBreak('Break')" style="width:100%;border:0;border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;background:var(--primary);color:#fff;">Start ${state.brk.duration}m break</button>`}
+    </div>`:''}
+  </div>`;
+}
+document.addEventListener('mousedown',(e)=>{ if(state.brk.open&&!e.target.closest('.topbar-right')){ state.brk.open=false; render(); } });
+
+const WD_TERMINAL=['COMPLETED','FAILED','BUSY','NO_ANSWER','CANCELLED'];
+function wdDialDigit(d){ if(state.wd.dial.digits.length<20) state.wd.dial.digits+=d; render(); }
+function wdDialBackspace(){ state.wd.dial.digits=state.wd.dial.digits.slice(0,-1); render(); }
+function wdDialClear(){ state.wd.dial.digits=''; render(); }
+// Polls the server for status changes every 2s; a separate 1s local-only tick (no
+// network) keeps the visible clock and the scripted transcript moving smoothly.
+function wdDialTick(){
+  const dl=state.wd.dial;
+  if(!dl.callId) return;
+  wdApi('/calls/'+dl.callId).then(r=>{
+    if(!r.ok||!state.wd.dial.callId) return;
+    const was=state.wd.dial.call&&state.wd.dial.call.status;
+    state.wd.dial.call=r.data;
+    // The direct-dial API never sets answeredAt, so "connected" duration is tracked
+    // client-side from the moment we first see IN_PROGRESS.
+    if(r.data.status==='IN_PROGRESS'&&!state.wd.dial.connectedAt) state.wd.dial.connectedAt=Date.now();
+    if(WD_TERMINAL.includes(r.data.status)) wdDialClearTimer();
+    if(r.data.status!==was) render();
+  });
+}
+function wdDialTickUI(){
+  const dl=state.wd.dial;
+  if(!dl.connectedAt) return;
+  const secs=Math.max(0,Math.floor((Date.now()-dl.connectedAt)/1000));
+  const el=document.getElementById('wd-dial-timer'); if(el) el.textContent=fmtDuration(secs);
+  const el2=document.getElementById('wd-coach-timer'); if(el2) el2.textContent=fmtDuration(secs);
+  wdCoachTick(secs);
+}
+function wdDialClearTimer(){
+  if(state.wd.dial.timer){ clearInterval(state.wd.dial.timer); state.wd.dial.timer=null; }
+  if(state.wd.dial.uiTimer){ clearInterval(state.wd.dial.uiTimer); state.wd.dial.uiTimer=null; }
+}
+async function wdDialCall(){
+  const digits=state.wd.dial.digits.trim();
+  if(digits.length<7) return;
+  if(state.brk.onBreak){ state.wd.dial.error="You're on break - end it to call."; render(); return; }
+  state.wd.dial.error=''; state.wd.dial.calling=true; render();
+  const r=await wdApi('/calls','POST',{ toNumber:digits });
+  state.wd.dial.calling=false;
+  if(!r.ok){ state.wd.dial.error=r.message; return render(); }
+  state.wd.dial.call=r.data; state.wd.dial.callId=r.data.id; state.wd.dial.connectedAt=null;
+  state.wd.coach={ contact:null, contactLoading:false, tasks:[], transcript:[], notes:'', shownStep:-1 };
+  wdDialClearTimer();
+  state.wd.dial.timer=setInterval(wdDialTick,2000);
+  state.wd.dial.uiTimer=setInterval(wdDialTickUI,1000);
+  render();
+}
+async function wdDialHangup(){
+  if(!state.wd.dial.callId) return;
+  state.wd.dial.hanging=true; render();
+  await wdApi('/calls/'+state.wd.dial.callId+'/hangup','POST');
+  state.wd.dial.hanging=false; render();
+}
+function wdDialReset(){ wdDialClearTimer(); state.wd.dial={ digits:'', callId:null, call:null, calling:false, hanging:false, error:'', timer:null, uiTimer:null, connectedAt:null }; render(); }
+function wdDialPad(){
+  const dl=state.wd.dial;
+  const call=dl.call;
+  const status=call?call.status:null;
+  const active=call&&!WD_TERMINAL.includes(status);
+  const statusText=!call?'':status==='INITIATED'?'Calling…':status==='RINGING'?'Ringing…':status==='IN_PROGRESS'?'Connected':status==='COMPLETED'?'Call ended':status==='NO_ANSWER'?'No answer':status==='BUSY'?'Busy':'Call failed';
+  const keys=['1','2','3','4','5','6','7','8','9','*','0','#'];
+  return `<div style="display:flex;flex-direction:column;align-items:center;padding:6px 0;">
+    <div class="mono" style="font-size:22px;font-weight:700;letter-spacing:1px;min-height:30px;margin-bottom:4px;">${dl.digits||'&nbsp;'}</div>
+    ${call?`<div style="font-size:12px;font-weight:600;color:${status==='IN_PROGRESS'?'var(--connected)':'var(--text-faint)'};margin-bottom:10px;">${statusText}${status==='IN_PROGRESS'?` · <span class="mono" id="wd-dial-timer">${fmtDuration(dl.connectedAt?Math.max(0,Math.floor((Date.now()-dl.connectedAt)/1000)):0)}</span>`:''}</div>`:'<div style="height:22px;margin-bottom:10px;"></div>'}
+    ${!call||!active?`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:220px;margin-bottom:14px;">
+        ${keys.map(k=>`<button onclick="wdDialDigit('${k}')" style="aspect-ratio:1;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:18px;font-weight:600;cursor:pointer;">${k}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-connect" style="width:54px;height:54px;border-radius:50%;" onclick="wdDialCall()" ${dl.calling||dl.digits.length<7||state.brk.onBreak?'disabled':''} title="${state.brk.onBreak?"You're on break":'Call'}">${icon('phoneCall',18)}</button>
+        ${dl.digits?`<button class="btn btn-sm" onclick="wdDialBackspace()">⌫</button><button class="btn btn-sm" onclick="wdDialClear()">Clear</button>`:''}
+      </div>
+      ${dl.error?`<div style="margin-top:10px;font-size:12px;color:var(--danger);text-align:center;max-width:240px;">${dl.error}</div>`:''}
+    `:`
+      <button style="width:54px;height:54px;border-radius:50%;background:var(--danger);border:none;color:#fff;cursor:pointer;" onclick="wdDialHangup()" ${dl.hanging?'disabled':''}>${icon('endCall',18)}</button>
+    `}
+    ${call&&!active?`<button class="btn btn-sm" style="margin-top:14px;" onclick="wdDialReset()">New call</button>`:''}
+  </div>`;
+}
+// ── "AI Coach in Action" — shown while a dial-pad call is actually connected ──────
+// The transcript and suggestions are scripted (timed to real elapsed seconds), same as
+// the rest of AI Sales Coach in this build - there's no live speech-to-text/LLM backend
+// wired up. Lead 360, tasks and the live timer are all real, pulled from the API.
+const WD_LIVE_SCRIPT=[
+  {at:2, who:"them", text:"Hi, I'm interested in your CRM solution. Can you tell me more about the pricing?"},
+  {at:9, who:"me", text:"Sure! Our plans start from $49 per user per month. It includes all core features and support."},
+  {at:17, who:"them", text:"That's a bit high for us. Do you have discounts for larger teams?", objection:true},
+  {at:26, who:"me", text:"I understand. We do have volume discounts and also a 14-day free trial. Would you like me to share the detailed pricing sheet?"},
+  {at:35, who:"them", text:"Yes please. Also, can you arrange a demo for my team?"},
+];
+function wdCoachSuggestions(objectionSeen){
+  if(!objectionSeen) return {
+    primary:"Customer is exploring pricing - keep it consultative.",
+    response:"Sure! Our plans start from $49 per user per month, and include all core features and support.",
+    question:"What's your team size and current CRM setup?",
+    objection:null,
+    nextAction:"Understand their current workflow before quoting a plan.",
+    followup:"If they go quiet, follow up in 2 days with a comparison sheet.",
+    confidence:78,
+  };
+  return {
+    primary:"Customer is showing strong interest. Ask for a demo booking.",
+    response:"Totally fair — a lot of teams feel that way at first. If I could show you how the plan pays for itself in time saved per rep, would that be useful to walk through?",
+    question:"Would you like to discuss the features in detail, or shall I share a case study first?",
+    objection:{issue:"Price", response:"Highlight ROI, value and the available volume discount."},
+    nextAction:"Schedule product demo. Recommended time: tomorrow 11:00 AM.",
+    followup:"Send the pricing sheet and follow up in 3 days if there's no response.",
+    confidence:92,
+  };
+}
+function wdCoachTick(secs){
+  if(!state.wd.coach) return;
+  const c=state.wd.coach;
+  let changed=false;
+  while(c.shownStep+1<WD_LIVE_SCRIPT.length && WD_LIVE_SCRIPT[c.shownStep+1].at<=secs){
+    c.shownStep++; c.transcript.push(WD_LIVE_SCRIPT[c.shownStep]); changed=true;
+  }
+  if(changed) render();
+}
+async function wdCoachLoadContact(contactId){
+  const c=state.wd.coach;
+  if(!contactId||!c||c.contactLoading||(c.contact&&c.contact.id===contactId)) return;
+  c.contactLoading=true; render();
+  const [cr,tr]=await Promise.all([wdApi('/contacts/'+contactId), wdApi('/tasks?contactId='+contactId)]);
+  state.wd.coach.contactLoading=false;
+  if(cr.ok) state.wd.coach.contact=cr.data;
+  if(tr.ok) state.wd.coach.tasks=tr.data;
+  render();
+}
+async function wdCoachAddFollowUp(){
+  const c=state.wd.coach;
+  if(!c.contact) return;
+  const due=new Date(Date.now()+86400000).toISOString();
+  const r=await wdApi('/tasks','POST',{ title:'Follow up with '+c.contact.name, description:c.notes||undefined, contactId:c.contact.id, assignedToId:wdCurrentUserId(), dueDate:due });
+  if(r.ok){ c.tasks=[r.data].concat(c.tasks); c.notes=''; render(); }
+}
+function wdCoachScoreBadge(score){
+  if(score==null) return '';
+  const hi=score>=70, mid=score>=40;
+  return `<span class="pill" style="background:${hi?'var(--connected-soft)':mid?'var(--live-soft)':'var(--surface-sunken)'};color:${hi?'var(--connected)':mid?'var(--live)':'var(--text-faint)'};">${score}</span>`;
+}
+function renderConnectedCoach(){
+  const c=state.wd.coach||(state.wd.coach={ contact:null, contactLoading:false, tasks:[], transcript:[], notes:'', shownStep:-1 });
+  const contactId=state.wd.dial.call&&state.wd.dial.call.contact&&state.wd.dial.call.contact.id;
+  if(contactId) wdCoachLoadContact(contactId);
+  const lead=c.contact;
+  const objectionSeen=c.transcript.some(t=>t.objection);
+  const s=wdCoachSuggestions(objectionSeen);
+  const secs=state.wd.dial.connectedAt?Math.max(0,Math.floor((Date.now()-state.wd.dial.connectedAt)/1000)):0;
+
   return `
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+    <span class="pill pill-connected">On Call <span class="mono" id="wd-coach-timer">${fmtDuration(secs)}</span></span>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button style="width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface);cursor:pointer;" title="Mute (UI only - the call itself is on your mobile's SIM)">${icon('mic',14)}</button>
+      <button style="width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface);cursor:pointer;" title="Hold (UI only)">${icon('pause',14)}</button>
+      <button style="width:34px;height:34px;border-radius:50%;background:var(--danger);border:none;color:#fff;cursor:pointer;" onclick="wdDialHangup()" title="End call">${icon('endCall',14)}</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:280px 1fr 300px;gap:14px;align-items:start;">
+
+    <div class="card" style="padding:16px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--text-faint);text-transform:uppercase;margin-bottom:10px;">Lead 360</div>
+      ${c.contactLoading&&!lead?`<div style="font-size:12px;color:var(--text-faint);">Loading…</div>`:!lead?`<div style="font-size:12px;color:var(--text-faint);">No lead record for this number yet.</div>`:`
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+        <div class="avatar" style="background:${colorFor(lead.name)};width:38px;height:38px;font-size:13px;">${initials(lead.name)}</div>
+        <div><div style="font-weight:700;font-size:13.5px;">${esc2(lead.name)}</div>${lead.temperature==='HOT'?'<span class="pill" style="background:var(--danger-soft);color:var(--danger);font-size:10px;">Hot Lead</span>':''}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:10px;">
+        ${lead.company?`<div>${esc2(lead.company)}</div>`:''}
+        ${lead.phone?`<div>${esc2(lead.phone)}</div>`:''}
+        ${lead.email?`<div>${esc2(lead.email)}</div>`:''}
+      </div>
+      ${(lead.tags||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">${lead.tags.map(t=>`<span class="pill pill-neutral" style="font-size:10px;">${esc2(t)}</span>`).join('')}</div>`:''}
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;background:var(--surface-sunken);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text-faint);">SCORE</div>${wdCoachScoreBadge(lead.score)}</div>
+        <div style="flex:1;background:var(--surface-sunken);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text-faint);">STATUS</div><div style="font-size:11px;font-weight:700;margin-top:2px;">${esc2(lead.status||'-')}</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-faint);border-top:1px solid var(--border);padding-top:10px;margin-bottom:8px;">OPEN TASKS</div>
+      ${c.tasks.filter(t=>t.status==='PENDING').length?c.tasks.filter(t=>t.status==='PENDING').slice(0,3).map(t=>`<div style="font-size:12px;padding:4px 0;">☐ ${esc2(t.title)}</div>`).join(''):'<div style="font-size:12px;color:var(--text-faint);">No open tasks</div>'}
+      `}
+    </div>
+
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;gap:6px;margin-bottom:12px;background:var(--surface-sunken);border-radius:10px;padding:4px;width:fit-content;">
+        <button style="border:0;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;background:#fff;box-shadow:var(--shadow);cursor:default;">Live Transcript</button>
+      </div>
+      <div style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">
+        ${c.transcript.length?c.transcript.map(t=>`<div style="display:flex;gap:8px;${t.who==='me'?'flex-direction:row-reverse;':''}">
+          <div class="avatar" style="width:22px;height:22px;font-size:9px;flex:none;background:${t.who==='me'?'var(--primary)':'var(--text-faint)'};">${t.who==='me'?'A':'C'}</div>
+          <div style="max-width:75%;font-size:12.5px;line-height:1.5;background:${t.who==='me'?'var(--primary-soft)':'var(--surface-sunken)'};border-radius:10px;padding:8px 11px;">${esc2(t.text)}</div>
+        </div>`).join(''):'<div style="font-size:12px;color:var(--text-faint);">Transcript will appear here as the call continues…</div>'}
+      </div>
+      <textarea placeholder="Add call notes…" oninput="state.wd.coach.notes=this.value" style="width:100%;min-height:54px;border:1px solid var(--border-strong);border-radius:10px;padding:9px 11px;font-size:12.5px;outline:none;resize:none;margin-bottom:10px;">${esc2(c.notes)}</textarea>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="wdCoachAddFollowUp()" ${!lead?'disabled':''}>${icon('clock',12)} Follow-up</button>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="wdCoachAddFollowUp()" ${!lead?'disabled':''}>Update CRM</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--text-faint);text-transform:uppercase;margin-bottom:12px;">${icon('bot',14)} AI Sales Coach</div>
+      <div style="background:var(--connected-soft);border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-size:10px;font-weight:700;color:var(--connected);text-transform:uppercase;margin-bottom:3px;">Primary Recommendation</div>
+        <div style="font-size:12.5px;line-height:1.5;">${esc2(s.primary)}</div>
+      </div>
+      <div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;margin-bottom:3px;">Suggested Response</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">${esc2(s.response)}</div></div>
+      <div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;margin-bottom:3px;">Next Best Question</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">${esc2(s.question)}</div></div>
+      ${s.objection?`<div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;margin-bottom:3px;">Objection Handling</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">Objection: ${esc2(s.objection.issue)}. Response: ${esc2(s.objection.response)}</div></div>`:''}
+      <div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;margin-bottom:3px;">Next Best Action</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">${esc2(s.nextAction)}</div></div>
+      <div style="margin-bottom:14px;"><div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;margin-bottom:3px;">Follow-up Recommendation</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">${esc2(s.followup)}</div></div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;"><span style="font-weight:700;">AI Confidence</span><span style="color:var(--text-faint);">${s.confidence}%</span></div>
+        <div style="height:6px;border-radius:99px;background:var(--surface-sunken);overflow:hidden;"><div style="height:100%;width:${s.confidence}%;background:var(--connected);"></div></div>
+      </div>
+    </div>
+  </div>`;
+}
+const WD_COACH_FEATURES=[
+  {t:"Live Guidance",d:"Real-time prompts as the conversation happens."},
+  {t:"Objection Handling",d:"Detects price/competitor pushback and suggests a response, with a confidence score."},
+  {t:"Suggested Closing",d:"Flags the right moment to ask for a next step."},
+  {t:"Follow-up Recommendation",d:"Tells you when to schedule a follow-up instead of pushing further."},
+  {t:"Knowledge Base",d:"Ask about pricing, features, security or demos — answered from approved content."},
+  {t:"AI Confidence Scores",d:"Every suggestion shows how confident the AI is, so you can judge when to deviate."},
+];
+// Canned, deterministic answers - there's no live knowledge-base/LLM backend wired up yet,
+// so this mirrors the rest of the AI Sales Coach section (also a scripted demo).
+const WD_KB_ANSWERS=[
+  { m:/price|pricing|cost|plan/i, a:"Premium plan is ₹4,999/agent/month, billed annually. It includes unlimited AI calling minutes, live coaching, and priority support. A 14-day free trial is available, no card required." },
+  { m:/secure|security|compliant|gdpr/i, a:"Data is encrypted in transit (TLS 1.2+) and at rest (AES-256). We're SOC 2 Type II in progress and support role-based access control and audit logs on all plans." },
+  { m:/demo|trial/i, a:"You can start a 14-day free trial from Settings → Billing, no card needed, or I can help you book a live demo with our team." },
+  { m:/feature|include/i, a:"Premium includes: AI-assisted calling, live coach prompts, WhatsApp + SMS automation, campaign builder, and unlimited custom lead views." },
+];
+function wdAskKB(){
+  const box=document.getElementById('wd-kb-input');
+  const q=(box?box.value:state.wd.kbQuestion||'').trim();
+  if(!q) return;
+  state.wd.kbHistory=(state.wd.kbHistory||[]).concat([{q, a:(WD_KB_ANSWERS.find(x=>x.m.test(q))||{a:"I don't have approved content on that yet — try asking about pricing, features, security or demos."}).a}]);
+  state.wd.kbQuestion=''; render();
+}
+function renderAICoachTab(){
+  const active=state.wd.dial&&state.wd.dial.call&&!WD_TERMINAL.includes(state.wd.dial.call.status);
+  return `
+  <div class="card" style="padding:32px;text-align:center;margin-bottom:18px;">
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">AI Sales Coach</div>
+    <div style="font-size:13px;color:var(--text-dim);max-width:520px;margin:0 auto 18px;line-height:1.6;">
+      ${active?'Live guidance is active for your current call — check back here as the conversation continues.':'Live guidance activates automatically once a call connects. In the meantime, browse what it does below or ask the Knowledge Base something.'}
+    </div>
+    ${!active?`<button class="btn btn-primary" onclick="state.wd.mode='dialpad';render();">Start a call from Dial</button>`:''}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;">
+    ${WD_COACH_FEATURES.map(f=>`<div class="card" style="padding:18px;">
+      <div style="width:34px;height:34px;border-radius:9px;background:var(--primary-soft);margin-bottom:12px;"></div>
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">${f.t}</div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">${f.d}</div>
+    </div>`).join('')}
+  </div>
+  <div class="card" style="padding:20px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--text-faint);text-transform:uppercase;margin-bottom:10px;">Knowledge Base — Ask AI <span style="font-weight:400;text-transform:none;">(works anytime, no call needed)</span></div>
+    ${(state.wd.kbHistory||[]).map(h=>`<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:600;margin-bottom:4px;">${esc2(h.q)}</div><div style="font-size:12.5px;color:var(--text-dim);background:var(--surface-sunken);border-radius:10px;padding:10px 12px;line-height:1.55;">${esc2(h.a)}</div></div>`).join('')}
+    <div style="display:flex;gap:10px;align-items:center;">
+      <input id="wd-kb-input" placeholder="Ask about pricing, features, demo, security…" value="${esc2(state.wd.kbQuestion||'')}" oninput="state.wd.kbQuestion=this.value;" onkeydown="if(event.key==='Enter')wdAskKB();" style="flex:1;border:1px solid var(--border-strong);border-radius:12px;padding:11px 14px;font-size:13px;outline:none;">
+      <button onclick="wdAskKB()" style="width:38px;height:38px;border-radius:50%;background:var(--primary);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">${icon('send',15)}</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-faint);margin-top:8px;">Try "what's included in the Premium plan" or "is it secure".</div>
+  </div>`;
+}
+function esc2(v){ return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function renderWebDialer(){
+  const tabs=[['leads','Call a lead'],['dialpad','Dial pad'],['aicoach','AI Coach']];
+  return `
+  <div style="display:flex;gap:6px;margin-bottom:16px;background:var(--surface-sunken);border-radius:10px;padding:4px;width:fit-content;">
+    ${tabs.map(t=>`<button onclick="state.wd.mode='${t[0]}';render();" style="border:0;border-radius:8px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;background:${state.wd.mode===t[0]?'#fff':'transparent'};color:${state.wd.mode===t[0]?'var(--primary)':'var(--text-faint)'};box-shadow:${state.wd.mode===t[0]?'var(--shadow)':'none'};">${t[1]}</button>`).join('')}
+  </div>
+  ${state.wd.mode==='dialpad' && state.wd.dial.call && state.wd.dial.call.status==='IN_PROGRESS' ? renderConnectedCoach() : state.wd.mode==='dialpad' ? `
+  <div style="font-size:12px;color:var(--text-faint);margin-bottom:16px;">Dial any number, even one that's not in your leads yet — it's saved as a new lead the first time you call it.</div>
+  <div class="card" style="padding:20px;max-width:320px;">${wdDialPad()}</div>
+  ` : state.wd.mode==='aicoach' ? renderAICoachTab() : `
   <div style="font-size:12px;color:var(--text-faint);margin-bottom:16px;">The laptop only sends a call request — your registered mobile places the actual call over its own SIM. No masking, no modem.</div>
   <div style="display:grid;grid-template-columns:1fr 280px;gap:18px;align-items:start;">
     <div>
@@ -597,14 +1009,14 @@ function renderWebDialer(){
       <div style="font-size:11px;color:var(--text-faint);margin-bottom:8px;">Agent's registered mobile</div>
       ${wdPhone()}
     </div>
-  </div>`;
+  </div>`}`;
 }
 function wdLeadPicker(){
   return leads.slice(0,5).map(l=>`
     <div class="lead-row" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;padding:10px;">
       <div class="avatar" style="background:${colorFor(l.name)};width:32px;height:32px;font-size:11px;">${initials(l.name)}</div>
       <div class="lead-meta"><div class="lead-name">${l.name}</div><div class="lead-sub">${l.company} · ${l.phone}</div></div>
-      <button class="btn btn-connect btn-sm" onclick="wdInitiate('${l.id}')">${icon('phoneCall',12)} Call</button>
+      <button class="btn btn-connect btn-sm" ${state.brk.onBreak?'disabled':''} title="${state.brk.onBreak?"You're on break":''}" onclick="wdInitiate('${l.id}')">${icon('phoneCall',12)} Call</button>
     </div>`).join("");
 }
 function wdActiveRequest(){
@@ -684,6 +1096,7 @@ function wdPhone(){
   </div>`;
 }
 function wdInitiate(id){
+  if(state.brk.onBreak) return;
   wdClearTimers();
   state.wd={...state.wd,selectedLeadId:id,callState:"CALL_REQUESTED",callStatus:null,seconds:0,timeline:[],disposition:"",notes:"",timers:[],expireCountdown:0};
   wdLog("Outbound call requested"); render();
@@ -1317,6 +1730,10 @@ function renderTasks(){
       const myLeads = await apiGet('/api/v1/ai-sales-coach/my-leads');
       if (Array.isArray(myLeads)) { leads = myLeads; render(); }
     } catch { /* keep placeholder leads */ }
+    // Keeps break status (and its calling/queue block) current everywhere, even on
+    // tabs/screens that never opened the Take a Break menu themselves.
+    wdRefreshPresence();
+    setInterval(wdRefreshPresence, 15000);
   } catch {
     window.location.href = '/login';
   }

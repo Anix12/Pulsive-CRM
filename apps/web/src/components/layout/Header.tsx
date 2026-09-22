@@ -36,7 +36,7 @@ export function Header() {
   const isHome = pathname === '/dashboard';
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white/80 px-6 backdrop-blur-xl">
+    <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white/80 px-6 backdrop-blur-xl">
       <div className="flex items-center gap-2">
         {!isHome && (
           <button

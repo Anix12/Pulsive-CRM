@@ -9,6 +9,10 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   } catch (err) { next(err); }
 };
 
+export const filterOptions = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await service.filterOptions(req.tenantId!)); } catch (err) { next(err); }
+};
+
 export const overview = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const range = (req.query.range as string) || 'all';

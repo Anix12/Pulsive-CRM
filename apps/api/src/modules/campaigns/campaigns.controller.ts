@@ -61,6 +61,18 @@ export const togglePin = async (req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 };
 
+export const assignLeads = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.assignLeads(req.tenantId!, req.user!.id, req.params.id, req.body));
+  } catch (err) { next(err); }
+};
+
+export const assignmentStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await service.assignmentStatus(req.tenantId!, req.params.id));
+  } catch (err) { next(err); }
+};
+
 export const importCsv = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {

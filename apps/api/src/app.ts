@@ -34,6 +34,8 @@ import marketingRoutes from '@/modules/marketing/marketing.routes';
 import forecastRoutes from '@/modules/forecast/forecast.routes';
 import aiCallingRoutes from '@/modules/ai-calling/ai-calling.routes';
 import leadListsRoutes from '@/modules/lead-lists/lead-lists.routes';
+import leadViewsRoutes from '@/modules/lead-views/lead-views.routes';
+import engagementFormsRoutes from '@/modules/engagement-forms/engagement-forms.routes';
 import aiSalesCoachRoutes from '@/modules/ai-sales-coach/ai-sales-coach.routes';
 
 if (env.SENTRY_DSN) {
@@ -96,6 +98,8 @@ export const createApp = () => {
   app.use('/api/v1/forecast', forecastRoutes);
   app.use('/api/v1/ai-calling', aiCallingRoutes);
   app.use('/api/v1/lead-lists', leadListsRoutes);
+  app.use('/api/v1/lead-views', leadViewsRoutes);
+  app.use('/api/v1/engagement-forms', engagementFormsRoutes);
   app.use('/api/v1/ai-sales-coach', aiSalesCoachRoutes);
 
   // Error handling

@@ -38,8 +38,12 @@ export default function LoginPage() {
         return;
       }
       router.push('/dashboard');
-    } catch {
-      setError('root', { message: 'Invalid email or password' });
+    } catch (err: any) {
+      // Show the server's real reason (rate limited, network error, etc.) instead of
+      // always blaming the credentials - that hid genuine failures from the user.
+      const apiMessage = err?.response?.data?.error?.message;
+      const message = apiMessage || (err?.request && !err?.response ? 'Could not reach the server. Check your connection and try again.' : 'Invalid email or password');
+      setError('root', { message });
     }
   };
 

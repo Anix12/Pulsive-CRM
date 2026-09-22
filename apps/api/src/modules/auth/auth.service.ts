@@ -61,8 +61,13 @@ export const register = async (input: RegisterInput) => {
 };
 
 export const login = async (input: LoginInput) => {
+  // The seed script has been run more than once against this database, so a handful of
+  // demo emails (e.g. owner@demo.com) exist in more than one tenant. findFirst with no
+  // orderBy is not guaranteed stable across requests/restarts - pin it to the oldest
+  // matching account so login always resolves to the same tenant.
   const user = await prisma.user.findFirst({
     where: { email: input.email.toLowerCase(), status: 'ACTIVE' },
+    orderBy: { createdAt: 'asc' },
     include: { tenant: { select: { status: true } } },
   });
 

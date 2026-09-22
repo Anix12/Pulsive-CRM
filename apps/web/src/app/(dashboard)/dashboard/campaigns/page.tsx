@@ -18,6 +18,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn, categoryColor } from '@/lib/utils';
 import { PILL_SPRING, cardMountProps } from '@/lib/motion';
+import { useCallSession } from '@/store/callSession.store';
+import { usePresence } from '@/lib/presence';
 
 const STATUS_OPTIONS = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;
 type CampaignStatus = typeof STATUS_OPTIONS[number];
@@ -456,6 +458,32 @@ export default function CampaignsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['campaigns'] }),
   });
 
+  const session = useCallSession();
+  const { data: presence } = usePresence();
+  const onBreak = presence?.status === 'BREAK';
+  const [startingCampaignId, setStartingCampaignId] = useState<string | null>(null);
+  const [campaignErr, setCampaignErr] = useState('');
+
+  // Queues every lead currently in this campaign, then drops the agent into the same
+  // manual-dial, dispose-driven session Lead Views uses - just scoped to this campaign.
+  const startCalling = async (c: any) => {
+    setCampaignErr('');
+    if (onBreak) return setCampaignErr("You're on break - end it to start calling");
+    if (session.active) { session.maximize(); return router.push('/dashboard/contacts/session'); }
+    setStartingCampaignId(c.id);
+    try {
+      const { data } = await api.get('/api/v1/contacts', { params: { campaignId: c.id, limit: 500 } });
+      const leadIds = (data.data as any[]).map((lead) => lead.id);
+      if (!leadIds.length) { setCampaignErr(`No leads in "${c.name}" yet`); return; }
+      session.start({ viewId: `campaign:${c.id}`, viewName: c.name, queue: leadIds });
+      router.push('/dashboard/contacts/session');
+    } catch {
+      setCampaignErr('Could not start calling');
+    } finally {
+      setStartingCampaignId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -481,6 +509,8 @@ export default function CampaignsPage() {
           </button>
         </div>
       </div>
+
+      {campaignErr && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{campaignErr}</p>}
 
       {/* Search + status tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -609,7 +639,16 @@ export default function CampaignsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center gap-2 border-t border-gray-50 pt-3">
+                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-50 pt-3">
+                      <button
+                        onClick={() => startCalling(c)}
+                        disabled={startingCampaignId === c.id || onBreak}
+                        title={onBreak ? "You're on break" : undefined}
+                        className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60"
+                      >
+                        <PhoneCall className="h-3 w-3" />
+                        {startingCampaignId === c.id ? 'Loading…' : 'Start calling'}
+                      </button>
                       <button
                         onClick={() => router.push(`/dashboard/calls?campaignId=${c.id}`)}
                         className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"

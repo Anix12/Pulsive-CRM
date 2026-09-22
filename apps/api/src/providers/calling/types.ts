@@ -3,6 +3,8 @@ export interface InitiateCallParams {
   from: string;
   statusCallbackUrl: string;
   recordingEnabled?: boolean;
+  // When set, `to` is dialled first and this TwiML URL then bridges the answered leg to the lead.
+  twimlUrl?: string;
 }
 
 export interface CallResult {

@@ -8,16 +8,28 @@ import { Request } from 'express';
 import { parse } from 'csv-parse/sync';
 import crypto from 'crypto';
 import { CreateContactSchema } from '@/modules/contacts/contacts.types';
-import { CreateCampaignInput, UpdateCampaignInput } from './campaigns.types';
+import { CreateCampaignInput, UpdateCampaignInput, AssignCampaignLeadsInput } from './campaigns.types';
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { search, status, category } = req.query as Record<string, string>;
+  const { search, status, category, myLeadsOnly } = req.query as Record<string, string>;
 
   const where: any = { tenantId };
   if (status) where.status = status;
   if (category) where.category = category;
   if (search) where.name = { contains: search, mode: 'insensitive' };
+
+  // Agent dashboard: only the campaigns that actually have leads assigned to me, so an
+  // agent isn't shown the whole tenant's campaign list.
+  if (myLeadsOnly === 'true' && req.user?.id) {
+    const mine = await prisma.contact.findMany({
+      where: { tenantId, campaignId: { not: null }, assignedToId: req.user.id },
+      select: { campaignId: true },
+      distinct: ['campaignId'],
+    });
+    const ids = mine.map((c) => c.campaignId!);
+    where.id = { in: ids.length ? ids : ['__none__'] };
+  }
 
   const [campaigns, total] = await Promise.all([
     prisma.campaign.findMany({
@@ -31,6 +43,10 @@ export const list = async (tenantId: string, req: Request) => {
   ]);
 
   const campaignIds = campaigns.map((c) => c.id);
+  const myCounts = myLeadsOnly === 'true' && req.user?.id && campaignIds.length
+    ? await prisma.contact.groupBy({ by: ['campaignId'], where: { tenantId, campaignId: { in: campaignIds }, assignedToId: req.user.id }, _count: { _all: true } })
+    : [];
+  const myCountByCampaign = new Map(myCounts.map((c) => [c.campaignId, c._count._all]));
   const contacts = campaignIds.length
     ? await prisma.contact.findMany({
         where: { tenantId, campaignId: { in: campaignIds } },
@@ -72,6 +88,7 @@ export const list = async (tenantId: string, req: Request) => {
         conversionPct: c._count.contacts > 0 ? Math.round((stat.converted / c._count.contacts) * 100) : 0,
       },
       assignees: Array.from(stat.assignees.values()).slice(0, 4),
+      myLeadCount: myCountByCampaign.get(c.id) ?? 0,
     };
   });
 
@@ -353,4 +370,74 @@ export const campaignIntelligence = async (tenantId: string) => {
     rankings: rankings.sort((a, b) => b.leads - a.leads),
     bestPerformingCampaign: best,
   };
+};
+
+// ─── Lead assignment ────────────────────────────────────────────────────────────
+
+// Bulk-assigns this campaign's leads to one agent - either the whole campaign or just
+// the given subset - so an admin can hand a campaign (or part of it) to an agent in
+// one action instead of editing each lead.
+export const assignLeads = async (tenantId: string, userId: string, campaignId: string, input: AssignCampaignLeadsInput) => {
+  const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, tenantId } });
+  if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campaign not found');
+
+  const agent = await prisma.user.findFirst({ where: { id: input.agentId, tenantId, status: 'ACTIVE' } });
+  if (!agent) throw new AppError(404, 'NOT_FOUND', 'Agent not found');
+
+  const where: any = { tenantId, campaignId };
+  if (input.contactIds?.length) where.id = { in: input.contactIds };
+
+  const result = await prisma.contact.updateMany({ where, data: { assignedToId: input.agentId } });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId,
+      userId,
+      action: AUDIT_ACTIONS.UPDATE,
+      resource: 'campaigns',
+      resourceId: campaignId,
+      after: { assignedTo: input.agentId, leadCount: result.count } as any,
+    },
+  });
+
+  return { assigned: result.count, agent: { id: agent.id, firstName: agent.firstName, lastName: agent.lastName } };
+};
+
+// Per-agent breakdown for this campaign - what an admin needs to see "status of
+// campaigns" by agent: how many leads each agent has, and where those leads stand.
+export const assignmentStatus = async (tenantId: string, campaignId: string) => {
+  const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, tenantId } });
+  if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campaign not found');
+
+  const contacts = await prisma.contact.findMany({
+    where: { tenantId, campaignId },
+    select: {
+      status: true,
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
+      calls: { select: { id: true }, take: 1 },
+      tasks: { where: { status: 'PENDING' }, select: { id: true }, take: 1 },
+    },
+  });
+
+  type Row = { agentId: string | null; agentName: string; total: number; uncontacted: number; inProgress: number; followUp: number; notConnected: number; converted: number };
+  const rows = new Map<string, Row>();
+
+  for (const c of contacts) {
+    const key = c.assignedTo?.id ?? 'unassigned';
+    if (!rows.has(key)) {
+      rows.set(key, {
+        agentId: c.assignedTo?.id ?? null,
+        agentName: c.assignedTo ? `${c.assignedTo.firstName} ${c.assignedTo.lastName}`.trim() : 'Unassigned',
+        total: 0, uncontacted: 0, inProgress: 0, followUp: 0, notConnected: 0, converted: 0,
+      });
+    }
+    const row = rows.get(key)!;
+    row.total += 1;
+    if (c.status === 'CUSTOMER') row.converted += 1;
+    if (c.calls.length === 0) row.uncontacted += 1;
+    else if (c.tasks.length > 0) row.followUp += 1;
+    else if (['LEAD', 'PROSPECT'].includes(c.status)) row.inProgress += 1;
+  }
+
+  return Array.from(rows.values()).sort((a, b) => b.total - a.total);
 };

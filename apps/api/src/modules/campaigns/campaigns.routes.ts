@@ -4,7 +4,7 @@ import * as controller from './campaigns.controller';
 import { validate } from '@/middleware/validate';
 import { authenticate } from '@/middleware/auth';
 import { requireActiveTenant } from '@/middleware/tenant';
-import { CreateCampaignSchema, UpdateCampaignSchema } from './campaigns.types';
+import { CreateCampaignSchema, UpdateCampaignSchema, AssignCampaignLeadsSchema } from './campaigns.types';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -25,7 +25,9 @@ router.get('/', controller.list);
 router.get('/intelligence', controller.intelligence);
 router.get('/categories', controller.categories);
 router.get('/:id', controller.getById);
+router.get('/:id/assignment-status', controller.assignmentStatus);
 router.post('/', validate(CreateCampaignSchema), controller.create);
+router.post('/:id/assign', validate(AssignCampaignLeadsSchema), controller.assignLeads);
 router.post('/:id/import', upload.single('file'), controller.importCsv);
 router.post('/:id/pin', controller.togglePin);
 router.post('/:id/webhook-token', controller.generateWebhookToken);
