@@ -49,6 +49,46 @@ export const list = async (tenantId: string, req: Request) => {
   return { tasks, meta: paginationMeta(total, page, limit) };
 };
 
+export const stats = async (tenantId: string) => {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(startOfToday.getTime() + 86_400_000);
+
+  const [total, completed, overdue, dueTodayUpcoming, upcoming, byAssigneeRaw, users] = await Promise.all([
+    prisma.task.count({ where: { tenantId } }),
+    prisma.task.count({ where: { tenantId, status: 'COMPLETED' } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { lt: now } } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { gte: now, lt: endOfToday } } }),
+    prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { gte: endOfToday } } }),
+    prisma.task.groupBy({ by: ['assignedToId'], where: { tenantId }, _count: { _all: true } }),
+    prisma.user.findMany({ where: { tenantId }, select: { id: true, firstName: true, lastName: true } }),
+  ]);
+
+  const byAssignee = byAssigneeRaw
+    .map((row) => {
+      const user = users.find((u) => u.id === row.assignedToId);
+      return { assignedToId: row.assignedToId, name: user ? `${user.firstName} ${user.lastName ?? ''}`.trim() : 'Unknown', count: row._count._all };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  // Completed-over-time: trailing 14 days, bucketed by the real `completedAt` timestamp
+  // recorded when each task was marked done — a genuine historical event, not a due-date.
+  const fourteenDaysAgo = new Date(startOfToday.getTime() - 13 * 86_400_000);
+  const recentlyCompleted = await prisma.task.findMany({
+    where: { tenantId, status: 'COMPLETED', completedAt: { gte: fourteenDaysAgo } },
+    select: { completedAt: true },
+  });
+  const completedOverTime = Array.from({ length: 14 }).map((_, i) => {
+    const d = new Date(fourteenDaysAgo);
+    d.setDate(d.getDate() + i);
+    const dayKey = d.toDateString();
+    const count = recentlyCompleted.filter((t) => t.completedAt && t.completedAt.toDateString() === dayKey).length;
+    return { date: d.toISOString().slice(0, 10), label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), count };
+  });
+
+  return { total, completed, overdue, dueToday: dueTodayUpcoming, upcoming, byAssignee, completedOverTime };
+};
+
 export const getById = async (tenantId: string, id: string) => {
   const task = await prisma.task.findFirst({
     where: { id, tenantId },

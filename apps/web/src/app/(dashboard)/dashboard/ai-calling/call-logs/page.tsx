@@ -7,6 +7,10 @@ import api from '@/lib/api';
 import { formatDuration } from '@/lib/utils';
 import { ChevronRight, ChevronDown, Download, Bot } from 'lucide-react';
 import { format } from 'date-fns';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 const statusColors: Record<string, string> = {
   COMPLETED: 'bg-green-50 text-green-700',
@@ -102,7 +106,7 @@ export default function AiCallingCallReportPage() {
         <Link href="/dashboard/ai-calling/analytics" className="px-3 pb-2 text-sm font-medium text-gray-500 hover:text-gray-700">Analytics</Link>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4">
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">From</label>
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="mt-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none" />
@@ -144,22 +148,62 @@ export default function AiCallingCallReportPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          { label: 'Total calls', value: stats?.totalCalls ?? 0, color: 'text-gray-900' },
-          { label: 'Connected', value: stats?.connected ?? 0, color: 'text-gray-900' },
-          { label: 'Interested', value: stats?.interested ?? 0, color: 'text-green-600' },
-          { label: 'Not interested', value: stats?.notInterested ?? 0, color: 'text-red-600' },
-          { label: 'Avg duration', value: formatDuration(stats?.avgDuration ?? 0), color: 'text-gray-900' },
-          { label: 'Total cost', value: `₹${(stats?.totalCost ?? 0).toFixed(2)}`, color: 'text-amber-600' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-            <p className="text-xs text-gray-500">{s.label}</p>
-            <p className={`mt-1 text-xl font-bold ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
+        <MetricCard index={0} label="Total Calls" value={String(stats?.totalCalls ?? 0)} numericValue={stats?.totalCalls ?? 0} formatValue={(n) => Math.round(n).toLocaleString()} />
+        <MetricCard index={1} label="Connected" value={String(stats?.connected ?? 0)} numericValue={stats?.connected ?? 0} formatValue={(n) => Math.round(n).toLocaleString()} />
+        <MetricCard index={2} label="Interested" value={String(stats?.interested ?? 0)} numericValue={stats?.interested ?? 0} formatValue={(n) => Math.round(n).toLocaleString()} valueClassName="text-emerald-600" />
+        <MetricCard index={3} label="Not Interested" value={String(stats?.notInterested ?? 0)} numericValue={stats?.notInterested ?? 0} formatValue={(n) => Math.round(n).toLocaleString()} valueClassName="text-red-600" />
+        <MetricCard index={4} label="Avg Duration" value={formatDuration(stats?.avgDuration ?? 0)} />
+        <MetricCard index={5} label="Total Cost" value={`₹${(stats?.totalCost ?? 0).toFixed(2)}`} numericValue={stats?.totalCost ?? 0} formatValue={(n) => `₹${n.toFixed(2)}`} valueClassName="text-amber-600" />
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
+      {stats && stats.totalCalls > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Call Volume</p>
+          <LineChart
+            data={stats.volumeOverTime}
+            xKey="date"
+            series={[{ key: 'count', label: 'Calls', color: '#4f46e5' }]}
+            variant="area"
+            height={170}
+            formatXLabel={(v) => stats.volumeOverTime.find((d: any) => d.date === v)?.label ?? String(v)}
+            formatValue={(v) => `${Math.round(v)} call${Math.round(v) === 1 ? '' : 's'}`}
+            ariaLabel="AI call volume over time"
+          />
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Call Outcomes</p>
+              {(() => {
+                const outcomeSegments = [
+                  { label: 'Interested', count: stats.interested, color: '#34d399' },
+                  { label: 'Not Interested', count: stats.notInterested, color: '#f87171' },
+                  { label: 'Unknown', count: stats.unknownOutcome, color: '#9ca3af' },
+                ].filter((d) => d.count > 0);
+                return (
+                  <DonutChart
+                    data={outcomeSegments}
+                    nameKey="label"
+                    valueKey="count"
+                    colors={outcomeSegments.map((s) => s.color)}
+                    height={150}
+                    ariaLabel="AI calls grouped by outcome"
+                  />
+                );
+              })()}
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Duration Distribution</p>
+              <SimpleBarChart
+                data={stats.durationDistribution.map((d: any) => ({ label: d.bucket, value: d.count }))}
+                height={150}
+                formatValue={(n) => `${n} call${n === 1 ? '' : 's'}`}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {isLoading ? (
           <div className="flex h-48 items-center justify-center text-gray-500">Loading...</div>
         ) : !rows.length ? (

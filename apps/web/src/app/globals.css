@@ -164,6 +164,12 @@ html:has(.pulsive-landing) {
     width: 6px;
     height: 6px;
   }
+  /* Custom branded cursor is active — hide the system cursor everywhere, including
+     over links/buttons that set cursor:pointer, so no hand cursor shows alongside it. */
+  html.custom-cursor-active,
+  html.custom-cursor-active * {
+    cursor: none !important;
+  }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
@@ -203,18 +209,18 @@ html:has(.pulsive-landing) {
   }
 
   .text-gradient-brand {
-    background-image: linear-gradient(120deg, #22d3ee 0%, #3b82f6 55%, #2563eb 100%);
+    background-image: linear-gradient(120deg, #6366f1 0%, #8b5cf6 55%, #9333ea 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   .btn-gradient-brand {
-    background-image: linear-gradient(120deg, #3b82f6 0%, #2563eb 100%);
-    box-shadow: 0 8px 24px -8px rgba(59, 130, 246, 0.45);
+    background-image: linear-gradient(120deg, #6366f1 0%, #9333ea 100%);
+    box-shadow: 0 8px 24px -8px rgba(129, 74, 246, 0.45);
   }
   .btn-gradient-brand:hover {
-    box-shadow: 0 10px 30px -8px rgba(59, 130, 246, 0.6);
+    box-shadow: 0 10px 30px -8px rgba(129, 74, 246, 0.6);
   }
 
   .glow-dot {

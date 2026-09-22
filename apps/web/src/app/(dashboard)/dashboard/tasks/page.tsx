@@ -6,10 +6,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isBefore, startOfToday, endOfToday, endOfWeek } from 'date-fns';
-import { AlertTriangle, Check, CheckSquare, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, CheckSquare, Plus, Trash2, BarChart3 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
+import { PILL_SPRING } from '@/lib/motion';
+import { DonutChart } from '@/components/ui/DonutChart';
+import { LineChart } from '@/components/ui/LineChart';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 type StatusTab = 'ALL' | 'PENDING' | 'COMPLETED';
 type DueFilter = 'ANY' | 'TODAY' | 'WEEK';
@@ -168,12 +173,109 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+interface TaskStats {
+  total: number; completed: number; overdue: number; dueToday: number; upcoming: number;
+  byAssignee: { assignedToId: string; name: string; count: number }[];
+  completedOverTime: { date: string; label: string; count: number }[];
+}
+
+function TasksAnalytics() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['tasks-stats'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/tasks/stats');
+      return data.data as TaskStats;
+    },
+  });
+
+  if (isError) return null;
+  if (isLoading || !data) {
+    return <div className="h-56 animate-pulse rounded-xl bg-white shadow-sm ring-1 ring-gray-100" />;
+  }
+  if (data.total === 0) return null;
+
+  const statusSegments = [
+    { label: 'Completed', count: data.completed, color: '#34d399' },
+    { label: 'Overdue', count: data.overdue, color: '#f87171' },
+    { label: 'Due Today', count: data.dueToday, color: '#f59e0b' },
+    { label: 'Upcoming', count: data.upcoming, color: '#6366f1' },
+  ].filter((s) => s.count > 0);
+
+  const hasCompletions = data.completedOverTime.some((d) => d.count > 0);
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Task Overview</p>
+      <div className="mt-4 grid gap-5 lg:grid-cols-3">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Status</p>
+          <DonutChart
+            data={statusSegments}
+            nameKey="label"
+            valueKey="count"
+            colors={statusSegments.map((s) => s.color)}
+            height={150}
+            centerValue={data.total}
+            centerLabel="Total"
+            showLegend={false}
+            ariaLabel="Tasks grouped by status"
+          />
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {statusSegments.map((s) => (
+              <li key={s.label} className="flex items-center gap-1.5 text-xs">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                <span className="text-gray-500">{s.label}</span>
+                <span className="text-gray-700">{s.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Tasks by Assignee</p>
+          {data.byAssignee.length > 0 ? (
+            <SimpleBarChart
+              data={data.byAssignee.slice(0, 6).map((a) => ({ label: a.name, value: a.count }))}
+              height={150}
+              formatValue={(n) => `${n} task${n === 1 ? '' : 's'}`}
+            />
+          ) : (
+            <div className="flex h-[150px] items-center justify-center rounded-lg bg-gray-50/50 text-sm text-gray-400">No data yet.</div>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Completed <span className="normal-case text-gray-300">· last 14 days</span>
+          </p>
+          {hasCompletions ? (
+            <LineChart
+              data={data.completedOverTime}
+              xKey="date"
+              series={[{ key: 'count', label: 'Completed', color: '#34d399' }]}
+              variant="area"
+              height={150}
+              formatXLabel={(v) => data.completedOverTime.find((d) => d.date === v)?.label ?? String(v)}
+              formatValue={(v) => `${Math.round(v)} completed`}
+              ariaLabel="Tasks completed over the last 14 days"
+            />
+          ) : (
+            <div className="flex h-[150px] items-center justify-center rounded-lg bg-gray-50/50 text-sm text-gray-400">No completions in the last 14 days.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TasksPage() {
   const qc = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const [statusTab, setStatusTab] = useState<StatusTab>('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [dueFilter, setDueFilter] = useState<DueFilter>('ANY');
   const [createOpen, setCreateOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(true);
 
   const { data: users } = useQuery({
     queryKey: ['team-users'],
@@ -244,13 +346,24 @@ export default function TasksPage() {
           <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
           <p className="text-sm text-gray-500">Track follow-ups and to-dos</p>
         </div>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          <Plus className="h-4 w-4" /> New Task
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setReportOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            {reportOpen ? 'Hide report' : 'Show report'}
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            <Plus className="h-4 w-4" /> New Task
+          </button>
+        </div>
       </div>
+
+      {reportOpen && <TasksAnalytics />}
 
       {overdueCount > 0 && (
         <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -268,13 +381,18 @@ export default function TasksPage() {
               key={key}
               onClick={() => setStatusTab(key)}
               className={cn(
-                'rounded-lg px-4 py-1.5 text-sm font-medium transition',
-                statusTab === key
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700',
+                'relative rounded-lg px-4 py-1.5 text-sm font-medium transition-colors duration-150 ease-out',
+                statusTab === key ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
               )}
             >
-              {label}
+              {statusTab === key && (
+                <motion.span
+                  layoutId="tasks-status-pill"
+                  className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                  transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+                />
+              )}
+              <span className="relative z-10">{label}</span>
             </button>
           ))}
         </div>
@@ -333,7 +451,7 @@ export default function TasksPage() {
                 const overdue =
                   task.status === 'PENDING' && isBefore(new Date(task.dueDate), new Date());
                 return (
-                  <tr key={task.id} className="group hover:bg-slate-50/50">
+                  <tr key={task.id} className="group transition-colors duration-150 ease-out hover:bg-slate-50/50">
                     <td className="px-5 py-3.5">
                       <button
                         onClick={() => task.status === 'PENDING' && complete.mutate(task.id)}

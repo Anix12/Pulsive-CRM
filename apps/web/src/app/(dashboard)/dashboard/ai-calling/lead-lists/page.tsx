@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { ListChecks, Upload, Trash2, Users, PhoneCall, Sparkles, FileText } from 'lucide-react';
 import api from '@/lib/api';
 import { CsvImportModal } from '@/components/ui/CsvImportModal';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 export default function AiCallingLeadListsPage() {
   const [importOpen, setImportOpen] = useState(false);
@@ -71,6 +72,38 @@ export default function AiCallingLeadListsPage() {
           </div>
         ))}
       </div>
+
+      {!isLoading && lists?.length > 1 && (
+        <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">List Comparison</p>
+          <div className="mt-4 grid gap-5 lg:grid-cols-3">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Leads per List</p>
+              <SimpleBarChart
+                data={lists.slice(0, 6).map((l: any) => ({ label: l.name, value: l.totalLeads }))}
+                height={150}
+                formatValue={(n) => `${n} lead${n === 1 ? '' : 's'}`}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Calls per List</p>
+              <SimpleBarChart
+                data={lists.slice(0, 6).map((l: any) => ({ label: l.name, value: l.callsMade }))}
+                height={150}
+                formatValue={(n) => `${n} call${n === 1 ? '' : 's'}`}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Qualified per List</p>
+              <SimpleBarChart
+                data={lists.slice(0, 6).map((l: any) => ({ label: l.name, value: l.qualified }))}
+                height={150}
+                formatValue={(n) => `${n} qualified`}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
         {isLoading ? (

@@ -1,16 +1,19 @@
 import prisma from '@/db/client';
+import { parseDateRange as parseSharedDateRange } from '@/utils/dateRange';
 
 interface DateRange {
   from: Date;
   to: Date;
 }
 
+// Defaults to month-to-date when a bound is omitted — unchanged from the previous
+// local implementation, now delegated to the shared utility in utils/dateRange.ts.
 const parseDateRange = (from?: string, to?: string): DateRange => {
-  const now = new Date();
-  return {
-    from: from ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), 1),
-    to: to ? new Date(to) : now,
-  };
+  const bounds = parseSharedDateRange(from, to, {
+    defaultFrom: () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); },
+    defaultTo: () => new Date(),
+  });
+  return { from: bounds.from!, to: bounds.to! };
 };
 
 export const businessPerformance = async (tenantId: string, from?: string, to?: string) => {

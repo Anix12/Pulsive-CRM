@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate, requireActiveTenant);
 
 router.get('/', controller.list);
+router.get('/stats', controller.stats);
 router.get('/:id', controller.getById);
 router.post('/', validate(CreateTaskSchema), controller.create);
 router.patch('/:id/complete', controller.complete);
