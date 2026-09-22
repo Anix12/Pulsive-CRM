@@ -296,7 +296,7 @@ let state={ screen:"user-dashboard", view:"home", call:null,
   user:{ name: getQueryParam("name") || "Demo User", email: getQueryParam("email") || "user@gmail.com" },
   campaignSearch:"", walkinModalOpen:false, walkinFilterOn:true, waThread:"wa1",
   wd:{ selectedLeadId:null, callState:"idle", callStatus:null, seconds:0, timeline:[], disposition:"", notes:"", followUpDate:"", followUpTime:"", timers:[], expireCountdown:0 },
-  ai:{ leadId:null, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false },
+  ai: acDefaultAiState(null),
 };
 
 function render(){
@@ -364,6 +364,25 @@ function logout(){
   localStorage.removeItem('auth-store');
   window.location.href = "/login";
 }
+
+/* ---------------- API HELPERS (real backend calls for AI Sales Coach) ---------------- */
+function authHeaders(){ const t=localStorage.getItem('accessToken'); return t?{Authorization:'Bearer '+t}:{}; }
+async function apiCall(path, method, body){
+  const res = await fetch(path, {
+    method: method||'GET',
+    headers: { 'Content-Type':'application/json', ...authHeaders() },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  let json={}; try{ json = await res.json(); }catch{}
+  if(!res.ok){
+    const msg = json?.error?.message || json?.message || `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return json.data !== undefined ? json.data : json;
+}
+const apiGet = (path) => apiCall(path, 'GET');
+const apiPost = (path, body) => apiCall(path, 'POST', body);
+
 function renderView(){
   if(state.view==="home") return renderHome();
   if(state.view==="aicoach") return renderAICoach();
@@ -705,66 +724,105 @@ function wdReset(){ wdClearTimers(); state.wd={selectedLeadId:null,callState:"id
 
 /* ============================================================
    AI COACH — Telecaller live-call workspace
+   Real leads (fetched from /api/v1/ai-sales-coach/my-leads) and real
+   Claude-backed guidance (coach-reply / call-summary / kb-ask /
+   finish-call). See apps/api/src/modules/ai-sales-coach.
    ============================================================ */
-const AC_SCRIPT=[
-  {who:"them",text:"Hi, we are looking for a CRM. Can you tell me about the pricing?"},
-  {who:"me",text:"Sure! May I know your team size?"},
-  {who:"them",text:"We are a team of 15, but the price seems a bit high for us.", objection:true},
-];
-const AC_SUGGESTIONS=[
-  "I understand that budget is an important consideration. May I ask what specific part of the pricing feels high? This will help me understand your requirements better and see how we can provide the right value.",
-  "Totally fair — a lot of teams feel that way at first. If I could show you how the Premium plan pays for itself in time saved per rep, would that be useful to walk through?",
-  "That makes sense. Many of our customers at your team size started on a smaller plan and upgraded once they saw the ROI — want me to show you what that path could look like for you?",
-];
-const AC_NEXT_QUESTION="What's driving the timeline for switching CRMs — is there a specific deadline your team is working toward?";
-
+function acDefaultAiState(leadId){
+  return { leadId, active:false, seconds:0, timer:null, transcript:[], notes:"", status:"Contacted",
+    sentiment:"Neutral", convProb:50, objection:false, suggestedReply:"", alternativeReply:"",
+    nextBestAction:"", aiLoading:false, aiError:"", finalSummary:"", ended:false };
+}
 function acPickLead(id){
-  state.ai={ leadId:id, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false };
+  state.ai=acDefaultAiState(id);
   render();
   acStartCall();
 }
 function acStartCall(){
   state.ai.active=true; render();
   state.ai.timer=setInterval(()=>{ state.ai.seconds++; const el=document.getElementById("ac-timer"); if(el) el.textContent=fmtDuration(state.ai.seconds); },1000);
-  acAdvanceScript();
 }
-function acAdvanceScript(){
-  if(state.ai.step>=AC_SCRIPT.length) return;
-  setTimeout(()=>{
-    if(!state.ai.active) return;
-    const line=AC_SCRIPT[state.ai.step];
-    state.ai.transcript.push(line);
-    state.ai.step++;
-    if(line.objection){ state.ai.objection=true; state.ai.sentiment="Neutral"; }
-    render();
-    if(state.ai.step<AC_SCRIPT.length) acAdvanceScript();
-  }, 1600);
+function acSendCustomerMsg(){
+  const input=document.getElementById('ac-msg-input');
+  if(!input) return;
+  const val=input.value.trim();
+  if(!val || state.ai.aiLoading) return;
+  input.value="";
+  state.ai.transcript.push({who:"them", text:val});
+  state.ai.suggestedReply=""; state.ai.alternativeReply=""; state.ai.objection=false;
+  render();
+  acRequestCoach();
+}
+async function acRequestCoach(){
+  state.ai.aiLoading=true; state.ai.aiError=""; render();
+  try{
+    const r=await apiPost('/api/v1/ai-sales-coach/coach-reply', { leadId: state.ai.leadId, transcript: state.ai.transcript });
+    state.ai.objection=!!r.objectionDetected;
+    state.ai.sentiment=r.sentiment||"Neutral";
+    state.ai.convProb=typeof r.conversionProbability==="number" ? r.conversionProbability : state.ai.convProb;
+    state.ai.suggestedReply=r.suggestedReply||"";
+    state.ai.alternativeReply=r.alternativeReply||"";
+    state.ai.nextBestAction=r.nextBestAction||"";
+  }catch(e){
+    state.ai.aiError=e.message||"AI Coach is unavailable right now.";
+  }finally{
+    state.ai.aiLoading=false; render();
+  }
 }
 function acUseResponse(){
-  state.ai.transcript.push({who:"me", text:AC_SUGGESTIONS[state.ai.suggestIdx]});
-  state.ai.objection=false;
-  state.ai.sentiment="Positive";
-  state.ai.convProb=Math.min(95, state.ai.convProb+8);
+  if(!state.ai.suggestedReply) return;
+  state.ai.transcript.push({who:"me", text:state.ai.suggestedReply});
+  state.ai.objection=false; state.ai.suggestedReply=""; state.ai.alternativeReply="";
   render();
 }
-function acShowAlternative(){ state.ai.suggestIdx=(state.ai.suggestIdx+1)%AC_SUGGESTIONS.length; render(); }
+function acShowAlternative(){
+  if(!state.ai.alternativeReply) return;
+  const swap=state.ai.suggestedReply;
+  state.ai.suggestedReply=state.ai.alternativeReply;
+  state.ai.alternativeReply=swap;
+  render();
+}
 function acNextQuestion(){
-  state.ai.transcript.push({who:"me", text:AC_NEXT_QUESTION});
-  state.ai.objection=false;
+  const q=state.ai.nextBestAction || "Could you tell me a bit more about what you're looking for?";
+  state.ai.transcript.push({who:"me", text:q});
+  state.ai.objection=false; state.ai.suggestedReply=""; state.ai.alternativeReply="";
   render();
 }
-function acEndCall(status){
+async function acEndCall(status){
   clearInterval(state.ai.timer);
-  state.ai.active=false; state.ai.ended=true;
+  state.ai.active=false;
   const lead=leads.find(l=>l.id===state.ai.leadId);
   const dispMap={Converted:"Connected — Interested", Lost:"Connected — Not Interested", "Follow-up":"Callback Requested"};
   const disposition=dispMap[status]||"Connected — Interested";
-  callLogs.unshift({name:lead.name,company:lead.company,when:"Just now",duration:state.ai.seconds,disposition,score:state.ai.convProb});
-  if(status==="Follow-up") tasks.unshift({note:"AI Coach follow-up: "+lead.name, contact:lead.name, when:"In 2 days", done:false});
+  state.ai.aiLoading=true; render();
+  let summary=`Call with ${lead.name} from ${lead.company}.`;
+  let followUpNote = status==="Follow-up" ? `Follow up with ${lead.name} — callback requested.` : "";
+  try{
+    if(state.ai.transcript.length){
+      const s=await apiPost('/api/v1/ai-sales-coach/call-summary', { leadId: state.ai.leadId, transcript: state.ai.transcript });
+      summary=s.summary||summary;
+      if(status==="Follow-up") followUpNote = s.followUpNote || followUpNote;
+    }
+  }catch(e){
+    state.ai.aiError=e.message||"Could not generate an AI summary — the call was still saved.";
+  }
+  try{
+    const saved=await apiPost('/api/v1/ai-sales-coach/finish-call', {
+      leadId: state.ai.leadId, transcript: state.ai.transcript, durationSeconds: state.ai.seconds,
+      disposition, summary, conversionProbability: state.ai.convProb,
+      ...(followUpNote ? { followUpNote } : {}),
+    });
+    callLogs.unshift({name:lead.name,company:lead.company,when:"Just now",duration:state.ai.seconds,disposition,score:state.ai.convProb});
+    if(saved && saved.task) tasks.unshift({note:saved.task.description||followUpNote, contact:lead.name, when:"In 2 days", done:false});
+  }catch(e){
+    state.ai.aiError=(state.ai.aiError?state.ai.aiError+" ":"")+(e.message||"Could not save this call.");
+    callLogs.unshift({name:lead.name,company:lead.company,when:"Just now",duration:state.ai.seconds,disposition,score:state.ai.convProb});
+  }
+  state.ai.finalSummary=summary;
   lead.stage = status==="Converted"?"closed":status==="Follow-up"?"follow-up":status==="Lost"?"closed":lead.stage;
-  render();
+  state.ai.aiLoading=false; state.ai.ended=true; render();
 }
-function acReset(){ state.ai={ leadId:null, active:false, seconds:0, timer:null, transcript:[], step:0, objection:false, suggestIdx:0, mode:"objection", notes:"", status:"Contacted", sentiment:"Neutral", convProb:64, ended:false }; render(); }
+function acReset(){ state.ai=acDefaultAiState(null); render(); }
 
 function renderAICoach(){
   if(!state.ai.leadId) return renderACLeadPicker();
@@ -772,6 +830,13 @@ function renderAICoach(){
   return renderACWorkspace();
 }
 function renderACLeadPicker(){
+  if(!leads.length){
+    return `<div class="card" style="padding:40px;text-align:center;color:var(--text-faint);">
+      ${icon('users',30)}
+      <div style="font-weight:700;margin:10px 0 4px 0;color:var(--text);">No leads assigned to you yet</div>
+      Ask your manager to assign leads to you, then come back to start an AI-coached call.
+    </div>`;
+  }
   return `
   <div style="font-size:12px;color:var(--text-faint);margin-bottom:14px;">Pick a lead to start an AI-coached call — live guidance, objection handling and next-best-action while you talk.</div>
   <div class="card">
@@ -788,7 +853,9 @@ function renderACEnded(){
   return `<div class="card" style="padding:40px;text-align:center;">
     <div class="stat-icon" style="background:var(--connected-soft);color:var(--connected);margin:0 auto 14px auto;">${icon('check',18)}</div>
     <h3 style="margin-bottom:6px;">Call saved</h3>
-    <div style="color:var(--text-dim);font-size:13px;margin-bottom:18px;">Outcome logged to Call Logs${state.ai.status==="Follow-up"?" and a follow-up task was created":""}.</div>
+    <div style="color:var(--text-dim);font-size:13px;margin-bottom:10px;">Outcome logged to Call Logs${state.ai.status==="Follow-up"?" and a follow-up task was created":""}.</div>
+    <div class="ac-summary-box" style="text-align:left;max-width:480px;margin:0 auto 18px auto;">${state.ai.finalSummary}</div>
+    ${state.ai.aiError ? `<div class="ac-alert" style="max-width:480px;margin:0 auto 18px auto;">${icon('warn',14)} ${state.ai.aiError}</div>` : ''}
     <button class="btn btn-primary" onclick="acReset()">Start another AI call</button>
   </div>`;
 }
@@ -820,7 +887,7 @@ function renderACLeadCard(lead){
     <div class="sub">${lead.title||"Business Owner"} · ${lead.company}</div>
     <span class="pill pill-live" style="margin-top:8px;">Warm Lead</span>
     <div class="ac-field-row"><span class="lbl">Phone</span><span class="mono">${lead.phone}</span></div>
-    <div class="ac-field-row"><span class="lbl">Source</span><span>Website</span></div>
+    <div class="ac-field-row"><span class="lbl">Source</span><span>${lead.source||"Unknown"}</span></div>
     <div class="ac-field-row"><span class="lbl">Product Interest</span><span>Pulsive CRM — Premium</span></div>
     <div class="ac-field-row" style="border-top:none;flex-direction:column;align-items:stretch;">
       <div style="display:flex;justify-content:space-between;"><span class="lbl">Lead Score</span><b>${lead.score}/100</b></div>
@@ -834,7 +901,7 @@ function renderACLeadCard(lead){
     </div>
     <div style="margin-top:10px;">
       <span class="lbl" style="font-size:11px;">Call Notes</span>
-      <textarea class="ac-notes" placeholder="Add notes during the call…" oninput="state.ai.notes=this.value;"></textarea>
+      <textarea class="ac-notes" placeholder="Add notes during the call…" oninput="state.ai.notes=this.value;">${state.ai.notes}</textarea>
     </div>
   </div>`;
 }
@@ -844,39 +911,46 @@ function renderACConversation(lead){
   <div class="card">
     <div class="ac-tabs"><button class="active">Transcript</button><button>AI Analysis</button></div>
     <div class="ac-transcript" id="ac-transcript">
-      ${ai.transcript.map(t=>`<div class="ac-bubble ${t.who==='them'?'them':'me'}"><div class="t">${t.who==='them'?lead.name.split(' ')[0]:'You'}</div>${t.text}</div>`).join("")}
-      ${ai.active && ai.step<AC_SCRIPT.length ? `<div class="ac-bubble them" style="opacity:.5;">…</div>` : ''}
+      ${ai.transcript.length ? ai.transcript.map(t=>`<div class="ac-bubble ${t.who==='them'?'them':'me'}"><div class="t">${t.who==='them'?lead.name.split(' ')[0]:'You'}</div>${t.text}</div>`).join("") : `<div style="color:var(--text-faint);font-size:12.5px;padding:6px 2px;">Type what ${lead.name.split(' ')[0]} says below to get live AI coaching.</div>`}
+      ${ai.aiLoading ? `<div class="ac-bubble them" style="opacity:.5;">${icon('sparkles',12)} AI Coach is thinking…</div>` : ''}
     </div>
+    ${ai.aiError ? `<div class="ac-alert">${icon('warn',14)} ${ai.aiError}</div>` : ''}
     ${ai.objection ? `
-      <div class="ac-alert">${icon('warn',14)} Price objection detected</div>
+      <div class="ac-alert">${icon('warn',14)} Objection detected</div>` : ''}
+    ${ai.suggestedReply ? `
       <div class="ac-suggest">
         <div class="ac-suggest-head">${icon('sparkles',13)} AI Coach Suggests</div>
-        <div class="ac-suggest-text">${AC_SUGGESTIONS[ai.suggestIdx]}</div>
+        <div class="ac-suggest-text">${ai.suggestedReply}</div>
         <div class="ac-suggest-btns">
           <button class="btn btn-primary btn-sm" onclick="acUseResponse()">Use This Response</button>
-          <button class="btn btn-sm" onclick="acShowAlternative()">Show Alternatives</button>
+          ${ai.alternativeReply ? `<button class="btn btn-sm" onclick="acShowAlternative()">Show Alternative</button>` : ''}
           <button class="btn btn-sm" onclick="acNextQuestion()">Next Question</button>
         </div>
-      </div>` : ai.active ? `
+      </div>` : ai.active && !ai.aiLoading ? `
       <div class="ac-suggest">
         <div class="ac-suggest-head">${icon('sparkles',13)} AI Coach</div>
         <div class="ac-suggest-text" style="color:var(--text-faint);">Listening for buying signals and objections…</div>
       </div>` : ''}
     <div class="ac-input-row">
-      <input placeholder="Type a message or ask AI…">
-      <button class="ac-send">${icon('send',16)}</button>
+      <input id="ac-msg-input" placeholder="Type what the customer just said…" onkeydown="if(event.key==='Enter')acSendCustomerMsg();" ${ai.aiLoading?'disabled':''}>
+      <button class="ac-send" onclick="acSendCustomerMsg()" ${ai.aiLoading?'disabled':''}>${icon('send',16)}</button>
     </div>
   </div>`;
 }
 function renderACInsights(lead){
   const ai=state.ai;
   const gaugeR=22, c=2*Math.PI*gaugeR, pct=ai.convProb/100;
+  const aiSummaryText = ai.transcript.length===0
+    ? "Call connected — start the conversation to get live AI guidance."
+    : ai.objection
+      ? "An objection was just raised — use the suggested response to keep the conversation moving."
+      : `No open objections. Sentiment reads ${ai.sentiment.toLowerCase()}.`;
   return `
   <div class="card" style="padding:16px;">
     <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">Lead 360° &amp; AI Insights</div>
     <div class="ac-insight-row" style="border-top:none;">
       <div class="ac-insight-ic" style="background:var(--connected-soft);color:var(--connected);">${icon('trend',14)}</div>
-      <span class="lbl">Buying Intent</span><b style="margin-left:auto;color:var(--connected);">High</b>
+      <span class="lbl">Lead Score</span><b style="margin-left:auto;color:var(--connected);">${lead.score}/100</b>
     </div>
     <div class="ac-insight-row">
       <div class="ac-insight-ic" style="background:${ai.sentiment==='Positive'?'var(--connected-soft)':'var(--surface-sunken)'};color:${ai.sentiment==='Positive'?'var(--connected)':'var(--text-dim)'};">${icon('smile',14)}</div>
@@ -893,16 +967,13 @@ function renderACInsights(lead){
       </div>
     </div>
     <div style="font-weight:700;font-size:11.5px;color:var(--text-faint);margin-top:12px;">AI SUMMARY</div>
-    <div class="ac-summary-box">Customer is interested in a CRM for a 15-person sales team. ${ai.objection?'Currently concerned about pricing — likely to move forward if value/ROI are clearly positioned.':'Objection addressed — sentiment has improved, good sign to move toward next steps.'}</div>
-    <div style="font-weight:700;font-size:11.5px;color:var(--text-faint);margin-top:12px;margin-bottom:2px;">RECOMMENDED NEXT STEPS</div>
-    <div class="ac-nextstep">${icon('check',14)} Explain ROI and value for their team size</div>
-    <div class="ac-nextstep">${icon('check',14)} Share case studies from similar companies</div>
-    <div class="ac-nextstep">${icon('check',14)} Offer a product demo</div>
-    <div class="ac-nextstep">${icon('check',14)} Follow up within 2 days</div>
+    <div class="ac-summary-box">${aiSummaryText}</div>
+    <div style="font-weight:700;font-size:11.5px;color:var(--text-faint);margin-top:12px;margin-bottom:2px;">RECOMMENDED NEXT STEP</div>
+    <div class="ac-nextstep">${icon('check',14)} ${ai.nextBestAction || "Keep the conversation going to get a recommendation."}</div>
     <div class="ac-markas">
-      <button style="background:var(--connected);" onclick="acEndCall('Converted')">Converted</button>
-      <button id="ac-markas-lost-shortcut" style="background:var(--danger);" onclick="acEndCall('Lost')">Lost</button>
-      <button style="background:var(--blue);" onclick="acEndCall('Follow-up')">Follow-up</button>
+      <button style="background:var(--connected);" ${ai.aiLoading?'disabled':''} onclick="acEndCall('Converted')">Converted</button>
+      <button id="ac-markas-lost-shortcut" style="background:var(--danger);" ${ai.aiLoading?'disabled':''} onclick="acEndCall('Lost')">Lost</button>
+      <button style="background:var(--blue);" ${ai.aiLoading?'disabled':''} onclick="acEndCall('Follow-up')">Follow-up</button>
     </div>
   </div>`;
 }
@@ -1025,13 +1096,24 @@ const KB_SIDE=[
   {id:"pricing",label:"Pricing & Plans"},{id:"industries",label:"Industries We Serve"},{id:"success",label:"Success Stories"},
 ];
 const KB_FEATURES=["Lead Management","Sales Automation","WhatsApp & Calling Integration","Team Collaboration","Advanced Reporting","Affordable Pricing","Dedicated Support"];
-function kbAsk(){
+let kbAsking=false;
+async function kbAsk(){
   const input=document.getElementById('kb-ask-input');
   const val=input.value.trim();
-  if(!val) return;
+  if(!val || kbAsking) return;
+  input.value="";
   const lead=acCurrentAILead();
-  kbAskLog.unshift({q:val, a:"This is a demo answer — no live AI Knowledge Base is connected yet. Wire this up to a real backend to answer questions like this one"+(lead?` for ${lead.name}`:'')+"."});
+  kbAsking=true;
+  kbAskLog.unshift({q:val, a:"Thinking…"});
   render();
+  try{
+    const r=await apiPost('/api/v1/ai-sales-coach/kb-ask', { question: val, ...(lead ? { leadId: lead.id } : {}) });
+    kbAskLog[0].a = r.answer;
+  }catch(e){
+    kbAskLog[0].a = "Couldn't reach the AI Knowledge Base: " + (e.message || "unknown error");
+  }finally{
+    kbAsking=false; render();
+  }
 }
 function renderACKnowledgePage(){
   return `
@@ -1223,6 +1305,12 @@ function renderTasks(){
     // redirect passed via ?name=; only backfill email if the query param was empty.
     state.user.email = state.user.email || me.email;
     render();
+    // Load this agent's real leads for the AI Coach — falls back to the
+    // placeholder leads above if the request fails (e.g. offline).
+    try {
+      const myLeads = await apiGet('/api/v1/ai-sales-coach/my-leads');
+      if (Array.isArray(myLeads)) { leads = myLeads; render(); }
+    } catch { /* keep placeholder leads */ }
   } catch {
     window.location.href = '/login';
   }

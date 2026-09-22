@@ -140,6 +140,18 @@ async function main() {
 
   console.log(`Seeded ${contactIds.length} contacts`);
 
+  // Assign a handful of warm/hot leads to the demo AGENT user so the AGENT-role
+  // user dashboard (and its AI Sales Coach) has real leads to work with.
+  const demoAgentLeadIdx = [0, 1, 2, 5, 8];
+  for (const idx of demoAgentLeadIdx) {
+    if (!contactIds[idx]) continue;
+    await prisma.contact.update({
+      where: { id: contactIds[idx] },
+      data: { assignedToId: userMap['Demo'], score: Math.min(96, 40 + idx * 11) },
+    });
+  }
+  console.log(`Assigned ${demoAgentLeadIdx.length} leads to the demo AGENT user`);
+
   // ── Deals ────────────────────────────────────────────────────────────────────
   const now = new Date();
   const daysFromNow = (d: number) => new Date(now.getTime() + d * 86400000);

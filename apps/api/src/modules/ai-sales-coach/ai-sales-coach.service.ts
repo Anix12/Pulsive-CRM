@@ -1,4 +1,36 @@
+import Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/db/client';
+import { env } from '@/config/env';
+import { AppError } from '@/middleware/errorHandler';
+
+export type TranscriptTurn = { who: 'me' | 'them'; text: string };
+
+const requireAnthropic = () => {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AppError(
+      400,
+      'AI_NOT_CONFIGURED',
+      'AI Coach is not configured for this workspace. Set ANTHROPIC_API_KEY to enable it.',
+    );
+  }
+  return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+};
+
+/** Parses a JSON object out of a Claude text response, tolerating stray prose/fences. */
+const parseJsonResponse = <T>(raw: string, fallback: T): T => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); } catch { /* fall through */ }
+    }
+    return fallback;
+  }
+};
+
+const transcriptToText = (transcript: TranscriptTurn[]) =>
+  transcript.map((t) => `${t.who === 'me' ? 'Agent' : 'Customer'}: ${t.text}`).join('\n');
 
 const DISPOSITION_CATEGORY_COLOR: Record<string, string> = {
   Connected: '#16A34A',
@@ -168,4 +200,220 @@ export const overview = async (tenantId: string) => {
     callOutcomes,
     totalCallsToday: todaysCalls.length,
   };
+};
+
+// ─── Agent-facing AI Coach (used by the AGENT-role user dashboard) ────────────
+
+/** Leads assigned to this agent, for the AI Coach lead picker. */
+export const getMyLeads = async (tenantId: string, userId: string) => {
+  const rows = await prisma.contact.findMany({
+    where: { tenantId, assignedToId: userId },
+    orderBy: [{ score: 'desc' }, { updatedAt: 'desc' }],
+    take: 50,
+    select: { id: true, name: true, company: true, phone: true, score: true, status: true, source: true, jobTitle: true },
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    company: c.company ?? '—',
+    phone: c.phone,
+    score: c.score,
+    stage: c.status,
+    source: c.source ?? 'Unknown',
+    title: c.jobTitle ?? undefined,
+  }));
+};
+
+const coachSystemPrompt =
+  'You are a live sales-call coach whispering guidance to a CRM sales agent while they are on a call. ' +
+  'You will be given the lead\'s CRM context and the call transcript so far. ' +
+  'Respond with ONLY valid JSON in the exact shape ' +
+  '{"objectionDetected": boolean, "sentiment": "Positive"|"Neutral"|"Negative", ' +
+  '"suggestedReply": "...", "alternativeReply": "...", "nextBestAction": "...", "conversionProbability": number} ' +
+  '— no markdown fences, no other text. suggestedReply and alternativeReply are two different ways the agent ' +
+  'could respond right now to the customer\'s last message, written in first person as something the agent would ' +
+  'say out loud. conversionProbability is 0-100, your estimate of the odds this lead converts based on the ' +
+  'conversation so far.';
+
+export const coachReply = async (
+  tenantId: string,
+  userId: string,
+  input: { leadId: string; transcript: TranscriptTurn[] },
+) => {
+  const anthropic = requireAnthropic();
+  const lead = await prisma.contact.findFirst({
+    where: { id: input.leadId, tenantId, assignedToId: userId },
+    select: { name: true, company: true, status: true, score: true, source: true },
+  });
+  if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead not found');
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 1024,
+    system: coachSystemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content:
+          `Lead: ${lead.name}, company: ${lead.company ?? 'unknown'}, CRM stage: ${lead.status}, ` +
+          `lead score: ${lead.score}, source: ${lead.source ?? 'unknown'}.\n\nTranscript so far:\n` +
+          transcriptToText(input.transcript),
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === 'text');
+  const raw = textBlock && 'text' in textBlock ? textBlock.text : '';
+  return parseJsonResponse(raw, {
+    objectionDetected: false,
+    sentiment: 'Neutral' as const,
+    suggestedReply: raw || 'Could not generate a suggestion. Please try again.',
+    alternativeReply: '',
+    nextBestAction: '',
+    conversionProbability: 50,
+  });
+};
+
+const summarySystemPrompt =
+  'You are summarizing a completed sales call for a CRM. Respond with ONLY valid JSON in the exact shape ' +
+  '{"summary": "...", "disposition": "...", "followUpNeeded": boolean, "followUpNote": "..."} — no markdown ' +
+  'fences, no other text. disposition must be one of: "Connected — Interested", "Connected — Not Interested", ' +
+  '"Callback Requested", "Voicemail", "No Answer", "Busy". summary is 2-4 sentences. followUpNote is empty ' +
+  'string if followUpNeeded is false.';
+
+export const callSummary = async (
+  tenantId: string,
+  userId: string,
+  input: { leadId: string; transcript: TranscriptTurn[] },
+) => {
+  const anthropic = requireAnthropic();
+  const lead = await prisma.contact.findFirst({
+    where: { id: input.leadId, tenantId, assignedToId: userId },
+    select: { name: true, company: true },
+  });
+  if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead not found');
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 512,
+    system: summarySystemPrompt,
+    messages: [
+      { role: 'user', content: `Lead: ${lead.name} (${lead.company ?? 'unknown company'}).\n\nTranscript:\n${transcriptToText(input.transcript)}` },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === 'text');
+  const raw = textBlock && 'text' in textBlock ? textBlock.text : '';
+  return parseJsonResponse(raw, {
+    summary: raw || 'Could not generate a summary.',
+    disposition: 'Connected — Interested',
+    followUpNeeded: false,
+    followUpNote: '',
+  });
+};
+
+export const kbAsk = async (tenantId: string, userId: string, input: { question: string; leadId?: string }) => {
+  const anthropic = requireAnthropic();
+  let leadContext = '';
+  if (input.leadId) {
+    const lead = await prisma.contact.findFirst({
+      where: { id: input.leadId, tenantId, assignedToId: userId },
+      select: { name: true, company: true, status: true, score: true },
+    });
+    if (lead) leadContext = `Current lead: ${lead.name} (${lead.company ?? 'unknown'}), stage ${lead.status}, score ${lead.score}.\n\n`;
+  }
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 512,
+    system:
+      'You are a CRM sales knowledge-base assistant helping a sales agent answer product, pricing, and process ' +
+      'questions during or around a call. Answer concisely and practically, in plain text (no markdown), under ' +
+      '120 words.',
+    messages: [{ role: 'user', content: `${leadContext}Question: ${input.question}` }],
+  });
+
+  const textBlock = response.content.find((b) => b.type === 'text');
+  const answer = textBlock && 'text' in textBlock ? textBlock.text : '';
+  return { answer: answer || 'Could not generate an answer. Please try again.' };
+};
+
+const DISPOSITION_TO_CONTACT_STATUS: Record<string, 'PROSPECT' | undefined> = {
+  'Connected — Interested': 'PROSPECT',
+};
+
+/** Persists the outcome of an AI-coached call: a Call record, an Activity, and an optional follow-up Task. */
+export const finishCoachedCall = async (
+  tenantId: string,
+  userId: string,
+  input: {
+    leadId: string;
+    transcript: TranscriptTurn[];
+    durationSeconds: number;
+    disposition: string;
+    summary: string;
+    conversionProbability?: number;
+    followUpNote?: string;
+  },
+) => {
+  const lead = await prisma.contact.findFirst({ where: { id: input.leadId, tenantId, assignedToId: userId } });
+  if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead not found');
+
+  const now = new Date();
+  const startedAt = new Date(now.getTime() - input.durationSeconds * 1000);
+
+  const call = await prisma.call.create({
+    data: {
+      tenantId,
+      contactId: lead.id,
+      agentId: userId,
+      provider: 'ai-coach',
+      direction: 'OUTBOUND',
+      status: 'COMPLETED',
+      fromNumber: 'ai-coach',
+      toNumber: lead.phone,
+      startedAt,
+      endedAt: now,
+      duration: input.durationSeconds,
+      transcription: transcriptToText(input.transcript),
+      notes: input.disposition,
+      aiSummary: input.summary,
+      aiSuccessEvaluation: input.disposition.startsWith('Connected'),
+      isAiInitiated: true,
+    },
+  });
+
+  await prisma.activity.create({
+    data: {
+      tenantId,
+      contactId: lead.id,
+      userId,
+      type: 'CALL',
+      subject: `AI-coached call — ${input.disposition}`,
+      body: input.summary,
+      occurredAt: now,
+    },
+  });
+
+  const nextStatus = DISPOSITION_TO_CONTACT_STATUS[input.disposition];
+  if (nextStatus) {
+    await prisma.contact.update({ where: { id: lead.id }, data: { status: nextStatus } });
+  }
+
+  let task = null;
+  if (input.followUpNote) {
+    const dueDate = new Date(now.getTime() + 2 * 86400000);
+    task = await prisma.task.create({
+      data: {
+        tenantId,
+        contactId: lead.id,
+        title: `Follow up: ${lead.name}`,
+        description: input.followUpNote,
+        assignedToId: userId,
+        dueDate,
+      },
+    });
+  }
+
+  return { call, task };
 };
