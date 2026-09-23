@@ -23,5 +23,13 @@ export const CampaignQuerySchema = z.object({
   category: z.string().optional(),
 });
 
+// Assign this campaign's leads to one agent. Omitting contactIds assigns every lead
+// currently in the campaign; passing it assigns only that subset.
+export const AssignCampaignLeadsSchema = z.object({
+  agentId: z.string().min(1),
+  contactIds: z.array(z.string()).optional(),
+});
+
 export type CreateCampaignInput = z.infer<typeof CreateCampaignSchema>;
 export type UpdateCampaignInput = z.infer<typeof UpdateCampaignSchema>;
+export type AssignCampaignLeadsInput = z.infer<typeof AssignCampaignLeadsSchema>;

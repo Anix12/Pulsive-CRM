@@ -23,6 +23,7 @@ router.use(authenticate, requireActiveTenant);
 
 router.get('/', controller.list);
 router.get('/overview', controller.overview);
+router.get('/filter-options', controller.filterOptions);
 router.get('/:id', controller.getById);
 router.post('/', validate(CreateContactSchema), controller.create);
 router.post('/import', upload.single('file'), controller.importCsv);

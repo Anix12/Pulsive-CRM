@@ -16,11 +16,11 @@ export const heartbeat = async (tenantId: string, userId: string) => {
 };
 
 export const startBreak = async (tenantId: string, userId: string, input: StartBreakInput) => {
-  await prisma.agentBreakLog.create({ data: { tenantId, userId, label: input.label } });
+  await prisma.agentBreakLog.create({ data: { tenantId, userId, label: input.label, durationMinutes: input.durationMinutes } });
   return prisma.agentPresence.upsert({
     where: { userId },
-    create: { tenantId, userId, status: 'BREAK', currentBreakLabel: input.label, breakStartedAt: new Date(), lastActiveAt: new Date() },
-    update: { status: 'BREAK', currentBreakLabel: input.label, breakStartedAt: new Date() },
+    create: { tenantId, userId, status: 'BREAK', currentBreakLabel: input.label, breakStartedAt: new Date(), breakDurationMinutes: input.durationMinutes, lastActiveAt: new Date() },
+    update: { status: 'BREAK', currentBreakLabel: input.label, breakStartedAt: new Date(), breakDurationMinutes: input.durationMinutes },
   });
 };
 
@@ -38,7 +38,7 @@ export const endBreak = async (tenantId: string, userId: string) => {
 
   return prisma.agentPresence.update({
     where: { userId },
-    data: { status: 'ACTIVE', currentBreakLabel: null, breakStartedAt: null, lastActiveAt: new Date() },
+    data: { status: 'ACTIVE', currentBreakLabel: null, breakStartedAt: null, breakDurationMinutes: null, lastActiveAt: new Date() },
   });
 };
 

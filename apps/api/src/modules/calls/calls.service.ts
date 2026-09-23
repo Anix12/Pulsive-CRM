@@ -10,6 +10,7 @@ import { Request } from 'express';
 import { InitiateCallInput } from './calls.types';
 import { env } from '@/config/env';
 import { parseDateRange, toPrismaDateFilter } from '@/utils/dateRange';
+import { handleLeadLegEvent } from './calls.session.service';
 
 export const list = async (tenantId: string, req: Request) => {
   const { page, limit, skip } = getPagination(req);
@@ -136,14 +137,24 @@ export const initiateCall = async (tenantId: string, agentId: string, input: Ini
     throw new AppError(400, 'PROVIDER_NOT_CONFIGURED', 'Twilio is not configured. Please add your Twilio credentials in Settings.');
   }
 
-  const contact = await prisma.contact.findFirst({ where: { id: input.contactId, tenantId } });
-  if (!contact) throw new AppError(404, 'NOT_FOUND', 'Contact not found');
+  let contact = input.contactId
+    ? await prisma.contact.findFirst({ where: { id: input.contactId, tenantId } })
+    : await prisma.contact.findFirst({ where: { tenantId, phone: input.toNumber } });
+  if (input.contactId && !contact) throw new AppError(404, 'NOT_FOUND', 'Contact not found');
+
+  // Dial-pad call to a number with no matching lead yet - create one so the call has
+  // somewhere to attach, and the number is there next time the agent looks for it.
+  if (!contact) {
+    contact = await prisma.contact.create({
+      data: { tenantId, name: input.toNumber, phone: input.toNumber, status: 'LEAD', source: 'Web Dialer' },
+    });
+  }
 
   const call = await prisma.call.create({
     data: {
       tenantId,
       agentId,
-      contactId: input.contactId,
+      contactId: contact.id,
       direction: 'OUTBOUND',
       status: 'INITIATED',
       fromNumber: tenant.twilioPhoneNumber,
@@ -169,6 +180,7 @@ export const initiateCall = async (tenantId: string, agentId: string, input: Ini
   const updatedCall = await prisma.call.update({
     where: { id: call.id },
     data: { providerCallSid: result.providerCallSid, status: 'RINGING', startedAt: new Date() },
+    include: { contact: { select: { id: true, name: true, phone: true, company: true } } },
   });
 
   emitToTenant(tenantId, SOCKET_EVENTS.CALL_STATUS_UPDATE, { callId: call.id, status: 'RINGING' });
@@ -182,6 +194,9 @@ export const initiateCall = async (tenantId: string, agentId: string, input: Ini
 };
 
 export const handleTwilioWebhook = async (payload: Record<string, string>) => {
+  // Bridged calls: the lead's leg reports with the agent leg's sid as ParentCallSid.
+  if (payload.ParentCallSid) return handleLeadLegEvent(payload);
+
   const call = await prisma.call.findUnique({ where: { providerCallSid: payload.CallSid } });
   if (!call) return;
 

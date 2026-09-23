@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, PhoneCall, Users, Layers, Tag, Radio, Link2, Copy, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, PhoneCall, Users, Layers, Tag, Radio, Link2, Copy, Check, RefreshCw, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { getInitials, categoryColor, cn } from '@/lib/utils';
 import { AvatarStack } from '@/components/ui/AvatarStack';
@@ -115,6 +115,113 @@ function LeadCaptureLinkCard({ campaignId, token }: { campaignId: string; token:
   );
 }
 
+// ── Assign leads to an agent + per-agent status breakdown ───────────────────────
+// Lets an admin/owner hand this campaign's leads to one agent in one action, and shows
+// where every agent's slice of the campaign stands - the "status of campaigns" view.
+function AssignmentPanel({ campaignId }: { campaignId: string }) {
+  const qc = useQueryClient();
+  const [agentId, setAgentId] = useState('');
+  const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+
+  const { data: agents = [] } = useQuery<any[]>({
+    queryKey: ['team-users'],
+    queryFn: async () => (await api.get('/api/v1/tenants/me/users')).data.data,
+  });
+  const { data: rows, isLoading } = useQuery<any[]>({
+    queryKey: ['campaign', campaignId, 'assignment-status'],
+    queryFn: async () => (await api.get(`/api/v1/campaigns/${campaignId}/assignment-status`)).data.data,
+  });
+
+  const assign = useMutation({
+    mutationFn: () => api.post(`/api/v1/campaigns/${campaignId}/assign`, { agentId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['campaign', campaignId] });
+      setConfirming(false);
+      setError('');
+    },
+    onError: (err: any) => setError(err?.response?.data?.error?.message ?? 'Could not assign leads'),
+  });
+
+  const total = rows?.reduce((s, r) => s + r.total, 0) ?? 0;
+  const agentName = agents.find((a) => a.id === agentId);
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+        <UserPlus className="h-4 w-4 text-gray-400" />
+        Assign leads
+      </h2>
+      <p className="mt-1 text-xs text-gray-400">Hand every lead in this campaign to one agent. It shows up on their dashboard right away.</p>
+
+      <div className="mt-3 flex items-center gap-2">
+        <select
+          value={agentId}
+          onChange={(e) => { setAgentId(e.target.value); setConfirming(false); }}
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none"
+        >
+          <option value="">Choose an agent…</option>
+          {agents.map((a) => <option key={a.id} value={a.id}>{a.firstName} {a.lastName} · {a.role}</option>)}
+        </select>
+        {!confirming ? (
+          <button
+            onClick={() => setConfirming(true)}
+            disabled={!agentId || !total}
+            title={!total ? 'No leads in this campaign yet' : undefined}
+            className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            Assign all
+          </button>
+        ) : null}
+      </div>
+
+      {confirming && (
+        <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+          <p>Assign all {total} lead{total === 1 ? '' : 's'} in this campaign to <b>{agentName?.firstName} {agentName?.lastName}</b>? This replaces any current assignment on those leads.</p>
+          <div className="mt-2 flex gap-2">
+            <button onClick={() => setConfirming(false)} className="rounded-md px-2.5 py-1.5 font-medium text-amber-700 hover:bg-amber-100">Cancel</button>
+            <button
+              onClick={() => assign.mutate()}
+              disabled={assign.isPending}
+              className="rounded-md bg-amber-600 px-2.5 py-1.5 font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              {assign.isPending ? 'Assigning…' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+
+      <div className="mt-4 border-t border-gray-100 pt-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Status by agent</p>
+        {isLoading ? (
+          <p className="text-xs text-gray-400">Loading…</p>
+        ) : !rows?.length ? (
+          <p className="text-xs text-gray-400">No leads in this campaign yet.</p>
+        ) : (
+          <div className="space-y-2.5">
+            {rows.map((r) => (
+              <div key={r.agentId ?? 'unassigned'} className="rounded-lg bg-gray-50 p-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className={cn('font-semibold', !r.agentId && 'text-gray-400')}>{r.agentName}</span>
+                  <span className="text-gray-500">{r.total} lead{r.total === 1 ? '' : 's'}</span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-gray-500">
+                  <span>{r.uncontacted} uncontacted</span>
+                  <span>{r.inProgress} in progress</span>
+                  <span>{r.followUp} follow-up</span>
+                  <span className="font-medium text-emerald-600">{r.converted} converted</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -205,6 +312,8 @@ export default function CampaignDetailPage() {
               )}
             </div>
           </div>
+
+          <AssignmentPanel campaignId={campaign.id} />
         </div>
 
         <div className="lg:col-span-2">

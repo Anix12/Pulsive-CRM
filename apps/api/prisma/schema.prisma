@@ -76,6 +76,9 @@ model Tenant {
   broadcasts         Broadcast[]
   aiCallAgents       AiCallAgent[]
   leadLists          LeadList[]
+  leadViews          LeadView[]
+  callOutcomes       CallOutcome[]
+  engagementForms    EngagementForm[]
 }
 
 enum TenantPlan {
@@ -366,6 +369,10 @@ model Call {
   notes           String?
   dispositionId   String?
   aiAgentId       String?
+  // Set when the lead's leg of a bridged (agent-first) call is answered; drives the live duration timer.
+  answeredAt      DateTime?
+  // True for calls placed from a Lead View calling session; those must be disposed before the next call.
+  isSessionCall   Boolean       @default(false)
 
   // AI end-of-call analysis (populated from Vapi webhook)
   aiSuccessEvaluation Boolean?
@@ -379,6 +386,7 @@ model Call {
   contact     Contact?         @relation(fields: [contactId], references: [id])
   agent       User?            @relation("AssignedAgent", fields: [agentId], references: [id])
   disposition CallDisposition? @relation(fields: [dispositionId], references: [id])
+  outcome     CallOutcome?
   aiAgent     AiCallAgent?     @relation(fields: [aiAgentId], references: [id])
 
   @@index([tenantId])
@@ -780,6 +788,7 @@ model Campaign {
   pipeline   Pipeline?   @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
   contacts   Contact[]
   broadcasts Broadcast[]
+  engagementForm EngagementForm?
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1031,6 +1040,9 @@ model AgentPresence {
   lastActiveAt      DateTime            @default(now())
   currentBreakLabel String?
   breakStartedAt    DateTime?
+  // Null = an open-ended break (no timer). Set = auto-resume after this many minutes,
+  // while still letting the agent end it early at any time.
+  breakDurationMinutes Int?
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1052,6 +1064,7 @@ model AgentBreakLog {
   tenantId  String
   userId    String
   label     String
+  durationMinutes Int?
   startedAt DateTime  @default(now())
   endedAt   DateTime?
 
@@ -1158,5 +1171,73 @@ model RolePermission {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, role])
+  @@index([tenantId])
+}
+
+// ─── Lead Views & Call Outcomes ───────────────────────────────────────────────
+
+// Saved, user-defined lead filters. The 5 system views (All Leads, Uncontacted, ...) are
+// computed in code (modules/lead-views/system-views.ts), never stored here.
+model LeadView {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  isSystemDefault Boolean  @default(false)
+  filters         Json
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// The agent's mandatory outcome for a call made from a calling session. A call without
+// one blocks the agent from moving on to the next lead.
+model CallOutcome {
+  id         String    @id @default(cuid())
+  tenantId   String
+  callId     String    @unique
+  contactId  String
+  agentId    String
+  connected  Boolean
+  reason     String?
+  remark     String?
+  followUpAt DateTime?
+  // Only set on a "Yes Connected" outcome — the pipeline stage picked, and the answers
+  // captured on that campaign's (or the tenant default's) Engagement Form, if any.
+  stage        String?
+  engagementFormId String?
+  answers      Json?
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  call   Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
+  engagementForm EngagementForm? @relation(fields: [engagementFormId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, contactId])
+  @@index([tenantId, agentId])
+}
+
+// A configurable set of questions (+ an optional "send message" action) shown to the
+// agent on a "Yes Connected" disposition. One per campaign; campaignId null = the
+// tenant-wide default used when the lead's campaign has no form of its own.
+model EngagementForm {
+  id         String   @id @default(cuid())
+  tenantId   String
+  campaignId String?  @unique
+  name       String
+  // { sections: [{ id, title, description?, fields: [{ id, type, label, options?, required? }], sendMessage?: { enabled, body } }] }
+  schema     Json
+  createdById String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  outcomes CallOutcome[]
+
   @@index([tenantId])
 }
