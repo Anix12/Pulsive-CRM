@@ -48,7 +48,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
 
 export const getStages = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    sendSuccess(res, await service.getStages(req.tenantId!));
+    sendSuccess(res, await service.getStages(req.tenantId!, req.query.pipelineId as string | undefined));
   } catch (err) { next(err); }
 };
 

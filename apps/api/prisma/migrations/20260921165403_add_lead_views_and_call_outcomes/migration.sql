@@ -1,17 +1,5 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `externalId` on the `Integration` table. All the data in the column will be lost.
-
-*/
--- DropIndex
-DROP INDEX "Integration_type_externalId_idx";
-
 -- AlterTable
 ALTER TABLE "Call" ADD COLUMN     "answeredAt" TIMESTAMP(3);
-
--- AlterTable
-ALTER TABLE "Integration" DROP COLUMN "externalId";
 
 -- CreateTable
 CREATE TABLE "LeadView" (

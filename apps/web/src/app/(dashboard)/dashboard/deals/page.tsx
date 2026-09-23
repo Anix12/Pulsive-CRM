@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, ChevronRight, Briefcase, Settings2, GripVertical, Trash2, Check, X, BarChart3 } from 'lucide-react';
+import { Plus, ChevronRight, Briefcase, GripVertical, Trash2, Check, X, Star, Pencil } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Modal } from '@/components/ui/Modal';
 import { useState, useRef } from 'react';
@@ -12,11 +12,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { cardMountProps } from '@/lib/motion';
-import { DonutChart } from '@/components/ui/DonutChart';
-import { LineChart } from '@/components/ui/LineChart';
-import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
-// ── Color palette for stage picker ────────────────────────────────────────────
+// ── Color palette for the stage color picker ───────────────────────────────────
 const STAGE_COLORS = [
   '#94A3B8', '#60A5FA', '#A78BFA', '#F59E0B',
   '#34D399', '#F87171', '#FB923C', '#38BDF8',
@@ -37,109 +34,287 @@ type DealForm = z.infer<typeof dealSchema>;
 const inputCls =
   'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
 
-// ── Manage Stages Modal ───────────────────────────────────────────────────────
-function ManageStagesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const qc = useQueryClient();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [addingNew, setAddingNew] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState(STAGE_COLORS[0]);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState('');
-  const editInputRef = useRef<HTMLInputElement>(null);
+// ── Pipeline & Stages panel (inline, replaces the old "Sales Overview" report) ─
+const errMsg = (err: any, fallback: string) =>
+  err?.response?.data?.error?.message ?? err?.response?.data?.message ?? fallback;
 
-  const { data: stages = [] } = useQuery<any[]>({
-    queryKey: ['deal-stages'],
+function PipelineStagesPanel({
+  activePipelineId,
+  onSelectPipeline,
+}: {
+  activePipelineId: string | undefined;
+  onSelectPipeline: (id: string) => void;
+}) {
+  const qc = useQueryClient();
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [addingPipeline, setAddingPipeline] = useState(false);
+  const [newPipelineName, setNewPipelineName] = useState('');
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [editStageName, setEditStageName] = useState('');
+  const [newStageName, setNewStageName] = useState('');
+  const [newStageColor, setNewStageColor] = useState(STAGE_COLORS[0]);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [deleteStageId, setDeleteStageId] = useState<string | null>(null);
+  const [deleteStageError, setDeleteStageError] = useState('');
+  const [deletePipelineConfirm, setDeletePipelineConfirm] = useState(false);
+  const [deletePipelineError, setDeletePipelineError] = useState('');
+  const editStageRef = useRef<HTMLInputElement>(null);
+
+  const { data: pipelines = [] } = useQuery<any[]>({
+    queryKey: ['pipelines'],
     queryFn: async () => {
-      const { data } = await api.get('/api/v1/deals/stages');
+      const { data } = await api.get('/api/v1/settings/pipelines');
       return data.data;
     },
-    enabled: open,
   });
 
-  const updateStage = useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; color?: string }) =>
-      api.patch(`/api/v1/deals/stages/${id}`, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['deal-stages'] });
-      setEditingId(null);
+  const activePipeline =
+    pipelines.find((p: any) => p.id === activePipelineId) ??
+    pipelines.find((p: any) => p.isDefault) ??
+    pipelines[0];
+  const pipelineId = activePipeline?.id;
+
+  const { data: stages = [] } = useQuery<any[]>({
+    queryKey: ['deal-stages', pipelineId],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/deals/stages', { params: { pipelineId } });
+      return data.data;
     },
+    enabled: !!pipelineId,
+  });
+
+  const invalidateStages = () => qc.invalidateQueries({ queryKey: ['deal-stages', pipelineId] });
+
+  const createPipeline = useMutation({
+    mutationFn: (name: string) => api.post('/api/v1/settings/pipelines', { name }),
+    onSuccess: ({ data }) => {
+      qc.invalidateQueries({ queryKey: ['pipelines'] });
+      setAddingPipeline(false);
+      setNewPipelineName('');
+      onSelectPipeline(data.data.id);
+    },
+  });
+
+  const renamePipeline = useMutation({
+    mutationFn: (name: string) => api.patch(`/api/v1/settings/pipelines/${pipelineId}`, { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pipelines'] });
+      setRenaming(false);
+    },
+  });
+
+  const deletePipeline = useMutation({
+    mutationFn: () => api.delete(`/api/v1/settings/pipelines/${pipelineId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pipelines'] });
+      setDeletePipelineError('');
+      setDeletePipelineConfirm(false);
+      const fallback = pipelines.find((p: any) => p.id !== pipelineId);
+      if (fallback) onSelectPipeline(fallback.id);
+    },
+    onError: (err: any) => setDeletePipelineError(errMsg(err, 'Could not delete pipeline.')),
   });
 
   const createStage = useMutation({
-    mutationFn: (body: { name: string; color: string }) =>
-      api.post('/api/v1/deals/stages', body),
+    mutationFn: ({ name, color }: { name: string; color: string }) =>
+      api.post('/api/v1/deals/stages', { name, color, pipelineId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['deal-stages'] });
-      setAddingNew(false);
-      setNewName('');
-      setNewColor(STAGE_COLORS[0]);
+      invalidateStages();
+      setNewStageName('');
+      setNewStageColor(STAGE_COLORS[0]);
+    },
+  });
+
+  const renameStage = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => api.patch(`/api/v1/deals/stages/${id}`, { name }),
+    onSuccess: () => {
+      invalidateStages();
+      setEditingStageId(null);
     },
   });
 
   const deleteStage = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/deals/stages/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['deal-stages'] });
-      setDeleteConfirmId(null);
-      setDeleteError('');
+      invalidateStages();
+      setDeleteStageId(null);
+      setDeleteStageError('');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message ?? 'Could not delete stage.';
-      setDeleteError(msg);
-    },
+    onError: (err: any) => setDeleteStageError(errMsg(err, 'Could not delete stage.')),
   });
 
   const reorder = useMutation({
-    mutationFn: (orderedIds: string[]) =>
-      api.put('/api/v1/deals/stages/reorder', { orderedIds }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['deal-stages'] }),
+    mutationFn: (orderedIds: string[]) => api.put('/api/v1/deals/stages/reorder', { orderedIds, pipelineId }),
+    onSuccess: () => invalidateStages(),
   });
 
-  const startEdit = (stage: any) => {
-    setEditingId(stage.id);
-    setEditName(stage.name);
-    setTimeout(() => editInputRef.current?.focus(), 50);
+  const startEditStage = (stage: any) => {
+    setEditingStageId(stage.id);
+    setEditStageName(stage.name);
+    setTimeout(() => editStageRef.current?.focus(), 50);
   };
 
-  const commitEdit = (stage: any) => {
-    if (editName.trim() && editName.trim() !== stage.name) {
-      updateStage.mutate({ id: stage.id, name: editName.trim() });
+  const commitEditStage = (stage: any) => {
+    if (editStageName.trim() && editStageName.trim() !== stage.name) {
+      renameStage.mutate({ id: stage.id, name: editStageName.trim() });
     } else {
-      setEditingId(null);
+      setEditingStageId(null);
     }
   };
 
-  const moveStage = (idx: number, dir: -1 | 1) => {
-    const newOrder = [...stages];
-    const swap = idx + dir;
-    if (swap < 0 || swap >= newOrder.length) return;
-    [newOrder[idx], newOrder[swap]] = [newOrder[swap], newOrder[idx]];
-    reorder.mutate(newOrder.map((s) => s.id));
+  const handleDrop = (targetIdx: number) => {
+    if (!dragId) return;
+    const fromIdx = stages.findIndex((s: any) => s.id === dragId);
+    setDragId(null);
+    if (fromIdx === -1 || fromIdx === targetIdx) return;
+    const next = [...stages];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(targetIdx, 0, moved);
+    reorder.mutate(next.map((s: any) => s.id));
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Manage Pipeline Stages" size="md">
-      <div className="space-y-1">
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Pipeline &amp; Stages</p>
+
+      {/* Pipeline tabs */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {pipelines.map((p: any) => (
+          <button
+            key={p.id}
+            onClick={() => { onSelectPipeline(p.id); setDeletePipelineConfirm(false); setDeletePipelineError(''); setRenaming(false); }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition',
+              p.id === pipelineId
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100',
+            )}
+          >
+            {p.isDefault && <Star className="h-3.5 w-3.5 fill-current" />}
+            {p.name}
+          </button>
+        ))}
+        {addingPipeline ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              autoFocus
+              value={newPipelineName}
+              onChange={(e) => setNewPipelineName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newPipelineName.trim()) createPipeline.mutate(newPipelineName.trim());
+                if (e.key === 'Escape') { setAddingPipeline(false); setNewPipelineName(''); }
+              }}
+              placeholder="Pipeline name…"
+              className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+            <button
+              onClick={() => newPipelineName.trim() && createPipeline.mutate(newPipelineName.trim())}
+              disabled={!newPipelineName.trim() || createPipeline.isPending}
+              className="rounded-lg bg-indigo-600 p-1.5 text-white hover:bg-indigo-500 disabled:opacity-50"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => { setAddingPipeline(false); setNewPipelineName(''); }}
+              className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAddingPipeline(true)}
+            className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+          >
+            <Plus className="h-3.5 w-3.5" /> New Pipeline
+          </button>
+        )}
+      </div>
+
+      {/* Rename / Delete pipeline */}
+      {activePipeline && (
+        <div className="mt-2.5 flex items-center gap-4">
+          {renaming ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && renameValue.trim()) renamePipeline.mutate(renameValue.trim());
+                  if (e.key === 'Escape') setRenaming(false);
+                }}
+                className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+              <button onClick={() => renameValue.trim() && renamePipeline.mutate(renameValue.trim())} className="text-xs font-medium text-indigo-600 hover:text-indigo-700">
+                Save
+              </button>
+              <button onClick={() => setRenaming(false)} className="text-xs font-medium text-gray-400 hover:text-gray-600">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setRenaming(true); setRenameValue(activePipeline.name); }}
+              className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-indigo-600"
+            >
+              <Pencil className="h-3 w-3" /> Rename
+            </button>
+          )}
+          {pipelines.length > 1 && (
+            deletePipelineConfirm ? (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-medium text-red-600">Delete "{activePipeline.name}"?</span>
+                <button
+                  onClick={() => deletePipeline.mutate()}
+                  disabled={deletePipeline.isPending}
+                  className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
+                >
+                  {deletePipeline.isPending ? 'Deleting…' : 'Yes, delete'}
+                </button>
+                <button
+                  onClick={() => { setDeletePipelineConfirm(false); setDeletePipelineError(''); }}
+                  className="font-medium text-gray-400 hover:text-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setDeletePipelineConfirm(true)}
+                className="flex items-center gap-1 text-xs font-medium text-red-400 hover:text-red-500"
+              >
+                <Trash2 className="h-3 w-3" /> Delete pipeline
+              </button>
+            )
+          )}
+        </div>
+      )}
+      {deletePipelineError && <p className="mt-1.5 text-xs text-red-500">{deletePipelineError}</p>}
+
+      {/* Stage list */}
+      <div className="mt-4 space-y-1">
         {stages.map((stage: any, idx: number) => (
-          <div key={stage.id}>
-            {deleteConfirmId === stage.id ? (
+          <div
+            key={stage.id}
+            draggable
+            onDragStart={() => setDragId(stage.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => handleDrop(idx)}
+          >
+            {deleteStageId === stage.id ? (
               <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
                 <p className="text-sm font-medium text-red-700">Delete "{stage.name}"?</p>
-                {deleteError ? (
-                  <p className="mt-1 text-xs text-red-500">{deleteError}</p>
+                {deleteStageError ? (
+                  <p className="mt-1 text-xs text-red-500">{deleteStageError}</p>
                 ) : (
-                  <p className="mt-0.5 text-xs text-red-400">
-                    This cannot be undone. Stages with deals cannot be deleted.
-                  </p>
+                  <p className="mt-0.5 text-xs text-red-400">This cannot be undone. Stages with deals cannot be deleted.</p>
                 )}
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => {
-                      setDeleteConfirmId(null);
-                      setDeleteError('');
-                    }}
+                    onClick={() => { setDeleteStageId(null); setDeleteStageError(''); }}
                     className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-white"
                   >
                     Cancel
@@ -154,43 +329,26 @@ function ManageStagesModal({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
               </div>
             ) : (
-              <div className="group flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 hover:border-gray-100 hover:bg-gray-50/60">
-                {/* Reorder arrows */}
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={() => moveStage(idx, -1)}
-                    disabled={idx === 0 || reorder.isPending}
-                    className="rounded p-0.5 text-gray-300 enabled:hover:text-gray-500 disabled:opacity-30"
-                  >
-                    <GripVertical className="h-4 w-4 rotate-180" style={{ transform: 'scaleY(-1) rotate(0deg)' }} />
-                  </button>
-                </div>
+              <div className="group flex cursor-grab items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 hover:border-gray-100 hover:bg-gray-50/60 active:cursor-grabbing">
+                <GripVertical className="h-4 w-4 shrink-0 text-gray-300" />
+                <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: stage.color }} />
 
-                {/* Color dot + color picker */}
-                <div className="relative shrink-0">
-                  <div
-                    className="h-3.5 w-3.5 rounded-full ring-2 ring-white ring-offset-1"
-                    style={{ backgroundColor: stage.color }}
-                  />
-                </div>
-
-                {/* Name — click to edit inline */}
-                {editingId === stage.id ? (
+                {editingStageId === stage.id ? (
                   <input
-                    ref={editInputRef}
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onBlur={() => commitEdit(stage)}
+                    ref={editStageRef}
+                    value={editStageName}
+                    onChange={(e) => setEditStageName(e.target.value)}
+                    onBlur={() => commitEditStage(stage)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitEdit(stage);
-                      if (e.key === 'Escape') setEditingId(null);
+                      if (e.key === 'Enter') commitEditStage(stage);
+                      if (e.key === 'Escape') setEditingStageId(null);
                     }}
                     className="flex-1 rounded-lg border border-indigo-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 ) : (
                   <button
-                    onClick={() => startEdit(stage)}
-                    className="flex-1 text-left text-sm font-medium text-gray-800 hover:text-indigo-600"
+                    onClick={() => startEditStage(stage)}
+                    className="flex-1 text-left text-sm font-semibold text-gray-800 hover:text-indigo-600"
                   >
                     {stage.name}
                     {(stage.isWon || stage.isLost) && (
@@ -201,123 +359,73 @@ function ManageStagesModal({ open, onClose }: { open: boolean; onClose: () => vo
                   </button>
                 )}
 
-                {/* Color swatches (shown on hover, not for system stages) */}
-                {editingId !== stage.id && !stage.isWon && !stage.isLost && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {STAGE_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => updateStage.mutate({ id: stage.id, color: c })}
-                        className={cn(
-                          'h-3.5 w-3.5 rounded-full ring-2 ring-transparent transition',
-                          stage.color === c ? 'ring-gray-400 ring-offset-1' : 'hover:ring-gray-300 hover:ring-offset-1',
-                        )}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
+                {!stage.isWon && !stage.isLost && (
+                  <button
+                    onClick={() => { setDeleteStageId(stage.id); setDeleteStageError(''); }}
+                    className="shrink-0 rounded p-1 text-gray-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-400 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 )}
-
-                {/* Move up/down + delete */}
-                <div className="ml-auto flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => moveStage(idx, -1)}
-                    disabled={idx === 0 || reorder.isPending}
-                    className="rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500 disabled:opacity-30"
-                    title="Move up"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => moveStage(idx, 1)}
-                    disabled={idx === stages.length - 1 || reorder.isPending}
-                    className="rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500 disabled:opacity-30"
-                    title="Move down"
-                  >
-                    ↓
-                  </button>
-                  {!stage.isWon && !stage.isLost && (
-                    <button
-                      onClick={() => { setDeleteConfirmId(stage.id); setDeleteError(''); }}
-                      className="rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-400"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
               </div>
             )}
           </div>
         ))}
+      </div>
 
-        {/* Add new stage */}
-        {addingNew ? (
-          <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-3">
-            <p className="text-xs font-semibold text-indigo-700">New Stage</p>
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newName.trim()) createStage.mutate({ name: newName.trim(), color: newColor });
-                if (e.key === 'Escape') { setAddingNew(false); setNewName(''); }
-              }}
-              placeholder="Stage name…"
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <div>
-              <p className="mb-1.5 text-[11px] font-medium text-gray-500">Pick a color</p>
-              <div className="flex flex-wrap gap-2">
+      {/* Add new stage */}
+      <div className="mt-5 border-t border-gray-50 pt-4">
+        <p className="mb-2 text-sm font-semibold text-gray-800">Add New Stage</p>
+        <div className="flex gap-2">
+          <input
+            value={newStageName}
+            onChange={(e) => setNewStageName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newStageName.trim()) createStage.mutate({ name: newStageName.trim(), color: newStageColor });
+            }}
+            placeholder="Enter stage name"
+            className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          />
+
+          {/* Color picker */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setColorPickerOpen((o) => !o)}
+              title="Pick a color"
+              className="flex h-[38px] w-[38px] items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+            >
+              <span className="h-4 w-4 rounded-full ring-1 ring-black/5" style={{ backgroundColor: newStageColor }} />
+            </button>
+            {colorPickerOpen && (
+              <div className="absolute right-0 top-[calc(100%+6px)] z-10 flex w-[168px] flex-wrap gap-2 rounded-lg border border-gray-100 bg-white p-2.5 shadow-lg">
                 {STAGE_COLORS.map((c) => (
                   <button
                     key={c}
-                    onClick={() => setNewColor(c)}
+                    type="button"
+                    onClick={() => { setNewStageColor(c); setColorPickerOpen(false); }}
                     className={cn(
                       'h-5 w-5 rounded-full ring-2 ring-transparent transition',
-                      newColor === c ? 'ring-gray-500 ring-offset-1' : 'hover:ring-gray-300 hover:ring-offset-1',
+                      newStageColor === c ? 'ring-gray-400 ring-offset-1' : 'hover:ring-gray-300 hover:ring-offset-1',
                     )}
                     style={{ backgroundColor: c }}
                   />
                 ))}
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setAddingNew(false); setNewName(''); }}
-                className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white"
-              >
-                <X className="h-3 w-3" /> Cancel
-              </button>
-              <button
-                onClick={() => newName.trim() && createStage.mutate({ name: newName.trim(), color: newColor })}
-                disabled={!newName.trim() || createStage.isPending}
-                className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
-              >
-                <Check className="h-3 w-3" />
-                {createStage.isPending ? 'Adding…' : 'Add Stage'}
-              </button>
-            </div>
+            )}
           </div>
-        ) : (
-          <button
-            onClick={() => setAddingNew(true)}
-            className="mt-2 flex w-full items-center gap-2 rounded-xl border border-dashed border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-400 transition hover:border-indigo-300 hover:text-indigo-600"
-          >
-            <Plus className="h-4 w-4" />
-            Add Stage
-          </button>
-        )}
-      </div>
 
-      <div className="mt-5 flex justify-end border-t border-gray-50 pt-4">
-        <button
-          onClick={onClose}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
-        >
-          Done
-        </button>
+          <button
+            onClick={() => newStageName.trim() && createStage.mutate({ name: newStageName.trim(), color: newStageColor })}
+            disabled={!newStageName.trim() || createStage.isPending}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {createStage.isPending ? 'Adding…' : 'Add Stage'}
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -454,192 +562,33 @@ const tempConfig = {
   COLD: { label: 'Cold', emoji: '❄️', cls: 'bg-sky-50 text-sky-600 ring-sky-100'         },
 } as const;
 
-// ── Sales Analytics report ────────────────────────────────────────────────────
-interface DealsAnalyticsData {
-  pipelineByStage: { stageId: string; stage: string; order: number; color: string; count: number; value: number }[];
-  outcomes: { won: { count: number; value: number }; lost: { count: number; value: number }; open: { count: number; value: number } };
-  avgWonValue: number;
-  byAgent: { agentId: string; name: string; count: number; value: number }[];
-  bySource: { source: string; count: number; value: number }[];
-  valueOverTime: { period: string; label: string; value: number; count: number }[];
-  aging: { bucket: string; count: number }[];
-}
-
-function AnalyticsStat({ label, value, color }: { label: string; value: string | number; color: string }) {
-  return (
-    <div className="rounded-lg bg-gray-50 p-3.5 text-center">
-      <p className="text-xl font-bold" style={{ color }}>{value}</p>
-      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">{label}</p>
-    </div>
-  );
-}
-
-function DealsAnalytics() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['deals-analytics'],
-    queryFn: async () => {
-      const { data } = await api.get('/api/v1/deals/analytics');
-      return data.data as DealsAnalyticsData;
-    },
-  });
-
-  if (isError) return null;
-
-  if (isLoading || !data) {
-    return <div className="h-56 animate-pulse rounded-xl bg-white shadow-sm ring-1 ring-gray-100" />;
-  }
-
-  const { pipelineByStage, outcomes, avgWonValue, byAgent, bySource, valueOverTime, aging } = data;
-  const maxStageCount = Math.max(1, ...pipelineByStage.map((s) => s.count));
-  const outcomeDonutData = [
-    { label: 'Won', count: outcomes.won.count, color: '#34d399' },
-    { label: 'Lost', count: outcomes.lost.count, color: '#f87171' },
-    { label: 'Open', count: outcomes.open.count, color: '#94a3b8' },
-  ].filter((d) => d.count > 0);
-  const SOURCE_PALETTE = ['#10b981', '#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#fb923c'];
-  const sourceIsDonut = bySource.length <= 5;
-  const sourceSegments = bySource.map((s, i) => ({ label: s.source, value: s.value, color: SOURCE_PALETTE[i % SOURCE_PALETTE.length] }));
-
-  return (
-    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sales Overview</p>
-
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <AnalyticsStat label="Won value" value={formatCurrency(outcomes.won.value)} color="#059669" />
-        <AnalyticsStat label="Lost value" value={formatCurrency(outcomes.lost.value)} color="#dc2626" />
-        <AnalyticsStat label="Open pipeline" value={formatCurrency(outcomes.open.value)} color="#d97706" />
-        <AnalyticsStat label="Avg. won deal" value={formatCurrency(avgWonValue)} color="#4f46e5" />
-      </div>
-
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Pipeline by Stage</p>
-          <div className="space-y-2.5">
-            {pipelineByStage.map((s) => (
-              <div key={s.stageId}>
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-gray-600">
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
-                    {s.stage}
-                  </span>
-                  <span className="text-gray-400">{s.count} &middot; {formatCurrency(s.value)}</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${(s.count / maxStageCount) * 100}%`, backgroundColor: s.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Won vs Lost</p>
-          <DonutChart
-            data={outcomeDonutData}
-            nameKey="label"
-            valueKey="count"
-            colors={outcomeDonutData.map((d) => d.color)}
-            height={140}
-            showLegend={false}
-            ariaLabel="Deals grouped by outcome"
-          />
-          <ul className="mt-2 space-y-1">
-            {outcomeDonutData.map((d) => (
-              <li key={d.label} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-gray-500">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: d.color }} />
-                  {d.label}
-                </span>
-                <span className="text-gray-700">{d.count}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Deal Value &middot; last 6 months</p>
-          <LineChart
-            data={valueOverTime}
-            xKey="label"
-            series={[{ key: 'value', label: 'Won value', color: '#6366f1' }]}
-            variant="area"
-            height={170}
-            formatValue={(value) => formatCurrency(value)}
-            ariaLabel="Won deal value over the last 6 months"
-          />
-        </div>
-      </div>
-
-      {(byAgent.length > 0 || bySource.length > 0 || aging.some((a) => a.count > 0)) && (
-        <div className="mt-5 grid gap-5 lg:grid-cols-3">
-          {byAgent.length > 0 && (
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sales by Agent</p>
-              <SimpleBarChart
-                data={byAgent.slice(0, 6).map((a) => ({ label: a.name.split(' ')[0], value: a.value }))}
-                height={140}
-                formatValue={(n) => formatCurrency(n)}
-              />
-            </div>
-          )}
-
-          {bySource.length > 0 && (
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sales by Source</p>
-              {sourceIsDonut ? (
-                <DonutChart
-                  data={sourceSegments}
-                  nameKey="label"
-                  valueKey="value"
-                  colors={sourceSegments.map((s) => s.color)}
-                  height={140}
-                  showLegend={false}
-                  formatValue={(n) => formatCurrency(n)}
-                  ariaLabel="Deal value grouped by source"
-                />
-              ) : (
-                <SimpleBarChart
-                  data={sourceSegments.slice(0, 6).map((s) => ({ label: s.label, value: s.value }))}
-                  height={140}
-                  formatValue={(n) => formatCurrency(n)}
-                />
-              )}
-            </div>
-          )}
-
-          {aging.some((a) => a.count > 0) && (
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Open Deal Aging</p>
-              <SimpleBarChart
-                data={aging.map((a) => ({ label: a.bucket.replace(' days', 'd'), value: a.count }))}
-                height={140}
-                formatValue={(n) => `${n} deal${n === 1 ? '' : 's'}`}
-              />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DealsPage() {
   const reduceMotion = useReducedMotion();
   const [createOpen, setCreateOpen] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
   const [movingDeal, setMovingDeal] = useState<any>(null);
-  const [reportOpen, setReportOpen] = useState(true);
+  const [activePipelineId, setActivePipelineId] = useState<string | undefined>(undefined);
 
-  const { data: stagesData } = useQuery({
-    queryKey: ['deal-stages'],
+  const { data: pipelines = [] } = useQuery<any[]>({
+    queryKey: ['pipelines'],
     queryFn: async () => {
-      const { data } = await api.get('/api/v1/deals/stages');
+      const { data } = await api.get('/api/v1/settings/pipelines');
       return data.data;
     },
+  });
+
+  const resolvedPipelineId =
+    pipelines.find((p: any) => p.id === activePipelineId)?.id ??
+    pipelines.find((p: any) => p.isDefault)?.id ??
+    pipelines[0]?.id;
+
+  const { data: stagesData } = useQuery({
+    queryKey: ['deal-stages', resolvedPipelineId],
+    queryFn: async () => {
+      const { data } = await api.get('/api/v1/deals/stages', { params: { pipelineId: resolvedPipelineId } });
+      return data.data;
+    },
+    enabled: !!resolvedPipelineId,
   });
 
   const { data: dealsData, isLoading } = useQuery({
@@ -669,20 +618,6 @@ export default function DealsPage() {
         </p>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setReportOpen((o) => !o)}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            {reportOpen ? 'Hide report' : 'Show report'}
-          </button>
-          <button
-            onClick={() => setManageOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
-          >
-            <Settings2 className="h-3.5 w-3.5" />
-            Manage Stages
-          </button>
-          <button
             onClick={() => setCreateOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
           >
@@ -692,7 +627,7 @@ export default function DealsPage() {
         </div>
       </div>
 
-      {reportOpen && <DealsAnalytics />}
+      <PipelineStagesPanel activePipelineId={resolvedPipelineId} onSelectPipeline={setActivePipelineId} />
 
       {/* Kanban board */}
       {isLoading ? (
@@ -798,7 +733,6 @@ export default function DealsPage() {
       )}
 
       <CreateDealModal open={createOpen} onClose={() => setCreateOpen(false)} stages={stages} />
-      <ManageStagesModal open={manageOpen} onClose={() => setManageOpen(false)} />
       {movingDeal && (
         <MoveDealModal deal={movingDeal} stages={stages} onClose={() => setMovingDeal(null)} />
       )}

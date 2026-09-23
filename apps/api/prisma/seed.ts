@@ -29,6 +29,12 @@ async function main() {
     },
   });
 
+  // ── Default Pipeline ─────────────────────────────────────────────────────────
+  let pipeline = await prisma.pipeline.findFirst({ where: { tenantId: tenant.id, isDefault: true } });
+  if (!pipeline) {
+    pipeline = await prisma.pipeline.create({ data: { tenantId: tenant.id, name: 'Sales Pipeline', isDefault: true } });
+  }
+
   // ── Deal Stages ─────────────────────────────────────────────────────────────
   const stageDefs = [
     { name: 'New Lead',      order: 1, probability: 10,  color: '#94A3B8' },
@@ -42,9 +48,9 @@ async function main() {
   const stageMap: Record<string, string> = {};
   for (const s of stageDefs) {
     const stage = await prisma.dealStage.upsert({
-      where: { tenantId_order: { tenantId: tenant.id, order: s.order } },
+      where: { tenantId_pipelineId_order: { tenantId: tenant.id, pipelineId: pipeline.id, order: s.order } },
       update: {},
-      create: { tenantId: tenant.id, ...s },
+      create: { tenantId: tenant.id, pipelineId: pipeline.id, ...s },
     });
     stageMap[s.name] = stage.id;
   }
@@ -151,6 +157,54 @@ async function main() {
     });
   }
   console.log(`Assigned ${demoAgentLeadIdx.length} leads to the demo AGENT user`);
+
+  // ── Campaigns ────────────────────────────────────────────────────────────────
+  const campaignDefs = [
+    { name: 'Diwali Festive Offer',      category: 'Seasonal',   source: 'Facebook Ads',  status: 'ACTIVE' as const, priority: 'HIGH'   as const, duplicateCheck: 'MOBILE_ONLY' as const, assignmentRule: 'ROUND_ROBIN' as const },
+    { name: 'New Year Membership Drive', category: 'Membership', source: 'Instagram Ads', status: 'ACTIVE' as const, priority: 'MEDIUM' as const, duplicateCheck: 'BOTH'        as const, assignmentRule: 'MANUAL'      as const },
+  ];
+
+  const campaignMap: Record<string, string> = {};
+  for (const c of campaignDefs) {
+    let campaign = await prisma.campaign.findFirst({ where: { tenantId: tenant.id, name: c.name } });
+    if (!campaign) {
+      campaign = await prisma.campaign.create({ data: { tenantId: tenant.id, ...c } });
+    }
+    campaignMap[c.name] = campaign.id;
+  }
+  console.log('Campaigns seeded:', Object.keys(campaignMap).join(', '));
+
+  // ── Campaign Leads ───────────────────────────────────────────────────────────
+  const campaignLeadDefs = [
+    { firstName: 'Ankit',  lastName: 'Verma',     phone: '+919826511001', email: 'ankit.verma@example.com',   company: 'Verma Textiles',       source: 'Mumbai',     temperature: 'HOT'  as const, campaign: 'Diwali Festive Offer' },
+    { firstName: 'Priya',  lastName: 'Nair',      phone: '+919826511002', email: 'priya.nair@example.com',    company: 'Nair Traders',         source: 'Chennai',    temperature: 'WARM' as const, campaign: 'Diwali Festive Offer' },
+    { firstName: 'Rohit',  lastName: 'Malhotra',  phone: '+919826511003', email: 'rohit.malhotra@example.com',company: 'Malhotra Retail',      source: 'Delhi',      temperature: 'HOT'  as const, campaign: 'Diwali Festive Offer' },
+    { firstName: 'Sneha',  lastName: 'Kulkarni',  phone: '+919826511004', email: 'sneha.kulkarni@example.com',company: 'Kulkarni Fitness',     source: 'Pune',       temperature: 'WARM' as const, campaign: 'New Year Membership Drive' },
+    { firstName: 'Farhan', lastName: 'Sheikh',    phone: '+919826511005', email: 'farhan.sheikh@example.com', company: 'Sheikh Enterprises',   source: 'Hyderabad',  temperature: 'COLD' as const, campaign: 'New Year Membership Drive' },
+    { firstName: 'Divya',  lastName: 'Reddy',     phone: '+919826511006', email: 'divya.r@example.com',       company: 'Reddy Consultants',    source: 'Bengaluru',  temperature: 'HOT'  as const, campaign: 'New Year Membership Drive' },
+  ];
+
+  let campaignLeadsCreated = 0;
+  for (const l of campaignLeadDefs) {
+    const existing = await prisma.contact.findFirst({ where: { tenantId: tenant.id, phone: l.phone } });
+    if (!existing) {
+      await prisma.contact.create({
+        data: {
+          tenantId: tenant.id,
+          name: `${l.firstName} ${l.lastName}`.trim(),
+          phone: l.phone,
+          email: l.email,
+          company: l.company,
+          status: 'LEAD',
+          temperature: l.temperature,
+          source: l.source,
+          campaignId: campaignMap[l.campaign],
+        } as any,
+      });
+      campaignLeadsCreated++;
+    }
+  }
+  console.log(`Seeded ${campaignLeadsCreated} campaign leads`);
 
   // ── Deals ────────────────────────────────────────────────────────────────────
   const now = new Date();
