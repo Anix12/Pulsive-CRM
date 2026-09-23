@@ -9,22 +9,47 @@ import { CreateDealInput, UpdateDealInput, CreateStageInput, UpdateStageInput, R
 // ── Pipelines ────────────────────────────────────────────────────────────────
 
 export const listPipelines = async (tenantId: string) => {
-  const pipelines = await prisma.pipeline.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
-  if (pipelines.length > 0) return pipelines;
-  const created = await prisma.pipeline.create({ data: { tenantId, name: 'Sales Pipeline', isDefault: true } });
-  return [created];
+  let pipelines = await prisma.pipeline.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+  let defaultPipeline = pipelines.find((p) => p.isDefault);
+  if (!defaultPipeline) {
+    if (pipelines.length > 0) {
+      // A pipeline already exists but none is flagged default (e.g. created via Settings
+      // before this tenant ever hit a deals endpoint) — promote the oldest one instead of
+      // creating a duplicate "Sales Pipeline".
+      defaultPipeline = await prisma.pipeline.update({ where: { id: pipelines[0].id }, data: { isDefault: true } });
+      pipelines = pipelines.map((p) => (p.id === defaultPipeline!.id ? defaultPipeline! : p));
+    } else {
+      defaultPipeline = await prisma.pipeline.create({ data: { tenantId, name: 'Sales Pipeline', isDefault: true } });
+      pipelines = [defaultPipeline, ...pipelines];
+    }
+  }
+
+  // Stages created before pipelines existed have pipelineId = null — anchor them to the default pipeline.
+  await prisma.dealStage.updateMany({
+    where: { tenantId, pipelineId: null },
+    data: { pipelineId: defaultPipeline.id },
+  });
+
+  return pipelines;
+};
+
+const resolvePipelineId = async (tenantId: string, pipelineId?: string) => {
+  if (pipelineId) return pipelineId;
+  const pipelines = await listPipelines(tenantId);
+  return pipelines.find((p) => p.isDefault)!.id;
 };
 
 // ── Stage management ───────────────────────────────────────────────────────────
 
 export const createStage = async (tenantId: string, input: CreateStageInput) => {
+  const pipelineId = await resolvePipelineId(tenantId, input.pipelineId);
   const last = await prisma.dealStage.findFirst({
-    where: { tenantId },
+    where: { tenantId, pipelineId },
     orderBy: { order: 'desc' },
   });
   const nextOrder = (last?.order ?? 0) + 1;
   return prisma.dealStage.create({
-    data: { tenantId, name: input.name, color: input.color ?? '#94A3B8', order: nextOrder },
+    data: { tenantId, pipelineId, name: input.name, color: input.color ?? '#94A3B8', order: nextOrder },
   });
 };
 
@@ -47,20 +72,28 @@ export const deleteStage = async (tenantId: string, id: string) => {
 };
 
 export const reorderStages = async (tenantId: string, input: ReorderStagesInput) => {
-  const stages = await prisma.dealStage.findMany({ where: { tenantId } });
+  const pipelineId = await resolvePipelineId(tenantId, input.pipelineId);
+  const stages = await prisma.dealStage.findMany({ where: { tenantId, pipelineId } });
   const stageIds = new Set(stages.map((s) => s.id));
 
   for (const id of input.orderedIds) {
-    if (!stageIds.has(id)) throw new AppError(400, 'INVALID_STAGE', `Stage ${id} not found`);
+    if (!stageIds.has(id)) throw new AppError(400, 'INVALID_STAGE', `Stage ${id} not found in this pipeline`);
   }
 
+  // Bump everything out of the way first so the (tenantId, pipelineId, order) unique constraint
+  // never collides with the target values while reassigning.
+  await prisma.$transaction(
+    input.orderedIds.map((id, idx) =>
+      prisma.dealStage.update({ where: { id }, data: { order: -1 * (idx + 1) } }),
+    ),
+  );
   await prisma.$transaction(
     input.orderedIds.map((id, idx) =>
       prisma.dealStage.update({ where: { id }, data: { order: idx + 1 } }),
     ),
   );
 
-  return prisma.dealStage.findMany({ where: { tenantId }, orderBy: { order: 'asc' } });
+  return prisma.dealStage.findMany({ where: { tenantId, pipelineId }, orderBy: { order: 'asc' } });
 };
 
 // ── Deal CRUD ──────────────────────────────────────────────────────────────────
@@ -88,8 +121,9 @@ export const list = async (tenantId: string, req: Request) => {
   return { deals, meta: paginationMeta(total, page, limit) };
 };
 
-export const getStages = async (tenantId: string) => {
-  return prisma.dealStage.findMany({ where: { tenantId }, orderBy: { order: 'asc' } });
+export const getStages = async (tenantId: string, pipelineId?: string) => {
+  const resolvedPipelineId = await resolvePipelineId(tenantId, pipelineId);
+  return prisma.dealStage.findMany({ where: { tenantId, pipelineId: resolvedPipelineId }, orderBy: { order: 'asc' } });
 };
 
 // ── Analytics ──────────────────────────────────────────────────────────────────
