@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,15 +29,18 @@ function NavLink({
   icon: Icon,
   active,
   size = 'default',
+  onClick,
 }: Pick<NavItem, 'href' | 'label' | 'icon'> & {
   active: boolean;
   size?: 'default' | 'md';
+  onClick?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
 
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         'group relative flex items-center gap-2.5 rounded-xl font-medium transition-colors duration-150 ease-out active:scale-[0.97]',
         size === 'md'
@@ -51,7 +54,7 @@ function NavLink({
       {active && (
         <motion.span
           layoutId="sidebar-active-bg"
-          className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/30"
+          className="absolute inset-0 rounded-xl bg-blue-600 shadow-md shadow-blue-500/30"
           transition={
             reduceMotion
               ? { duration: 0 }
@@ -99,6 +102,7 @@ function SidebarSection({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const router = useRouter();
   const withinSection = sectionContainsActiveRoute(section, pathname);
   const Icon = section.icon;
 
@@ -110,7 +114,14 @@ function SidebarSection({
     <div>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => {
+          if (withinSection) {
+            onToggle();
+            return;
+          }
+          router.push(section.href);
+          if (!isOpen) onToggle();
+        }}
         aria-expanded={isOpen}
         className={cn(
           'group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-colors duration-150',
@@ -199,7 +210,7 @@ export function Sidebar() {
     <aside className="flex w-[218px] shrink-0 flex-col border-r border-gray-100 bg-white">
       {/* Brand */}
       <div className="flex h-14 items-center gap-2.5 border-b border-gray-100 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_16px_-4px_rgba(129,74,246,0.6)]">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_16px_-4px_rgba(59,130,246,0.6)]">
           <span className="text-[13px] font-bold tracking-tight text-white">P</span>
         </div>
         <span className="text-[13.5px] font-semibold tracking-tight text-gray-900">
@@ -209,7 +220,7 @@ export function Sidebar() {
 
       {/* Main nav — one button per area; sub-features live inside each area's page */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
-        <NavLink {...dashboard} active={isActive(dashboard.href, pathname)} size="md" />
+        <NavLink {...dashboard} active={isActive(dashboard.href, pathname)} size="md" onClick={() => setExpanded({})} />
         <div className="my-2 border-t border-gray-100" />
         {navSections.map((section) => (
           <SidebarSection
