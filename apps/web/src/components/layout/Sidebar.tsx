@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,15 +29,18 @@ function NavLink({
   icon: Icon,
   active,
   size = 'default',
+  onClick,
 }: Pick<NavItem, 'href' | 'label' | 'icon'> & {
   active: boolean;
   size?: 'default' | 'md';
+  onClick?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
 
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         'group relative flex items-center gap-2.5 rounded-xl font-medium transition-colors duration-150 ease-out active:scale-[0.97]',
         size === 'md'
@@ -99,6 +102,7 @@ function SidebarSection({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const router = useRouter();
   const withinSection = sectionContainsActiveRoute(section, pathname);
   const Icon = section.icon;
 
@@ -110,7 +114,14 @@ function SidebarSection({
     <div>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => {
+          if (withinSection) {
+            onToggle();
+            return;
+          }
+          router.push(section.href);
+          if (!isOpen) onToggle();
+        }}
         aria-expanded={isOpen}
         className={cn(
           'group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-colors duration-150',
@@ -209,7 +220,7 @@ export function Sidebar() {
 
       {/* Main nav — one button per area; sub-features live inside each area's page */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
-        <NavLink {...dashboard} active={isActive(dashboard.href, pathname)} size="md" />
+        <NavLink {...dashboard} active={isActive(dashboard.href, pathname)} size="md" onClick={() => setExpanded({})} />
         <div className="my-2 border-t border-gray-100" />
         {navSections.map((section) => (
           <SidebarSection
