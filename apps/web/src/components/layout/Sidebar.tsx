@@ -54,7 +54,7 @@ function NavLink({
       {active && (
         <motion.span
           layoutId="sidebar-active-bg"
-          className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/30"
+          className="absolute inset-0 rounded-xl bg-blue-600 shadow-md shadow-blue-500/30"
           transition={
             reduceMotion
               ? { duration: 0 }
@@ -210,7 +210,7 @@ export function Sidebar() {
     <aside className="flex w-[218px] shrink-0 flex-col border-r border-gray-100 bg-white">
       {/* Brand */}
       <div className="flex h-14 items-center gap-2.5 border-b border-gray-100 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_16px_-4px_rgba(129,74,246,0.6)]">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_16px_-4px_rgba(59,130,246,0.6)]">
           <span className="text-[13px] font-bold tracking-tight text-white">P</span>
         </div>
         <span className="text-[13.5px] font-semibold tracking-tight text-gray-900">

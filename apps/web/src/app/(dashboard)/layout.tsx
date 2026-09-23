@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
-import { CustomCursor } from '@/components/layout/CustomCursor';
 import { DailyBriefingGate } from '@/components/daily-briefing/DailyBriefingGate';
 import { MinimizedCallBar } from '@/components/layout/MinimizedCallBar';
 import api from '@/lib/api';
@@ -36,7 +35,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-glow-bg flex h-screen overflow-hidden">
-      <CustomCursor />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
