@@ -7,7 +7,7 @@ export default function ManageAiPage() {
   return (
     <ComingSoon
       title="AI Settings"
-      description="Configure AI-assisted features — drafting, forecasting, and call intelligence — across your workspace."
+      description="Configure AI-assisted features — drafting, sales coaching, and call intelligence — across your workspace."
       icon={Sparkles}
     />
   );

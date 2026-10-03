@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Users, Briefcase, Phone, MessageSquare,
   Zap, TrendingUp, Plug, Settings, GraduationCap, FileText,
-  Megaphone, Send, CheckSquare, LineChart, Brain,
+  Megaphone, Send, CheckSquare, Brain,
   MessageCircle, Workflow, BarChart3, Wallet, Settings2,
   Sparkles, ListChecks, PhoneCall, Package, Truck, UsersRound, Shield, Bot, Smartphone,
 } from 'lucide-react';
@@ -72,24 +72,23 @@ export const navSections: NavSection[] = [
       { href: '/dashboard/marketing', label: 'Marketing', icon: Send, description: 'Build contact lists and marketing campaigns.' },
     ],
   },
-  {
-    key: 'web-dialer',
-    label: 'Web Dialer',
-    icon: Smartphone,
-    href: '/dashboard/web-dialer',
-    description: 'Start calls to your contacts right from the browser.',
-    items: [],
-  },
+  // {
+  //   key: 'web-dialer',
+  //   label: 'Web Dialer',
+  //   icon: Smartphone,
+  //   href: '/dashboard/web-dialer',
+  //   description: 'Start calls to your contacts right from the browser.',
+  //   items: [],
+  // },
   {
     key: 'automate',
     label: 'Automate',
     icon: Zap,
     href: '/dashboard/automate',
-    description: 'Automation, reporting, and forecasting.',
+    description: 'Automation and reporting.',
     items: [
       { href: '/dashboard/workflows', label: 'Workflows', icon: Zap, description: 'Automate repetitive sales and follow-up steps.' },
       { href: '/dashboard/reports', label: 'Reports', icon: TrendingUp, description: 'Scheduled and on-demand performance reports.' },
-      { href: '/dashboard/forecast', label: 'Sales Forecast', icon: LineChart, description: 'Projected leads and pipeline over time.' },
       { href: '/dashboard/campaign-intelligence', label: 'Campaign Intelligence', icon: Brain, description: 'KPIs and insights across your campaigns.' },
     ],
   },
