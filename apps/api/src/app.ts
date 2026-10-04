@@ -31,7 +31,6 @@ import taskRoutes from '@/modules/tasks/tasks.routes';
 import campaignRoutes from '@/modules/campaigns/campaigns.routes';
 import broadcastRoutes from '@/modules/broadcasts/broadcasts.routes';
 import marketingRoutes from '@/modules/marketing/marketing.routes';
-import forecastRoutes from '@/modules/forecast/forecast.routes';
 import aiCallingRoutes from '@/modules/ai-calling/ai-calling.routes';
 import leadListsRoutes from '@/modules/lead-lists/lead-lists.routes';
 import leadViewsRoutes from '@/modules/lead-views/lead-views.routes';
@@ -95,7 +94,6 @@ export const createApp = () => {
   app.use('/api/v1/campaigns', campaignRoutes);
   app.use('/api/v1/broadcasts', broadcastRoutes);
   app.use('/api/v1/marketing', marketingRoutes);
-  app.use('/api/v1/forecast', forecastRoutes);
   app.use('/api/v1/ai-calling', aiCallingRoutes);
   app.use('/api/v1/lead-lists', leadListsRoutes);
   app.use('/api/v1/lead-views', leadViewsRoutes);
