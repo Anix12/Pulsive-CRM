@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { TRIGGER_TYPES, STEP_TYPES, stepMeta } from '@/lib/workflowConfig';
+import { TRIGGER_TYPES, STEP_TYPES, WORKFLOW_EXAMPLES, stepMeta } from '@/lib/workflowConfig';
 import { Plus, Trash2, X } from 'lucide-react';
 
 interface StepInstance {
@@ -126,11 +126,22 @@ function StepConfigFields({
 }
 
 export default function NewWorkflowPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewWorkflowForm />
+    </Suspense>
+  );
+}
+
+function NewWorkflowForm() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [triggerType, setTriggerType] = useState('');
-  const [steps, setSteps] = useState<StepInstance[]>([]);
+  const example = WORKFLOW_EXAMPLES.find((e) => e.id === useSearchParams().get('example'));
+  const [name, setName] = useState(example?.name ?? '');
+  const [description, setDescription] = useState(example?.description ?? '');
+  const [triggerType, setTriggerType] = useState(example?.trigger ?? '');
+  const [steps, setSteps] = useState<StepInstance[]>(
+    () => example?.steps.map((s, i) => ({ id: `example_${i}`, type: s.type, config: { ...s.config } })) ?? [],
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
 

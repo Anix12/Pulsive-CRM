@@ -39,6 +39,61 @@ export const STEP_TYPES: StepOption[] = [
   { value: 'WEBHOOK', label: 'Webhook', icon: Webhook },
 ];
 
+export interface WorkflowExample {
+  id: string;
+  name: string;
+  description: string;
+  trigger: string;
+  steps: { type: string; config: Record<string, string> }[];
+}
+
+// Static starter workflows shown on the Workflows page. "Use this example"
+// opens /dashboard/workflows/new?example=<id> with these values prefilled.
+export const WORKFLOW_EXAMPLES: WorkflowExample[] = [
+  {
+    id: 'welcome-new-leads',
+    name: 'Welcome new leads',
+    description: 'Greet every new lead right away, then remind your team to call them the next day.',
+    trigger: 'CONTACT_CREATED',
+    steps: [
+      { type: 'SEND_SMS', config: { message: 'Hi {{name}}, thanks for your interest! We will call you shortly.' } },
+      { type: 'WAIT', config: { delayMinutes: '1440' } },
+      { type: 'CREATE_TASK', config: { subject: 'Call {{name}} - first follow-up' } },
+    ],
+  },
+  {
+    id: 'followup-reminder',
+    name: 'Follow-up reminder',
+    description: 'When a follow-up date arrives, email the lead and create a task so nothing is missed.',
+    trigger: 'FOLLOWUP_DUE',
+    steps: [
+      { type: 'SEND_EMAIL', config: { subject: 'Following up, {{name}}', body: 'Hi {{name}}, just checking in on our last conversation. Is now a good time to talk?' } },
+      { type: 'CREATE_TASK', config: { subject: 'Follow up with {{name}}' } },
+    ],
+  },
+  {
+    id: 'auto-assign-leads',
+    name: 'Auto-assign new leads',
+    description: 'Give every new lead an owner immediately and leave a note. Pick the agent after loading the example.',
+    trigger: 'CONTACT_CREATED',
+    steps: [
+      { type: 'ASSIGN_AGENT', config: {} },
+      { type: 'ADD_NOTE', config: { note: 'Lead auto-assigned by workflow.' } },
+    ],
+  },
+  {
+    id: 're-engage-leads',
+    name: 'Re-engage quiet leads',
+    description: 'After a lead changes stage, wait a few days and nudge them, then ask an agent to follow up.',
+    trigger: 'DEAL_STAGE_CHANGED',
+    steps: [
+      { type: 'WAIT', config: { delayMinutes: '4320' } },
+      { type: 'SEND_SMS', config: { message: 'Hi {{name}}, any questions we can help with? Happy to chat.' } },
+      { type: 'CREATE_TASK', config: { subject: 'Re-engage {{name}}' } },
+    ],
+  },
+];
+
 export function triggerLabel(type?: string) {
   return TRIGGER_TYPES.find((t) => t.value === type)?.label || type || 'Unknown trigger';
 }
