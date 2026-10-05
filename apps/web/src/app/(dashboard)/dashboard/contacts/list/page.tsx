@@ -421,7 +421,7 @@ function LeadOverview() {
   const dailyLabelByDate = Object.fromEntries(data.dailyNewLeads.map((d) => [d.date, d.label]));
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+    <div className="rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Lead Overview</p>
         <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
@@ -554,6 +554,10 @@ export default function ContactsPage() {
   const [columns, setColumns] = useState<ColumnKey[]>(DEFAULT_COLUMNS);
   const showCol = (k: ColumnKey) => columns.includes(k);
 
+  useEffect(() => {
+    if (searchParams.get('import') === '1') setImportOpen(true);
+  }, [searchParams]);
+
   const { data: agents = [] } = useQuery<any[]>({
     queryKey: ['team-users'],
     queryFn: async () => {
@@ -588,7 +592,7 @@ export default function ContactsPage() {
   const total = data?.meta?.total ?? 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {viewId && (
         <div className="flex items-center gap-2">
           <Link
@@ -604,11 +608,14 @@ export default function ContactsPage() {
           )}
         </div>
       )}
-      {/* Toolbar */}
+      {/* Page heading and actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-gray-500">
-          {total.toLocaleString()} {total === 1 ? 'contact' : 'contacts'}
-        </p>
+        <div>
+          <h1 className="text-[21px] font-semibold tracking-tight text-[#17243a]">Contacts</h1>
+          <p className="mt-1 text-[13px] text-[#788395]">
+            {total.toLocaleString()} {total === 1 ? 'contact' : 'contacts'}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setReportOpen((o) => !o)}
@@ -652,7 +659,7 @@ export default function ContactsPage() {
           onClick={() => setMoreFiltersOpen((o) => !o)}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition',
-            moreFiltersOpen || sourceFilter || minScore
+            moreFiltersOpen || statusFilter || tempFilter || assigneeFilter || sourceFilter || minScore
               ? 'border-blue-200 bg-blue-50 text-blue-700'
               : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
           )}
@@ -663,137 +670,147 @@ export default function ContactsPage() {
       </div>
 
       {moreFiltersOpen && (
-        <div className="flex flex-wrap items-end gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">Source</label>
-            <input
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              placeholder="e.g. Facebook Ads"
-              className="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
+        <div className="space-y-4 rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">Source</label>
+              <input
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                placeholder="e.g. Facebook Ads"
+                className="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">Min Score</label>
+              <input
+                value={minScore}
+                onChange={(e) => setMinScore(e.target.value)}
+                type="number"
+                placeholder="0"
+                className="mt-1 w-24 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">Min Score</label>
-            <input
-              value={minScore}
-              onChange={(e) => setMinScore(e.target.value)}
-              type="number"
-              placeholder="0"
-              className="mt-1 w-24 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
+
+          <div className="space-y-2 border-t border-[#edf0f4] pt-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="w-14 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#8792a2]">Status</span>
+              <button
+                onClick={() => setStatusFilter('')}
+                className={cn(
+                  'relative h-9 rounded-xl border px-4 text-[13px] font-medium transition-colors duration-150 ease-out',
+                  statusFilter === '' ? 'border-transparent text-blue-700' : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                )}
+              >
+                {statusFilter === '' && (
+                  <motion.span
+                    layoutId="lead-status-pill"
+                    className="absolute inset-0 rounded-xl border border-blue-200 bg-blue-50"
+                    transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+                  />
+                )}
+                <span className="relative z-10">All</span>
+              </button>
+              {STATUS_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(statusFilter === s ? '' : s)}
+                  className={cn(
+                    'relative h-9 rounded-xl border px-4 text-[13px] font-medium transition-colors duration-150 ease-out',
+                    statusFilter === s ? 'border-transparent text-blue-700' : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                  )}
+                >
+                  {statusFilter === s && (
+                    <motion.span
+                      layoutId="lead-status-pill"
+                      className="absolute inset-0 rounded-xl border border-blue-200 bg-blue-50"
+                      transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+                    />
+                  )}
+                  <span className="relative z-10">{statusConfig[s].label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="w-14 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#8792a2]">Temp</span>
+              <button
+                onClick={() => setTempFilter('')}
+                className={cn(
+                  'h-9 rounded-xl border px-4 text-[13px] font-medium transition-colors duration-150 ease-out',
+                  tempFilter === '' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                )}
+              >
+                All
+              </button>
+              {TEMP_OPTIONS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTempFilter(tempFilter === t ? '' : t)}
+                  className={cn(
+                    'h-9 rounded-xl border px-4 text-[13px] font-semibold transition-colors duration-150 ease-out',
+                    tempFilter === t ? tempConfig[t].chip : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                  )}
+                >
+                  {tempConfig[t].emoji} {tempConfig[t].label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="w-14 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#8792a2]">Owner</span>
+              <button
+                onClick={() => setAssigneeFilter('')}
+                className={cn(
+                  'h-9 rounded-xl border px-4 text-[13px] font-medium transition-colors',
+                  assigneeFilter === '' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                )}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setAssigneeFilter(assigneeFilter === 'unassigned' ? '' : 'unassigned')}
+                className={cn(
+                  'h-9 rounded-xl border px-4 text-[13px] font-medium transition-colors',
+                  assigneeFilter === 'unassigned' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                )}
+              >
+                Unassigned
+              </button>
+              {agents.map((a: any) => (
+                <button
+                  key={a.id}
+                  onClick={() => setAssigneeFilter(assigneeFilter === a.id ? '' : a.id)}
+                  className={cn(
+                    'h-9 rounded-xl border px-4 text-[13px] font-medium transition-colors',
+                    assigneeFilter === a.id ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-[#e1e5ec] bg-white text-[#526071] hover:border-[#b9c7dd] hover:bg-[#f8faff]',
+                  )}
+                >
+                  {a.firstName} {a.lastName}
+                </button>
+              ))}
+            </div>
           </div>
-          {(sourceFilter || minScore) && (
-            <button
-              onClick={() => { setSourceFilter(''); setMinScore(''); }}
-              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50"
-            >
-              Clear
-            </button>
+
+          {(statusFilter || tempFilter || assigneeFilter || sourceFilter || minScore) && (
+            <div className="flex justify-end border-t border-[#edf0f4] pt-3">
+              <button
+                onClick={() => {
+                  setStatusFilter('');
+                  setTempFilter('');
+                  setAssigneeFilter('');
+                  setSourceFilter('');
+                  setMinScore('');
+                }}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-gray-50"
+              >
+                Clear all filters
+              </button>
+            </div>
           )}
         </div>
       )}
-
-      {/* Filter chips — Status row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 w-14 shrink-0">Status</span>
-        <button
-          onClick={() => setStatusFilter('')}
-          className={cn(
-            'relative rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out',
-            statusFilter === '' ? 'border-transparent text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-          )}
-        >
-          {statusFilter === '' && (
-            <motion.span
-              layoutId="lead-status-pill"
-              className="absolute inset-0 rounded-lg border border-blue-200 bg-blue-50"
-              transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
-            />
-          )}
-          <span className="relative z-10">All</span>
-        </button>
-        {STATUS_OPTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(statusFilter === s ? '' : s)}
-            className={cn(
-              'relative rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out',
-              statusFilter === s ? 'border-transparent text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-            )}
-          >
-            {statusFilter === s && (
-              <motion.span
-                layoutId="lead-status-pill"
-                className="absolute inset-0 rounded-lg border border-blue-200 bg-blue-50"
-                transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
-              />
-            )}
-            <span className="relative z-10">{statusConfig[s].label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Filter chips — Temperature row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 w-14 shrink-0">Temp</span>
-        <button
-          onClick={() => setTempFilter('')}
-          className={cn(
-            'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out',
-            tempFilter === '' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-          )}
-        >
-          All
-        </button>
-        {TEMP_OPTIONS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTempFilter(tempFilter === t ? '' : t)}
-            className={cn(
-              'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out',
-              tempFilter === t ? tempConfig[t].chip : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-            )}
-          >
-            {tempConfig[t].emoji} {tempConfig[t].label}
-          </button>
-        ))}
-      </div>
-
-      {/* Filter chips — Assigned To row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 w-14 shrink-0">Owner</span>
-        <button
-          onClick={() => setAssigneeFilter('')}
-          className={cn(
-            'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-            assigneeFilter === '' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-          )}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setAssigneeFilter(assigneeFilter === 'unassigned' ? '' : 'unassigned')}
-          className={cn(
-            'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-            assigneeFilter === 'unassigned' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-          )}
-        >
-          Unassigned
-        </button>
-        {agents.map((a: any) => (
-          <button
-            key={a.id}
-            onClick={() => setAssigneeFilter(assigneeFilter === a.id ? '' : a.id)}
-            className={cn(
-              'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-              assigneeFilter === a.id ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
-            )}
-          >
-            {a.firstName} {a.lastName}
-          </button>
-        ))}
-      </div>
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">

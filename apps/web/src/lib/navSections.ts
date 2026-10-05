@@ -27,6 +27,7 @@ export interface NavSection {
 /** Standalone links that don't need a hub page — they're a single destination already. */
 export const singleLinks: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Your daily overview' },
+  { href: '/dashboard/contacts/list', label: 'Contacts', icon: Users, description: 'Search, manage, import, and add contacts.' },
   // { href: '/dashboard/applications', label: 'Applications', icon: GraduationCap, description: 'Admissions applications' },
   { href: '/admin', label: 'Platform Admin', icon: Shield, description: 'Super-admin panel' },
 ];
@@ -53,7 +54,7 @@ export const navSections: NavSection[] = [
     href: '/dashboard/sales',
     description: 'Everything for finding and closing deals.',
     items: [
-      { href: '/dashboard/contacts', label: 'Leads', icon: Users, description: 'Track and manage every lead in one place.' },
+      { href: '/dashboard/contacts', label: 'Lead Views', icon: Users, description: 'Organize lead views and start calling a lead queue.' },
       { href: '/dashboard/deals', label: 'Pipeline', icon: Briefcase, description: 'Visualize deals moving through your sales stages.' },
       { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone, description: 'Organize outreach campaigns and lead sources.' },
       { href: '/dashboard/tasks', label: 'Tasks', icon: CheckSquare, description: 'Stay on top of follow-ups and to-dos.' },
