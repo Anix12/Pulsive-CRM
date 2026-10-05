@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   Plus, Upload, Megaphone, Pencil, Trash2, Search, Pin,
@@ -372,6 +372,7 @@ function CategorySidebar({
 export default function CampaignsPage() {
   const qc = useQueryClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | ''>('');
   const [category, setCategory] = useState<string | null>(null);
@@ -382,6 +383,10 @@ export default function CampaignsPage() {
   const [importCampaignId, setImportCampaignId] = useState<string | null>(null);
   const [pickImportOpen, setPickImportOpen] = useState(false);
   const [extraCategories, setExtraCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') setModal({ open: true });
+  }, [searchParams]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);

@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
-import { DateRangeFilter, DEFAULT_RANGE, type DateRange } from '@/components/layout/DateRangeFilter';
+import { DateRangeFilter, PRESETS, type DateRange } from '@/components/layout/DateRangeFilter';
 import {
   TrendingUp, Phone, MessageSquare, Trophy, ArrowUpRight, ArrowDownRight,
   Users, CalendarClock, AlertTriangle, Target, Mail, ListChecks, UserPlus,
-  Coffee, Circle,
+  Coffee, Circle, Megaphone, Upload, BarChart3,
 } from 'lucide-react';
 
 // Rendering a `React.ElementType`-typed variable directly as JSX (`<Icon />`) stops
@@ -37,7 +38,7 @@ function StatCard({
   const IconComp = Icon as IconComponent;
   const isPositive = (trend?.value ?? 0) >= 0;
   return (
-    <div className="glass-panel glass-panel-hover rounded-xl p-5">
+    <div className="rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between">
         <div className={`rounded-lg p-2.5 ${iconBg}`}>
           <IconComp className={`h-4 w-4 ${iconColor}`} />
@@ -70,7 +71,7 @@ function StatCard({
 
 function SkeletonCard() {
   return (
-    <div className="glass-panel rounded-xl p-5 animate-pulse">
+    <div className="animate-pulse rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm">
       <div className="h-9 w-9 rounded-lg bg-gray-100" />
       <div className="mt-4 space-y-2">
         <div className="h-6 w-20 rounded bg-gray-100" />
@@ -91,7 +92,7 @@ function agentStatusMeta(status: string) {
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
+  const [range, setRange] = useState<DateRange>(() => PRESETS[0].range());
   const rangeParams = { from: range.from.toISOString(), to: range.to.toISOString() };
 
   const { data: report, isLoading } = useQuery({
@@ -177,14 +178,15 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-4">
       {/* Greeting */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">
+          <h1 className="text-[21px] font-semibold tracking-tight text-[#17243a]">Dashboard</h1>
+          <h2 className="mt-1 text-[16px] font-semibold text-[#17243a]">
             {greeting}, {user?.firstName ?? 'there'} 👋
           </h2>
-          <p className="mt-0.5 text-sm text-gray-500">
+          <p className="mt-0.5 text-[13px] text-[#788395]">
             Here&apos;s how your team is performing {range.label}.
           </p>
         </div>
@@ -193,7 +195,7 @@ export default function DashboardPage() {
 
       {/* Lead KPI tiles */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-gray-700">Leads Snapshot — {range.label}</h3>
+        <h3 className="mb-2 text-[13px] font-semibold text-[#27364c]">Leads Snapshot — {range.label}</h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {overviewLoading ? (
             Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
@@ -217,9 +219,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Activity strip */}
-      <div className="glass-panel rounded-xl p-5">
-        <h3 className="mb-4 text-sm font-semibold text-gray-700">Activity — {range.label}</h3>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="rounded-xl border border-[#e6eaf0] bg-white px-4 py-3 shadow-sm">
+        <h3 className="mb-3 text-[13px] font-semibold text-[#27364c]">Activity — {range.label}</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {[
             { label: 'Calls Made', value: overview?.activityInRange?.calls ?? 0, icon: Phone, color: 'text-blue-600' },
             { label: 'SMS Sent', value: overview?.activityInRange?.sms ?? 0, icon: MessageSquare, color: 'text-violet-600' },
@@ -240,19 +242,22 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+      <h3 className="mb-2 text-[13px] font-semibold text-[#27364c]">Performance — {range.label}</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
           : stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
+      </div>
 
-      {/* Pipeline + Conversion */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Pipeline, conversion, and quick actions */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {/* Pipeline breakdown */}
-        <div className="glass-panel col-span-2 rounded-xl p-5">
-          <div className="mb-5 flex items-center justify-between">
+        <div className="rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm lg:col-span-1">
+          <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-gray-900">Pipeline by stage</h3>
+              <h3 className="text-[13px] font-semibold text-[#27364c]">Pipeline by stage</h3>
               <p className="text-xs text-gray-400">Deal value distribution — {range.label}</p>
             </div>
           </div>
@@ -269,7 +274,12 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : pipelineEntries.length === 0 ? (
-            <p className="text-sm text-gray-400">No pipeline data yet.</p>
+            <div className="flex min-h-36 flex-col items-center justify-center gap-2 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f2f5fa] text-[#8b98aa]">
+                <BarChart3 className="h-4 w-4" />
+              </span>
+              <p className="text-xs text-gray-400">No pipeline data yet.</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {pipelineEntries.map(([stage, data]) => {
@@ -299,9 +309,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Conversion */}
-        <div className="glass-panel rounded-xl p-5">
-          <div className="mb-5">
-            <h3 className="font-semibold text-gray-900">Conversion</h3>
+        <div className="rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-[13px] font-semibold text-[#27364c]">Conversion</h3>
             <p className="text-xs text-gray-400">Deal performance — {range.label}</p>
           </div>
 
@@ -362,13 +372,34 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+
+        <div className="rounded-xl bg-[#142b52] p-4 text-white shadow-sm">
+          <h3 className="mb-3 text-[13px] font-semibold">Quick Actions</h3>
+          <div className="space-y-2">
+            {[
+              { href: '/dashboard/campaigns?create=1', label: 'Create campaign', icon: Megaphone },
+              { href: '/dashboard/contacts/list?import=1', label: 'Import leads', icon: Upload },
+              { href: '/dashboard/team?invite=1', label: 'Add teammate', icon: UserPlus },
+              { href: '/dashboard/reports', label: 'View reports', icon: BarChart3 },
+            ].map(({ href, label, icon: Icon }) => (
+              <Link
+                key={label}
+                href={href}
+                className="flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-[12px] font-semibold text-[#26364e] transition-colors hover:bg-[#eaf0f8]"
+              >
+                <Icon className="h-3.5 w-3.5 text-[#4268a5]" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Agent Activity */}
-      <div className="glass-panel rounded-xl p-5">
+      <div className="rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-gray-900">Agent Activity</h3>
+            <h3 className="text-[13px] font-semibold text-[#27364c]">Agent Activity</h3>
             <p className="text-xs text-gray-400">Live floor status</p>
           </div>
           <div className="flex items-center gap-3 text-[11px] text-gray-400">

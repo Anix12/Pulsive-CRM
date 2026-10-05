@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
@@ -16,6 +17,9 @@ import {
 import { TAP_SPRING } from '@/lib/motion';
 
 function isActive(href: string, pathname: string) {
+  if (href === '/dashboard/contacts' && pathname.startsWith('/dashboard/contacts/list')) {
+    return false;
+  }
   return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 }
 
@@ -48,13 +52,13 @@ function NavLink({
           : 'px-2.5 py-[7px] text-[13px]',
         active
           ? 'text-white'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800',
+          : 'text-[#b8c6dc] hover:bg-white/10 hover:text-white',
       )}
     >
       {active && (
         <motion.span
           layoutId="sidebar-active-bg"
-          className="absolute inset-0 rounded-xl bg-blue-600 shadow-md shadow-blue-500/30"
+          className="absolute inset-0 rounded-xl bg-[#24477c]"
           transition={
             reduceMotion
               ? { duration: 0 }
@@ -74,7 +78,7 @@ function NavLink({
             size === 'md' ? 'h-4 w-4' : 'h-[15px] w-[15px]',
             active
               ? 'text-white'
-              : 'text-gray-400 group-hover:text-gray-600',
+              : 'text-[#91a5c5] group-hover:text-white',
           )}
         />
       </motion.span>
@@ -125,28 +129,28 @@ function SidebarSection({
         aria-expanded={isOpen}
         className={cn(
           'group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-colors duration-150',
-          withinSection ? 'text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800',
+          withinSection ? 'text-white' : 'text-[#b8c6dc] hover:bg-white/10 hover:text-white',
         )}
       >
         {withinSection && (
           <motion.span
             layoutId="sidebar-active-pill"
-            className="absolute inset-0 rounded-lg bg-blue-600"
+            className="absolute inset-0 rounded-lg bg-[#24477c]"
             transition={{ type: 'spring', stiffness: 500, damping: 34 }}
           />
         )}
-        <Icon className={cn('relative z-10 h-[15px] w-[15px] shrink-0 transition-colors', withinSection ? 'text-white' : 'text-gray-400 group-hover:text-gray-600')} />
+        <Icon className={cn('relative z-10 h-[15px] w-[15px] shrink-0 transition-colors', withinSection ? 'text-white' : 'text-[#91a5c5] group-hover:text-white')} />
         <span className="relative z-10 flex-1 text-left">{section.label}</span>
         <ChevronRight
           className={cn(
             'relative z-10 h-3.5 w-3.5 shrink-0 transition-transform duration-150',
             isOpen && 'rotate-90',
-            withinSection ? 'text-white' : 'text-gray-400',
+            withinSection ? 'text-white' : 'text-[#91a5c5]',
           )}
         />
       </button>
       {isOpen && (
-        <div className="my-0.5 ml-[14px] flex flex-col gap-0.5 border-l border-gray-100 pl-[14px]">
+        <div className="my-0.5 ml-[14px] flex flex-col gap-0.5 border-l border-white/15 pl-[14px]">
           {section.items.map((item) => {
             const active = isActive(item.href, pathname);
             return (
@@ -155,7 +159,9 @@ function SidebarSection({
                 href={item.href}
                 className={cn(
                   'rounded-md py-[6px] pl-2 text-left text-[12.5px] transition-colors',
-                  active ? 'font-semibold text-blue-700' : 'font-normal text-gray-500 hover:bg-gray-50 hover:text-gray-800',
+                  active
+                    ? 'rounded-r-md bg-white/10 font-semibold text-white'
+                    : 'font-normal text-[#aebed5] hover:bg-white/5 hover:text-white',
                 )}
               >
                 {item.label}
@@ -204,24 +210,30 @@ export function Sidebar() {
 
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
   const dashboard = singleLinks.find((l) => l.href === '/dashboard')!;
-  const rest = singleLinks.filter((l) => l.href !== '/dashboard');
+  const contacts = singleLinks.find((l) => l.href === '/dashboard/contacts/list')!;
+  const rest = singleLinks.filter((l) => l.href !== '/dashboard' && l.href !== contacts.href);
 
   return (
-    <aside className="flex w-[218px] shrink-0 flex-col border-r border-gray-100 bg-white">
+    <aside className="flex w-[190px] shrink-0 flex-col border-r border-[#20395f] bg-[#142b52]">
       {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-gray-100 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_16px_-4px_rgba(59,130,246,0.6)]">
-          <span className="text-[13px] font-bold tracking-tight text-white">P</span>
-        </div>
-        <span className="text-[13.5px] font-semibold tracking-tight text-gray-900">
-          <span className="text-gradient-brand">Pulsive</span>
+      <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-white/10 px-4">
+        <Image
+          src="/pulsive-logo.png"
+          alt=""
+          width={34}
+          height={34}
+          className="h-[34px] w-[34px] rounded-md bg-white object-contain p-0.5"
+        />
+        <span className="text-[14px] font-semibold tracking-tight text-white">
+          Pulsive
         </span>
       </div>
 
       {/* Main nav — one button per area; sub-features live inside each area's page */}
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3">
         <NavLink {...dashboard} active={isActive(dashboard.href, pathname)} size="md" onClick={() => setExpanded({})} />
-        <div className="my-2 border-t border-gray-100" />
+        <NavLink {...contacts} active={isActive(contacts.href, pathname)} size="md" />
+        <div className="my-2 border-t border-white/10" />
         {navSections.map((section) => (
           <SidebarSection
             key={section.key}
@@ -231,7 +243,7 @@ export function Sidebar() {
             onToggle={() => toggleSection(section.key)}
           />
         ))}
-        <div className="my-2 border-t border-gray-100" />
+        <div className="my-2 border-t border-white/10" />
         {rest.map((link) => (
           <NavLink key={link.href} {...link} active={isActive(link.href, pathname)} />
         ))}
@@ -239,16 +251,16 @@ export function Sidebar() {
 
       {/* User identity */}
       {user && (
-        <div className="border-t border-gray-100 px-3 py-3">
+        <div className="border-t border-white/10 px-3 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[11px] font-bold text-blue-700 ring-1 ring-blue-200">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#24477c] text-[11px] font-bold text-white ring-1 ring-white/20">
               {initials || '?'}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[12.5px] font-medium leading-tight text-gray-800">
+              <p className="truncate text-[12.5px] font-medium leading-tight text-white">
                 {user.firstName} {user.lastName}
               </p>
-              <p className="text-[10px] capitalize leading-tight text-gray-400">
+              <p className="text-[10px] capitalize leading-tight text-[#aebed5]">
                 {user.role?.toLowerCase()}
               </p>
             </div>

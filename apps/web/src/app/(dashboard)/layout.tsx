@@ -34,11 +34,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!hydrated || !isAuthenticated) return null;
 
   return (
-    <div className="app-glow-bg flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#f6f8fc]">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-7">{children}</main>
+        <main className="flex-1 overflow-y-auto px-6 py-5">{children}</main>
       </div>
       <DailyBriefingGate />
       <MinimizedCallBar />
