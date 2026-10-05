@@ -2,10 +2,11 @@
 
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ArrowLeft, Headset } from 'lucide-react';
+import Link from 'next/link';
+import { LogOut, Headset } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { BreakToggle } from './BreakToggle';
-import { allNavItems } from '@/lib/navSections';
+import { allNavItems, navSections } from '@/lib/navSections';
 
 const pageTitles: [string, string][] = [...allNavItems]
   .sort((a, b) => b.href.length - a.href.length)
@@ -33,34 +34,41 @@ export function Header() {
     pageTitles.find(([path]) => pathname === path || pathname.startsWith(path + '/'))?.[1] ??
     'Dashboard';
 
-  const isHome = pathname === '/dashboard';
+  const pageTitle = pathname.startsWith('/dashboard/contacts') ? 'Contacts' : title;
+  const section = navSections.find((item) =>
+    pathname === item.href ||
+    item.items.some(({ href }) => pathname === href || pathname.startsWith(`${href}/`)),
+  );
 
   return (
-    <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white/80 px-6 backdrop-blur-xl">
-      <div className="flex items-center gap-2">
-        {!isHome && (
-          <button
-            onClick={() => router.back()}
-            aria-label="Go back"
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
+    <header className="relative z-30 flex h-11 shrink-0 items-center justify-between border-b border-[#e7eaf0] bg-[#f7f8fb] px-6">
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-[13px]">
+        <Link href="/dashboard" className="shrink-0 text-[#8b95a5] transition-colors hover:text-[#23395d]">
+          Pulsive
+        </Link>
+        {section && (
+          <>
+            <span aria-hidden="true" className="text-[#c0c6d0]">/</span>
+            <Link href={section.href} className="truncate text-[#8b95a5] transition-colors hover:text-[#23395d]">
+              {section.label}
+            </Link>
+          </>
         )}
-        <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
-      </div>
+        <span aria-hidden="true" className="text-[#c0c6d0]">/</span>
+        <span className="truncate font-semibold text-[#17243a]">{pageTitle}</span>
+      </nav>
 
       <div className="flex items-center gap-1">
         {user && user.role !== 'AGENT' && (
           <button
             onClick={handleSwitchToAgentView}
-            className="mr-1 flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700"
+            className="mr-1 flex items-center gap-1.5 rounded-lg bg-[#18345e] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#24477c]"
           >
             <Headset className="h-3.5 w-3.5" />
             Switch to Agent View
           </button>
         )}
-        <BreakToggle />
+        {user?.role !== 'ADMIN' && user?.role !== 'OWNER' && <BreakToggle />}
         <NotificationBell />
 
         <div className="mx-2 h-4 w-px bg-gray-200" />

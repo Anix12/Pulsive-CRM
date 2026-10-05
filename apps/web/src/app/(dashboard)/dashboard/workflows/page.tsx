@@ -2,15 +2,18 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Zap, Play, Pause, Trash2 } from 'lucide-react';
+import { Plus, Zap, Play, Pause, Trash2, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { triggerLabel } from '@/lib/workflowConfig';
+import { WorkflowTour } from '@/components/workflows/WorkflowTour';
 
 export default function WorkflowsPage() {
   const qc = useQueryClient();
   const router = useRouter();
+  const [tourOpen, setTourOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['workflows'],
@@ -35,9 +38,14 @@ export default function WorkflowsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Workflows</h1>
           <p className="text-sm text-gray-500">Automate your sales process</p>
         </div>
-        <button onClick={() => router.push('/dashboard/workflows/new')} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
-          <Plus className="h-4 w-4" /> New Workflow
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setTourOpen(true)} className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10">
+            <Sparkles className="h-4 w-4" /> Try an example
+          </button>
+          <button onClick={() => router.push('/dashboard/workflows/new')} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Plus className="h-4 w-4" /> New Workflow
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -46,7 +54,7 @@ export default function WorkflowsPage() {
         <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
           <Zap className="h-10 w-10 text-gray-200" />
           <p className="text-sm text-gray-500">No workflows yet</p>
-          <button onClick={() => router.push('/dashboard/workflows/new')} className="text-sm text-indigo-600 hover:underline">Create your first workflow</button>
+          <button onClick={() => setTourOpen(true)} className="text-sm text-indigo-600 hover:underline">New here? Try an example</button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -87,6 +95,7 @@ export default function WorkflowsPage() {
           ))}
         </div>
       )}
+      <WorkflowTour open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
