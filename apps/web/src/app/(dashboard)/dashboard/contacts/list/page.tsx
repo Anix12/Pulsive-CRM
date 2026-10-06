@@ -1,9 +1,9 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, Upload, Users, SlidersHorizontal, Columns3, Flame, BarChart3 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Upload, Users, SlidersHorizontal, Columns3, Flame, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -526,6 +526,8 @@ function LeadOverview() {
   );
 }
 
+const PAGE_SIZE = 20;
+
 // ── Contacts Page ─────────────────────────────────────────────────────────────
 export default function ContactsPage() {
   const qc = useQueryClient();
@@ -547,6 +549,7 @@ export default function ContactsPage() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [minScore, setMinScore] = useState('');
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const [modal, setModal] = useState<{ open: boolean; contact?: any }>({ open: false });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -567,7 +570,8 @@ export default function ContactsPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, statusFilter, tempFilter, assigneeFilter, sourceFilter, minScore, viewId],
+    queryKey: ['contacts', search, statusFilter, tempFilter, assigneeFilter, sourceFilter, minScore, viewId, page],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data } = await api.get('/api/v1/contacts', {
         params: {
@@ -578,6 +582,8 @@ export default function ContactsPage() {
           source: sourceFilter || undefined,
           minScore: minScore || undefined,
           viewId: viewId || undefined,
+          page,
+          limit: PAGE_SIZE,
         },
       });
       return data;
@@ -590,9 +596,15 @@ export default function ContactsPage() {
   });
 
   const total = data?.meta?.total ?? 0;
+  const totalPages = data?.meta?.totalPages ?? 1;
+
+  // Any filter change invalidates the current page number.
+  useEffect(() => { setPage(1); }, [search, statusFilter, tempFilter, assigneeFilter, sourceFilter, minScore, viewId]);
+  // Deleting the last row of the last page leaves us past the end.
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-20">
       {viewId && (
         <div className="flex items-center gap-2">
           <Link
@@ -965,6 +977,30 @@ export default function ContactsPage() {
               })}
             </tbody>
           </table>
+        )}
+        {total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3">
+            <p className="text-xs text-gray-500">
+              Showing {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(page * PAGE_SIZE, total).toLocaleString()} of {total.toLocaleString()}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+              </button>
+              <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
