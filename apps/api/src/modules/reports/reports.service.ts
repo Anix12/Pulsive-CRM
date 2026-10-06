@@ -163,6 +163,7 @@ export const dashboardOverview = async (tenantId: string, from?: string, to?: st
     closedDealsInRange,
     callsInRange,
     smsInRange,
+    whatsappInRange,
     emailsInRange,
     tasksDueToday,
   ] = await Promise.all([
@@ -174,6 +175,7 @@ export const dashboardOverview = async (tenantId: string, from?: string, to?: st
     prisma.deal.count({ where: { tenantId, isWon: { not: null }, closedAt: { gte: range.from, lte: range.to } } }),
     prisma.call.count({ where: { tenantId, createdAt: { gte: range.from, lte: range.to } } }),
     prisma.message.count({ where: { tenantId, channel: 'SMS', direction: 'OUTBOUND', createdAt: { gte: range.from, lte: range.to } } }),
+    prisma.message.count({ where: { tenantId, channel: 'WHATSAPP', direction: 'OUTBOUND', createdAt: { gte: range.from, lte: range.to } } }),
     prisma.message.count({ where: { tenantId, channel: 'EMAIL', direction: 'OUTBOUND', createdAt: { gte: range.from, lte: range.to } } }),
     prisma.task.count({ where: { tenantId, status: 'PENDING', dueDate: { gte: startOfToday, lt: new Date(startOfToday.getTime() + 86400000) } } }),
   ]);
@@ -193,10 +195,10 @@ export const dashboardOverview = async (tenantId: string, from?: string, to?: st
     activityInRange: {
       calls: callsInRange,
       sms: smsInRange,
+      whatsapp: whatsappInRange,
       emails: emailsInRange,
       tasksDue: tasksDueToday,
       overdueTasks: overdueFollowups,
-      newLeads: newLeadsInRange,
     },
   };
 };

@@ -9,8 +9,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { DateRangeFilter, PRESETS, type DateRange } from '@/components/layout/DateRangeFilter';
 import {
   TrendingUp, Phone, MessageSquare, Trophy, ArrowUpRight, ArrowDownRight,
-  Users, CalendarClock, AlertTriangle, Target, Mail, ListChecks, UserPlus,
-  Coffee, Circle, Megaphone, Upload, BarChart3,
+  Users, CalendarClock, AlertTriangle, Target, Mail, UserPlus,
+  Coffee, Circle, Megaphone, Upload, BarChart3, MessageCircle, Check,
 } from 'lucide-react';
 
 // Rendering a `React.ElementType`-typed variable directly as JSX (`<Icon />`) stops
@@ -23,25 +23,21 @@ function StatCard({
   sublabel,
   value,
   icon: Icon,
-  iconBg,
-  iconColor,
   trend,
 }: {
   label: string;
   sublabel?: string;
   value: string | number;
   icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
   trend?: { value: number; label: string };
 }) {
   const IconComp = Icon as IconComponent;
   const isPositive = (trend?.value ?? 0) >= 0;
   return (
-    <div className="rounded-xl border border-[#e6eaf0] bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-xl border border-[#e6eaf0] bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between">
-        <div className={`rounded-lg p-2.5 ${iconBg}`}>
-          <IconComp className={`h-4 w-4 ${iconColor}`} />
+        <div className="rounded-lg bg-blue-50 p-2.5">
+          <IconComp className="h-4 w-4 text-blue-600" />
         </div>
         {trend && (
           <span
@@ -60,9 +56,9 @@ function StatCard({
           </span>
         )}
       </div>
-      <div className="mt-4">
-        <p className="text-2xl font-bold tracking-tight text-gray-900">{value}</p>
-        <p className="mt-0.5 text-sm text-gray-500">{label}</p>
+      <div className="mt-5">
+        <p className="text-[28px] font-bold leading-none tracking-tight text-gray-900">{value}</p>
+        <p className="mt-2 text-sm text-gray-500">{label}</p>
         {sublabel && <p className="mt-0.5 text-[11px] text-gray-400">{sublabel}</p>}
       </div>
     </div>
@@ -133,31 +129,23 @@ export default function DashboardPage() {
       label: `Revenue ${range.label}`,
       value: formatCurrency(report?.revenue?.total ?? 0),
       icon: TrendingUp,
-      iconBg: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
       trend: { value: 12, label: 'vs previous period' },
     },
     {
       label: `Calls made ${range.label}`,
       value: report?.calls?.total ?? 0,
       icon: Phone,
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-600',
     },
     {
       label: `Messages sent ${range.label}`,
       sublabel: 'SMS · WhatsApp · Email',
       value: report?.messages?.total ?? 0,
       icon: MessageSquare,
-      iconBg: 'bg-violet-50',
-      iconColor: 'text-violet-600',
     },
     {
       label: `Sales won ${range.label}`,
       value: report?.deals?.won ?? 0,
       icon: Trophy,
-      iconBg: 'bg-amber-50',
-      iconColor: 'text-amber-600',
       trend: {
         value:
           report?.deals?.total > 0
@@ -183,10 +171,10 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[21px] font-semibold tracking-tight text-[#17243a]">Dashboard</h1>
-          <h2 className="mt-1 text-[16px] font-semibold text-[#17243a]">
+          <h2 className="mt-3 text-[28px] font-bold leading-tight text-[#17243a]">
             {greeting}, {user?.firstName ?? 'there'} 👋
           </h2>
-          <p className="mt-0.5 text-[13px] text-[#788395]">
+          <p className="mt-1 text-[15px] text-[#788395]">
             Here&apos;s how your team is performing {range.label}.
           </p>
         </div>
@@ -201,16 +189,16 @@ export default function DashboardPage() {
             Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
           ) : (
             <>
-              <StatCard label="Total Leads" value={overview?.leads?.total ?? 0} icon={Users} iconBg="bg-cyan-50" iconColor="text-cyan-600" />
-              <StatCard label={`New Leads ${range.label}`} value={overview?.leads?.newInRange ?? 0} icon={UserPlus} iconBg="bg-blue-50" iconColor="text-blue-600" />
-              <StatCard label="Pending Follow-ups" value={overview?.leads?.pendingFollowups ?? 0} icon={CalendarClock} iconBg="bg-amber-50" iconColor="text-amber-600" />
-              <StatCard label="Overdue Follow-ups" value={overview?.leads?.overdueFollowups ?? 0} icon={AlertTriangle} iconBg="bg-red-50" iconColor="text-red-600" />
+              <StatCard label="Total Leads" value={overview?.leads?.total ?? 0} icon={Users} />
+              <StatCard label={`New Leads ${range.label}`} value={overview?.leads?.newInRange ?? 0} icon={UserPlus} />
+              <StatCard label="Pending Follow-ups" value={overview?.leads?.pendingFollowups ?? 0} icon={CalendarClock} />
+              <StatCard label="Overdue Follow-ups" value={overview?.leads?.overdueFollowups ?? 0} icon={AlertTriangle} />
               <StatCard
                 label={`Conversions ${range.label}`}
                 value={`${overview?.leads?.conversions ?? 0}`}
                 icon={Target}
-                iconBg="bg-emerald-50"
-                iconColor="text-emerald-600"
+               
+               
                 trend={{ value: overview?.leads?.conversionRate ?? 0, label: 'rate' }}
               />
             </>
@@ -219,22 +207,22 @@ export default function DashboardPage() {
       </div>
 
       {/* Activity strip */}
-      <div className="rounded-xl border border-[#e6eaf0] bg-white px-4 py-3 shadow-sm">
-        <h3 className="mb-3 text-[13px] font-semibold text-[#27364c]">Activity — {range.label}</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div>
+        <h3 className="mb-2 text-[13px] font-semibold text-[#27364c]">Activity — {range.label}</h3>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-xl border border-[#e6eaf0] bg-white px-6 py-4 shadow-sm">
           {[
-            { label: 'Calls Made', value: overview?.activityInRange?.calls ?? 0, icon: Phone, color: 'text-blue-600' },
-            { label: 'SMS Sent', value: overview?.activityInRange?.sms ?? 0, icon: MessageSquare, color: 'text-violet-600' },
-            { label: 'Emails Sent', value: overview?.activityInRange?.emails ?? 0, icon: Mail, color: 'text-cyan-600' },
-            { label: 'Tasks Due Today', value: overview?.activityInRange?.tasksDue ?? 0, icon: ListChecks, color: 'text-amber-600' },
-            { label: 'Overdue', value: overview?.activityInRange?.overdueTasks ?? 0, icon: AlertTriangle, color: 'text-red-600' },
-            { label: 'New Leads', value: overview?.activityInRange?.newLeads ?? 0, icon: TrendingUp, color: 'text-emerald-600' },
+            { label: 'Calls Made', value: overview?.activityInRange?.calls ?? 0, icon: Phone },
+            { label: 'SMS Sent', value: overview?.activityInRange?.sms ?? 0, icon: MessageSquare },
+            { label: 'WhatsApp Sent', value: overview?.activityInRange?.whatsapp ?? 0, icon: MessageCircle },
+            { label: 'Emails Sent', value: overview?.activityInRange?.emails ?? 0, icon: Mail },
+            { label: 'Tasks Due', value: overview?.activityInRange?.tasksDue ?? 0, icon: Check },
+            { label: 'Overdue Tasks', value: overview?.activityInRange?.overdueTasks ?? 0, icon: AlertTriangle },
           ].map((a) => (
-            <div key={a.label} className="flex items-center gap-2.5">
-              <a.icon className={cn('h-4 w-4 shrink-0', a.color)} />
+            <div key={a.label} className="flex items-center gap-3">
+              <a.icon className="h-4 w-4 shrink-0 text-gray-500" />
               <div>
-                <p className="text-base font-bold text-gray-900">{a.value}</p>
-                <p className="text-[11px] text-gray-400">{a.label}</p>
+                <p className="text-[17px] font-bold leading-tight text-gray-900">{a.value}</p>
+                <p className="text-xs text-gray-500">{a.label}</p>
               </div>
             </div>
           ))}
@@ -418,14 +406,14 @@ export default function DashboardPage() {
         {agentFloor.length === 0 ? (
           <p className="py-6 text-center text-sm text-gray-400">No agents on the floor yet.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex max-w-2xl flex-col gap-2">
             {agentFloor.map((a) => {
               const meta = agentStatusMeta(a.status);
               const initials = a.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
               return (
-                <div key={a.userId} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2.5">
+                <div key={a.userId} className="flex items-center justify-between rounded-lg bg-[#f5f7fa] px-3 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[11px] font-bold text-blue-700 ring-1 ring-blue-200">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#142b52] text-[11px] font-bold text-white">
                       {initials}
                     </div>
                     <div>
@@ -433,7 +421,7 @@ export default function DashboardPage() {
                       <p className="text-[11px] capitalize text-gray-400">{a.role?.toLowerCase()}</p>
                     </div>
                   </div>
-                  <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold', meta.bg, meta.text)}>
+                  <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold', meta.bg === 'bg-gray-100' ? 'bg-white' : meta.bg, meta.text)}>
                     {a.status === 'BREAK' ? <Coffee className="h-3 w-3" /> : <Circle className="h-2 w-2 fill-current" />}
                     {meta.label}
                     {a.status === 'BREAK' && a.breakMinutes !== null && ` · ${a.breakMinutes}m`}
