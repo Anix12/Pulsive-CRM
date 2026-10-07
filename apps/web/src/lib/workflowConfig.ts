@@ -39,6 +39,48 @@ export const STEP_TYPES: StepOption[] = [
   { value: 'WEBHOOK', label: 'Webhook', icon: Webhook },
 ];
 
+export interface WorkflowExample {
+  id: string;
+  name: string;
+  description: string;
+  triggerType: string;
+  steps: { type: string; config: Record<string, string> }[];
+}
+
+export const WORKFLOW_EXAMPLES: WorkflowExample[] = [
+  {
+    id: 'new-lead-welcome',
+    name: 'Welcome a new lead',
+    description: 'Send a welcome email, then create a personal follow-up task.',
+    triggerType: 'CONTACT_CREATED',
+    steps: [
+      { type: 'SEND_EMAIL', config: { subject: 'Thanks for reaching out, {{name}}', body: 'Hi {{name}}, thanks for your interest. Our team will be in touch shortly.' } },
+      { type: 'CREATE_TASK', config: { subject: 'Follow up with new lead' } },
+    ],
+  },
+  {
+    id: 'follow-up-reminder',
+    name: 'Follow-up reminder',
+    description: 'Send a short SMS when a lead follow-up becomes due and add a call task.',
+    triggerType: 'FOLLOWUP_DUE',
+    steps: [
+      { type: 'SEND_SMS', config: { message: 'Hi {{name}}, just checking in. Is now a good time to talk?' } },
+      { type: 'CREATE_TASK', config: { subject: 'Call lead after follow-up message' } },
+    ],
+  },
+  {
+    id: 'stage-handoff',
+    name: 'Stage handoff',
+    description: 'Add context and prepare an agent assignment when a deal changes stage.',
+    triggerType: 'DEAL_STAGE_CHANGED',
+    steps: [
+      { type: 'ADD_NOTE', config: { note: 'Deal stage changed. Review recent activity before reaching out.' } },
+      { type: 'ASSIGN_AGENT', config: {} },
+      { type: 'CREATE_TASK', config: { subject: 'Contact lead after stage change' } },
+    ],
+  },
+];
+
 export function triggerLabel(type?: string) {
   return TRIGGER_TYPES.find((t) => t.value === type)?.label || type || 'Unknown trigger';
 }

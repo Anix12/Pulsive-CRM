@@ -2,11 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Zap, Play, Pause, Trash2 } from 'lucide-react';
+import { ArrowRight, Plus, Zap, Play, Pause, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { triggerLabel } from '@/lib/workflowConfig';
+import { stepMeta, triggerLabel, WORKFLOW_EXAMPLES } from '@/lib/workflowConfig';
 
 export default function WorkflowsPage() {
   const qc = useQueryClient();
@@ -39,6 +40,36 @@ export default function WorkflowsPage() {
           <Plus className="h-4 w-4" /> New Workflow
         </button>
       </div>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Example workflows</h2>
+          <p className="mt-1 text-xs text-gray-500">Choose an example to inspect and customize it as an inactive draft.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {WORKFLOW_EXAMPLES.map((example) => (
+            <article key={example.id} className="flex flex-col rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-gray-900">{example.name}</h3>
+              <p className="mt-1 min-h-10 text-xs leading-relaxed text-gray-500">{example.description}</p>
+              <p className="mt-3 text-[11px] font-medium text-gray-500">When: {triggerLabel(example.triggerType)}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {example.steps.map((step, index) => (
+                  <span key={`${step.type}-${index}`} className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+                    {index > 0 && <ArrowRight className="h-3 w-3 text-gray-300" />}
+                    {stepMeta(step.type)?.label || step.type}
+                  </span>
+                ))}
+              </div>
+              <Link
+                href={`/dashboard/workflows/new?example=${example.id}`}
+                className="mt-4 inline-flex items-center gap-1 self-start text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Try example <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-gray-500">Loading...</div>

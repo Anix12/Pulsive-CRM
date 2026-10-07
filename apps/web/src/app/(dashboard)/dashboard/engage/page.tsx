@@ -1,7 +1,5 @@
-import { FeatureHub } from '@/components/ui/FeatureHub';
-import { navSections } from '@/lib/navSections';
+import { UnifiedInbox } from '@/components/engage/UnifiedInbox';
 
 export default function Page() {
-  const section = navSections.find((s) => s.key === 'engage')!;
-  return <FeatureHub section={section} />;
+  return <UnifiedInbox />;
 }

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { TRIGGER_TYPES, STEP_TYPES, stepMeta } from '@/lib/workflowConfig';
+import { TRIGGER_TYPES, STEP_TYPES, stepMeta, WORKFLOW_EXAMPLES } from '@/lib/workflowConfig';
 import { Plus, Trash2, X } from 'lucide-react';
 
 interface StepInstance {
@@ -133,6 +133,21 @@ export default function NewWorkflowPage() {
   const [steps, setSteps] = useState<StepInstance[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const exampleId = new URLSearchParams(window.location.search).get('example');
+    const example = WORKFLOW_EXAMPLES.find((item) => item.id === exampleId);
+    if (!example) return;
+
+    setName(example.name);
+    setDescription(example.description);
+    setTriggerType(example.triggerType);
+    setSteps(example.steps.map((step) => ({
+      id: nextStepId(),
+      type: step.type,
+      config: { ...step.config },
+    })));
+  }, []);
 
   const { data: teamUsers = [] } = useQuery<any[]>({
     queryKey: ['team-users'],
