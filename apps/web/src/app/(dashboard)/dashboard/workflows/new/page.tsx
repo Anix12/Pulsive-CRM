@@ -145,6 +145,21 @@ function NewWorkflowForm() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const exampleId = new URLSearchParams(window.location.search).get('example');
+    const example = WORKFLOW_EXAMPLES.find((item) => item.id === exampleId);
+    if (!example) return;
+
+    setName(example.name);
+    setDescription(example.description);
+    setTriggerType(example.triggerType);
+    setSteps(example.steps.map((step) => ({
+      id: nextStepId(),
+      type: step.type,
+      config: { ...step.config },
+    })));
+  }, []);
+
   const { data: teamUsers = [] } = useQuery<any[]>({
     queryKey: ['team-users'],
     queryFn: async () => (await api.get('/api/v1/tenants/me/users')).data.data,
