@@ -13,6 +13,15 @@ import { Modal } from '@/components/ui/Modal';
 const channelBadge: Record<string, string> = {
   SMS: 'bg-blue-50 text-blue-700',
   WHATSAPP: 'bg-green-50 text-green-700',
+  SMS: 'bg-purple-50 text-purple-700',
+  EMAIL: 'bg-amber-50 text-amber-700',
+  CALL: 'bg-blue-50 text-blue-700',
+};
+
+const tempBadge: Record<Conversation['temperature'], string> = {
+  Hot: 'bg-red-50 text-red-700',
+  Warm: 'bg-amber-50 text-amber-700',
+  Cold: 'bg-blue-50 text-blue-700',
 };
 
 type InboxFilter = 'ALL' | 'UNREAD' | 'RECENT';
@@ -278,25 +287,129 @@ export default function MessagesPage() {
         </aside>
       </div>
 
-      {/* Connect number stub modal */}
-      <Modal open={connectOpen} onClose={() => setConnectOpen(false)} title="Connect a WhatsApp Number">
-        <div className="space-y-3">
-          <p className="text-sm text-gray-600">
-            Your workspace currently supports a single connected WhatsApp Business number, configured
-            once per tenant.
-          </p>
-          <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-            Multi-number support requires a WhatsApp Business API upgrade — contact support to add
-            additional numbers to your workspace.
-          </div>
-          <button
-            onClick={() => setConnectOpen(false)}
-            className="w-full rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+        <footer className="flex items-center gap-3 border-t border-border px-5 py-3">
+          <select
+            value={channel}
+            onChange={(e) => setChannel(e.target.value as SendChannel)}
+            className={cn(
+              'rounded-full border border-border px-3 py-2 text-xs font-medium focus:outline-none',
+              channelTag[channel],
+            )}
           >
-            Got it
+            <option value="WHATSAPP">WhatsApp</option>
+            <option value="SMS">SMS</option>
+            <option value="EMAIL">Email</option>
+          </select>
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && send()}
+            placeholder="Write a message..."
+            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+          />
+          <button
+            onClick={send}
+            disabled={!draft.trim()}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            <Send className="h-4 w-4" />
+            Send
+          </button>
+        </footer>
+      </section>
+
+      {/* Contact panel */}
+      <aside className="hidden w-72 flex-shrink-0 overflow-y-auto rounded-2xl bg-card shadow-sm ring-1 ring-border xl:block">
+        <Panel title="Contact">
+          <Field label="Phone" value={selected.phone} />
+          <Field label="Email" value={selected.email} />
+          <Field label="Company" value={selected.company} />
+          <Field label="Source" value={selected.source} />
+        </Panel>
+        <Panel title="Status">
+          <div className="flex gap-2">
+            <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-medium text-green-700">
+              {selected.status}
+            </span>
+            <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-medium', tempBadge[selected.temperature])}>
+              {selected.temperature}
+            </span>
+          </div>
+        </Panel>
+        <Panel title="Deal">
+          <Field label="Requirement" value={selected.deal.requirement} />
+          <Field label="Budget" value={selected.deal.budget} />
+          <Field label="Next follow-up" value={selected.deal.nextFollowUp} />
+        </Panel>
+        <div className="p-4">
+          <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted">
+            <Briefcase className="h-3.5 w-3.5" />
+            Handoff to Sales
           </button>
         </div>
-      </Modal>
+      </aside>
+    </div>
+  );
+}
+
+function ThreadCard({ item }: { item: ThreadItem }) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border bg-card p-4',
+        item.channel === 'CALL' ? 'border-primary ring-1 ring-primary/30' : 'border-border',
+      )}
+    >
+      <span className={cn('inline-block rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', channelTag[item.channel])}>
+        {channelLabel[item.channel]}
+      </span>
+
+      {item.channel === 'CALL' ? (
+        <>
+          <p className="mt-2 text-sm font-medium text-foreground">{item.callTitle}</p>
+          {item.aiSummary && (
+            <div className="mt-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">AI Summary</p>
+              <p className="mt-0.5 text-xs text-foreground">{item.aiSummary}</p>
+            </div>
+          )}
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{item.time}</span>
+            <span className="space-x-2">
+              <button className="font-medium text-primary hover:underline">Play recording</button>
+              <span>·</span>
+              <button className="font-medium text-primary hover:underline">View transcript</button>
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          {item.subject && <p className="mt-2 text-sm font-semibold text-foreground">{item.subject}</p>}
+          <p className={cn('text-sm text-foreground', item.subject ? 'mt-1' : 'mt-2')}>
+            {item.direction === 'OUTBOUND' && <span className="font-semibold">You: </span>}
+            {item.body}
+          </p>
+          <p className="mt-2 text-[11px] text-muted-foreground">{item.time}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3 border-b border-border p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="truncate text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }

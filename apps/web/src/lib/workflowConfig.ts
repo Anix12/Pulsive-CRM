@@ -43,40 +43,53 @@ export interface WorkflowExample {
   id: string;
   name: string;
   description: string;
-  triggerType: string;
+  trigger: string;
   steps: { type: string; config: Record<string, string> }[];
 }
 
+// Static starter workflows shown on the Workflows page. "Use this example"
+// opens /dashboard/workflows/new?example=<id> with these values prefilled.
 export const WORKFLOW_EXAMPLES: WorkflowExample[] = [
   {
-    id: 'new-lead-welcome',
-    name: 'Welcome a new lead',
-    description: 'Send a welcome email, then create a personal follow-up task.',
-    triggerType: 'CONTACT_CREATED',
+    id: 'welcome-new-leads',
+    name: 'Welcome new leads',
+    description: 'Greet every new lead right away, then remind your team to call them the next day.',
+    trigger: 'CONTACT_CREATED',
     steps: [
-      { type: 'SEND_EMAIL', config: { subject: 'Thanks for reaching out, {{name}}', body: 'Hi {{name}}, thanks for your interest. Our team will be in touch shortly.' } },
-      { type: 'CREATE_TASK', config: { subject: 'Follow up with new lead' } },
+      { type: 'SEND_SMS', config: { message: 'Hi {{name}}, thanks for your interest! We will call you shortly.' } },
+      { type: 'WAIT', config: { delayMinutes: '1440' } },
+      { type: 'CREATE_TASK', config: { subject: 'Call {{name}} - first follow-up' } },
     ],
   },
   {
-    id: 'follow-up-reminder',
+    id: 'followup-reminder',
     name: 'Follow-up reminder',
-    description: 'Send a short SMS when a lead follow-up becomes due and add a call task.',
-    triggerType: 'FOLLOWUP_DUE',
+    description: 'When a follow-up date arrives, email the lead and create a task so nothing is missed.',
+    trigger: 'FOLLOWUP_DUE',
     steps: [
-      { type: 'SEND_SMS', config: { message: 'Hi {{name}}, just checking in. Is now a good time to talk?' } },
-      { type: 'CREATE_TASK', config: { subject: 'Call lead after follow-up message' } },
+      { type: 'SEND_EMAIL', config: { subject: 'Following up, {{name}}', body: 'Hi {{name}}, just checking in on our last conversation. Is now a good time to talk?' } },
+      { type: 'CREATE_TASK', config: { subject: 'Follow up with {{name}}' } },
     ],
   },
   {
-    id: 'stage-handoff',
-    name: 'Stage handoff',
-    description: 'Add context and prepare an agent assignment when a deal changes stage.',
-    triggerType: 'DEAL_STAGE_CHANGED',
+    id: 'auto-assign-leads',
+    name: 'Auto-assign new leads',
+    description: 'Give every new lead an owner immediately and leave a note. Pick the agent after loading the example.',
+    trigger: 'CONTACT_CREATED',
     steps: [
-      { type: 'ADD_NOTE', config: { note: 'Deal stage changed. Review recent activity before reaching out.' } },
       { type: 'ASSIGN_AGENT', config: {} },
-      { type: 'CREATE_TASK', config: { subject: 'Contact lead after stage change' } },
+      { type: 'ADD_NOTE', config: { note: 'Lead auto-assigned by workflow.' } },
+    ],
+  },
+  {
+    id: 're-engage-leads',
+    name: 'Re-engage quiet leads',
+    description: 'After a lead changes stage, wait a few days and nudge them, then ask an agent to follow up.',
+    trigger: 'DEAL_STAGE_CHANGED',
+    steps: [
+      { type: 'WAIT', config: { delayMinutes: '4320' } },
+      { type: 'SEND_SMS', config: { message: 'Hi {{name}}, any questions we can help with? Happy to chat.' } },
+      { type: 'CREATE_TASK', config: { subject: 'Re-engage {{name}}' } },
     ],
   },
 ];

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -127,8 +128,13 @@ function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) 
 }
 
 export default function TeamPage() {
+  const searchParams = useSearchParams();
   const [inviteOpen, setInviteOpen] = useState(false);
   const qc = useQueryClient();
+
+  useEffect(() => {
+    if (searchParams.get('invite') === '1') setInviteOpen(true);
+  }, [searchParams]);
 
   const { data: users, isLoading } = useQuery<TeamUser[]>({
     queryKey: ['team-users'],
